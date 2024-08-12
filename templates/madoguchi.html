@@ -34,8 +34,8 @@
 
         .chat-input {
             display: flex;
-            align-items: center;
-            margin-top: auto;
+            align-items: flex-start;
+            /* align-itemsの値をflex-startに変更 */
         }
 
         .chat-message {
@@ -258,14 +258,18 @@
         }
 
         .btn-info {
+            align-self: flex-end;
+            /* 送信ボタンの位置をテキストエリアの底に揃える */
+            height: 45px;
             background-color: cadetblue;
-            ;
             margin-right: 5px;
         }
 
         .btn-file {
+            align-self: flex-end;
+            /* 送信ボタンの位置をテキストエリアの底に揃える */
+            height: 45px;
             background-color: rgb(74, 218, 218);
-            ;
         }
 
         #add_file:hover {
@@ -273,6 +277,10 @@
         }
 
         .btn-chat {
+            align-self: flex-end;
+            /* 送信ボタンの位置をテキストエリアの底に揃える */
+            height: 45px;
+            /* 送信ボタンの高さを固定 */
             background-color: forestgreen;
             width: 100px;
         }
@@ -309,9 +317,21 @@
         }
 
         textarea#message {
+            flex-grow: 1;
+            /* テキストエリアが他の要素とバランスを取るために成長するように */
+            margin-right: 10px;
+            /* テキストエリアと送信ボタンの間に余白を追加 */
             background-color: #d0ffdf;
             /* Change this to your desired color */
             border: none;
+        }
+
+        .original-btn {
+            height: 45px;
+            /* 他のボタンの高さも固定 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .btn:focus,
@@ -319,6 +339,26 @@
         .form-control:focus {
             outline: none;
             box-shadow: none;
+        }
+
+        /*テキストエリアの大きさ*/
+        textarea {
+            overflow-y: auto;
+            /* スクロール可能にする */
+            resize: none;
+            max-height: 200px;
+            /* 上限の高さを設定 */
+        }
+
+        textarea#message {
+            background-color: #d0ffdf;
+            /* 背景色を設定 */
+            border: none;
+        }
+
+        /* 新しいスタイルを追加 */
+        textarea#message:focus {
+            height: auto;
         }
     </style>
 </head>
@@ -448,62 +488,48 @@
 
 
     <script>
-        document.getElementById('sendButton1').addEventListener('click', function () {
-            const chatInput = document.getElementById('chatInput1');
+        document.getElementById('chat-form').addEventListener('submit', function (event) {
+            event.preventDefault(); // フォームのデフォルトの送信動作を防ぐ
+            const messageInput = document.getElementById('message');
             const chatMessages = document.getElementById('chatMessages1');
 
-            if (chatInput.value.trim() !== '') {
+            if (messageInput.value.trim() !== '') {
                 const userMessage = document.createElement('div');
                 userMessage.classList.add('chat-message', 'user');
-                userMessage.innerText = chatInput.value;
+                userMessage.innerText = messageInput.value;
                 chatMessages.appendChild(userMessage);
 
-                // Clear the input field
-                chatInput.value = '';
+                // メッセージをサーバーに送信
+                fetch('/send_message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message: messageInput.value })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        const botMessage = document.createElement('div');
+                        botMessage.classList.add('chat-message', 'bot');
+                        botMessage.innerText = data.response;
+                        chatMessages.appendChild(botMessage);
 
-                // Simulate bot response
-                setTimeout(() => {
-                    const botMessage = document.createElement('div');
-                    botMessage.classList.add('chat-message', 'bot');
-                    botMessage.innerText = 'This is a simulated bot response.';
-                    chatMessages.appendChild(botMessage);
+                        // チャットを一番下までスクロール
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    });
 
-                    // Scroll to the bottom of the chat
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
-                }, 1000);
+                // 入力フィールドをクリアし、サイズを元に戻す
+                messageInput.value = '';
+                messageInput.style.height = 'auto';
+                messageInput.style.height = '1em'; // 初期サイズに戻す
+                // チャットを一番下までスクロール
+                chatMessages.scrollTop = chatMessages.scrollHeight;
             }
-
-            // Scroll to the bottom of the chat
-            chatMessages.scrollTop = chatMessages.scrollHeight;
         });
 
-        document.getElementById('sendButton2').addEventListener('click', function () {
-            const chatInput = document.getElementById('chatInput2');
-            const chatMessages = document.getElementById('chatMessages2');
-
-            if (chatInput.value.trim() !== '') {
-                const userMessage = document.createElement('div');
-                userMessage.classList.add('chat-message', 'user');
-                userMessage.innerText = chatInput.value;
-                chatMessages.appendChild(userMessage);
-
-                // Clear the input field
-                chatInput.value = '';
-
-                // Simulate bot response
-                setTimeout(() => {
-                    const botMessage = document.createElement('div');
-                    botMessage.classList.add('chat-message', 'bot');
-                    botMessage.innerText = 'This is a simulated bot response.';
-                    chatMessages.appendChild(botMessage);
-
-                    // Scroll to the bottom of the chat
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
-                }, 1000);
-            }
-
-            // Scroll to the bottom of the chat
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+        document.getElementById('message').addEventListener('input', function () {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
         });
 
 
