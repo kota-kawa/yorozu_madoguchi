@@ -6,6 +6,7 @@
 *.exe
 *.dll
 *.txt
+*.pdf
 *.Identifier
 # ログファイルを無視
 *.log

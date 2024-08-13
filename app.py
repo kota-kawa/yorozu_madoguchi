@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify
+import llama_core
 
 app = Flask(__name__)
 
@@ -10,10 +11,11 @@ def home():
 # メッセージを受け取り、レスポンスを返すエンドポイント
 @app.route('/send_message', methods=['POST'])
 def send_message():
-    user_message = request.json.get('message')
+    prompt = request.json.get('message')
     # ここにサーバー側のロジックを追加する（例: チャットボットの応答生成）
-    bot_response = f"サーバーからの応答: {user_message} !!"
-    return jsonify({'response': bot_response})
+    #bot_response = f"サーバーからの応答: {user_message} !!"
+    response = llama_core.chat_with_llama(prompt)
+    return jsonify({'response': response})
 
 if __name__ == '__main__':
     app.run(debug=True)
