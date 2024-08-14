@@ -36,7 +36,8 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            margin-top: 20px; /* 必要に応じて調整 */
+            margin-top: 20px;
+            /* 必要に応じて調整 */
         }
 
 
@@ -114,6 +115,7 @@
             background-color: #6918ac;
             color: white;
         }
+
         .btn-no:hover {
             background-color: #7226ff;
             transform: scale(1.2);
@@ -123,6 +125,7 @@
             background-color: #ffff00;
             color: black;
         }
+
         .btn-yes:hover {
             background-color: #1fec52;
             transform: scale(1.2);
@@ -388,11 +391,11 @@
                 <div class="chat-message bot">
                     旅行先は北海道ですか？
                     <div class="button-container">
-                        <button class="btn btn-yes mb-2 mx-3">Yes   <i class="bi bi-hand-thumbs-up-fill"></i></button>
-                        <button class="btn btn-no mb-2 mx-3">No   <i class="bi bi-hand-thumbs-down-fill"></i></button>
+                        <button class="btn btn-yes mb-2 mx-3">Yes <i class="bi bi-hand-thumbs-up-fill"></i></button>
+                        <button class="btn btn-no mb-2 mx-3">No <i class="bi bi-hand-thumbs-down-fill"></i></button>
                     </div>
                 </div>
-                
+
             </div>
             <div class="card-footer">
                 <!--
@@ -431,75 +434,7 @@
                 <h1>決定している状況</h1>
             </div>
             <div class="card-body chat-messages" id="chatMessages2">
-                <ul>
-                    <li>ユーザー情報
-                        <ul>
-                            <li>名前</li>
-                            <li>連絡先（電話番号、メールアドレス）</li>
-                            <li>パスポート情報（海外旅行の場合）</li>
-                        </ul>
-                    </li>
-                    <li>旅行先情報
-                        <ul>
-                            <li>目的地</li>
-                            <li>出発地</li>
-                            <li>日程（出発日、帰着日）</li>
-                            <li>滞在先（ホテルや宿泊施設の予約情報）</li>
-                        </ul>
-                    </li>
-                    <li>交通手段
-                        <ul>
-                            <li>フライト情報（航空会社、便名、出発・到着時間）</li>
-                            <li>鉄道・バスの予約情報</li>
-                            <li>レンタカーの手配</li>
-                        </ul>
-                    </li>
-                    <li>宿泊情報
-                        <ul>
-                            <li>宿泊施設の名前、住所、連絡先</li>
-                            <li>チェックイン・チェックアウト日時</li>
-                            <li>部屋の種類と料金</li>
-                        </ul>
-                    </li>
-                    <li>旅行プラン
-                        <ul>
-                            <li>観光スポットやアクティビティの予約</li>
-                            <li>ガイドツアーの手配</li>
-                            <li>レストランの予約</li>
-                        </ul>
-                    </li>
-                    <li>支払い情報
-                        <ul>
-                            <li>支払い方法（クレジットカード、デビットカード、オンライン決済）</li>
-                            <li>支払い明細</li>
-                            <li>キャンセルポリシーと返金手続き</li>
-                        </ul>
-                    </li>
-                    <li>保険
-                        <ul>
-                            <li>旅行保険の加入情報</li>
-                            <li>緊急連絡先</li>
-                        </ul>
-                    </li>
-                    <li>ビザ・渡航条件
-                        <ul>
-                            <li>渡航先のビザ情報</li>
-                            <li>渡航条件（予防接種や健康証明）</li>
-                        </ul>
-                    </li>
-                    <li>カスタマーサポート
-                        <ul>
-                            <li>サポート連絡先</li>
-                            <li>FAQやチャットボットの設置</li>
-                        </ul>
-                    </li>
-                    <li>プライバシーとセキュリティ
-                        <ul>
-                            <li>個人情報保護方針</li>
-                            <li>データセキュリティ対策</li>
-                        </ul>
-                    </li>
-                </ul>
+                
             </div>
             <div class="card-footer">
                 <div class="bottom-right-content">
@@ -515,6 +450,7 @@
             event.preventDefault(); // フォームのデフォルトの送信動作を防ぐ
             const messageInput = document.getElementById('message');
             const chatMessages = document.getElementById('chatMessages1');
+            const currentPlanContainer = document.getElementById('chatMessages2'); 
 
             if (messageInput.value.trim() !== '') {
                 const userMessage = document.createElement('div');
@@ -536,6 +472,21 @@
                         botMessage.classList.add('chat-message', 'bot');
                         botMessage.innerText = data.response;
                         chatMessages.appendChild(botMessage);
+
+
+                        if(data.response_type == "yes") {
+                            console.log(data.response_type)
+                        }
+                        else if(data.response_type == "no") {
+                            console.log(data.response_type)
+                        }
+
+                        current_plan = data.current_plan;
+                        // current_plan のデータを表示・更新
+                        currentPlanContainer.innerHTML = ''; // 既存の内容をクリア
+                        const planMessage = document.createElement('a');
+                        planMessage.innerText = data.current_plan;
+                        currentPlanContainer.appendChild(planMessage);
 
                         // チャットを一番下までスクロール
                         chatMessages.scrollTop = chatMessages.scrollHeight;
