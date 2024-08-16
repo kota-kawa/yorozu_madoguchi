@@ -71,8 +71,8 @@
             border: 10px solid transparent;
             border-top-color: #d1e7dd;
             border-bottom: 0;
-            border-left: 0;
-            margin-right: -5px;
+            border-right: 0;
+            margin-left: -5px;
             margin-bottom: -10px;
         }
 
@@ -92,8 +92,8 @@
             border: 10px solid transparent;
             border-top-color: #e2e3e5;
             border-bottom: 0;
-            border-right: 0;
-            margin-left: -5px;
+            border-left: 0;
+            margin-right: -5px;
             margin-bottom: -10px;
         }
 
@@ -328,22 +328,7 @@
             }
         }
 
-        textarea {
-            overflow-y: hidden;
-            resize: none;
-            max-height: 200px;
-            /* 上限の高さを設定 */
-        }
 
-        textarea#message {
-            flex-grow: 1;
-            /* テキストエリアが他の要素とバランスを取るために成長するように */
-            margin-right: 10px;
-            /* テキストエリアと送信ボタンの間に余白を追加 */
-            background-color: #d0ffff;
-            /* Change this to your desired color*/
-            border: none;
-        }
 
         .original-btn {
             height: 45px;
@@ -365,7 +350,7 @@
             overflow-y: auto;
             /* スクロール可能にする */
             resize: none;
-            max-height: 200px;
+            max-height: 250px;
             /* 上限の高さを設定 */
         }
 
@@ -389,15 +374,16 @@
             <div class="card-body chat-messages" id="chatMessages1">
                 <!-- ここにチャットの内容が表示される -->
                 <div class="chat-message bot">
-                    旅行先は北海道ですか？
-                    <div class="button-container">
-                        <button class="btn btn-yes mb-2 mx-3">はい <i class="bi bi-hand-thumbs-up-fill"></i></button>
-                        <button class="btn btn-no mb-2 mx-3">いいえ <i class="bi bi-hand-thumbs-down-fill"></i></button>
-                    </div>
+                    さあ！楽しい旅行を気軽に計画しましょう！😊
                 </div>
 
             </div>
             <div class="card-footer">
+                <div id="info-options" class="info-text" style="width: 90%;">
+                    <div class="option">・どこに行くのがおすすめ？</div>
+                    <div class="option">・どんな有名スポットがある？</div>
+                    <div class="option">・落ち着ける場所はある？</div>
+                </div>
                 <div class="chat-input">
                     <button type="button" id="information" class="btn-info original-btn"><i
                             class="bi bi-info-circle-fill"></i></button>
@@ -555,7 +541,10 @@
             this.style.height = (this.scrollHeight) + 'px';
         });
 
-
+        document.getElementById('information').addEventListener('click', function () {
+        const infoOptions = document.getElementById('info-options');
+        infoOptions.style.display = infoOptions.style.display === 'none' ? 'block' : 'none';
+    });
 
 
     </script>
