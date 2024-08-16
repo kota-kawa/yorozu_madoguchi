@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 import llama_core
+import reservation
 
 app = Flask(__name__)
 
@@ -16,6 +17,11 @@ def send_message():
     #bot_response = f"サーバーからの応答: {user_message} !!"
     response, current_plan, yes_no_phrase, remaining_text = llama_core.chat_with_llama(prompt)
     return jsonify({'response': response, 'current_plan': current_plan,'yes_no_phrase': yes_no_phrase,'remaining_text': remaining_text})
+
+@app.route('/submit_plan', methods=['POST'])
+def submit_plan():
+    compile = reservation.complete_plan()
+    return 'complete'
 
 if __name__ == '__main__':
     app.run(debug=True)

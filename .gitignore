@@ -4,6 +4,7 @@
 *.service
 *.sock
 *.exe
+*.xlsx
 *.dll
 *.txt
 *.pdf
@@ -18,6 +19,7 @@ Thumbs.db
 .vscode/
 
 cut.py
+excel_test.py
 venv/
 gemie/
 # ビルドディレクトリを無視

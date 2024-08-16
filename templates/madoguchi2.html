@@ -483,7 +483,7 @@
         });
 
 
-
+        //Yes/Noボタンのデータ送信
         function handleButtonClick(response) {
             const messageInput = document.getElementById('message');
             const chatMessages = document.getElementById('chatMessages1');
@@ -535,12 +535,39 @@
         }
 
 
+        //決定ボタンのデータ送信
+        document.getElementById('sendBu').addEventListener('click', function () {
+        const currentPlanContainer = document.getElementById('chatMessages2');
+        const currentPlan = currentPlanContainer.innerText.trim();
+
+        if (currentPlan !== '') {
+            fetch('/submit_plan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ plan: currentPlan })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Plan submitted successfully:', data);
+                // 必要であれば、ここに追加の処理を記載します
+            })
+            .catch(error => {
+                console.error('Error submitting plan:', error);
+            });
+        } else {
+            console.warn('No plan to submit.');
+        }
+    });
+
 
         document.getElementById('message').addEventListener('input', function () {
             this.style.height = 'auto';
             this.style.height = (this.scrollHeight) + 'px';
         });
 
+        //チャット案の表示
         document.getElementById('information').addEventListener('click', function () {
         const infoOptions = document.getElementById('info-options');
         infoOptions.style.display = infoOptions.style.display === 'none' ? 'block' : 'none';
