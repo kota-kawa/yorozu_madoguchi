@@ -280,7 +280,7 @@
             align-self: flex-end;
             /* 送信ボタンの位置をテキストエリアの底に揃える */
             height: 45px;
-            background-color: cadetblue;
+            background-color: rgb(84, 157, 160);
             margin-right: 5px;
         }
 
@@ -300,7 +300,7 @@
             /* 送信ボタンの位置をテキストエリアの底に揃える */
             height: 45px;
             /* 送信ボタンの高さを固定 */
-            background-color: forestgreen;
+            background-color: rgb(26, 144, 173);
             width: 100px;
         }
 
@@ -340,8 +340,8 @@
             /* テキストエリアが他の要素とバランスを取るために成長するように */
             margin-right: 10px;
             /* テキストエリアと送信ボタンの間に余白を追加 */
-            background-color: #d0ffdf;
-            /* Change this to your desired color */
+            background-color: #d0ffff;
+            /* Change this to your desired color*/
             border: none;
         }
 
@@ -370,8 +370,8 @@
         }
 
         textarea#message {
-            background-color: #d0ffdf;
-            /* 背景色を設定 */
+            background-color: #d0fffd;
+            /* 背景色を設定 #d0ffdf;*/
             border: none;
         }
 
@@ -391,24 +391,13 @@
                 <div class="chat-message bot">
                     旅行先は北海道ですか？
                     <div class="button-container">
-                        <button class="btn btn-yes mb-2 mx-3">Yes <i class="bi bi-hand-thumbs-up-fill"></i></button>
-                        <button class="btn btn-no mb-2 mx-3">No <i class="bi bi-hand-thumbs-down-fill"></i></button>
+                        <button class="btn btn-yes mb-2 mx-3">はい <i class="bi bi-hand-thumbs-up-fill"></i></button>
+                        <button class="btn btn-no mb-2 mx-3">いいえ <i class="bi bi-hand-thumbs-down-fill"></i></button>
                     </div>
                 </div>
 
             </div>
             <div class="card-footer">
-                <!--
-                <div class="question-card">
-                    <button class="arrow-left"><i class="bi bi-arrow-left-circle-fill"></i></button>
-                    <button class="arrow-right"><i class="bi bi-arrow-right-circle-fill"></i></button>
-
-                    旅行先は北海道ですか？
-                    <div>
-                        <button class="btn btn-no">No</button>
-                        <button class="btn btn-yes">Yes</button>
-                    </div>
-                </div>-->
                 <div class="chat-input">
                     <button type="button" id="information" class="btn-info original-btn"><i
                             class="bi bi-info-circle-fill"></i></button>
@@ -434,7 +423,7 @@
                 <h1>決定している状況</h1>
             </div>
             <div class="card-body chat-messages" id="chatMessages2">
-                
+
             </div>
             <div class="card-footer">
                 <div class="bottom-right-content">
@@ -450,14 +439,13 @@
             event.preventDefault(); // フォームのデフォルトの送信動作を防ぐ
             const messageInput = document.getElementById('message');
             const chatMessages = document.getElementById('chatMessages1');
-            const currentPlanContainer = document.getElementById('chatMessages2'); 
+            const currentPlanContainer = document.getElementById('chatMessages2');
 
             if (messageInput.value.trim() !== '') {
                 const userMessage = document.createElement('div');
                 userMessage.classList.add('chat-message', 'user');
                 userMessage.innerText = messageInput.value;
                 chatMessages.appendChild(userMessage);
-
                 // メッセージをサーバーに送信
                 fetch('/send_message', {
                     method: 'POST',
@@ -470,17 +458,24 @@
                     .then(data => {
                         const botMessage = document.createElement('div');
                         botMessage.classList.add('chat-message', 'bot');
-                        botMessage.innerText = data.response;
+                        botMessage.innerText = data.remaining_text;
                         chatMessages.appendChild(botMessage);
+                        // dataオブジェクトが存在するか確認
+                        if (data.yes_no_phrase != null) {
+                            // HTML要素を生成する
+                            console.log("nullではなく: ");
+                            const chatMessage = document.createElement('div');
+                            chatMessage.className = 'chat-message bot';
+                            chatMessage.innerHTML = `
+                            ${data.yes_no_phrase}
+                                <div class="button-container">
+                                    <button class="btn btn-yes mb-2 mx-3" onclick="handleButtonClick('はい')">Yes <i class="bi bi-hand-thumbs-up-fill"></i></button>
+                                    <button class="btn btn-no mb-2 mx-3" onclick="handleButtonClick('いいえ')">No <i class="bi bi-hand-thumbs-down-fill"></i></button>
+                                </div>
 
-
-                        if(data.response_type == "yes") {
-                            console.log(data.response_type)
+                            `;
+                            chatMessages.appendChild(chatMessage);
                         }
-                        else if(data.response_type == "no") {
-                            console.log(data.response_type)
-                        }
-
                         current_plan = data.current_plan;
                         // current_plan のデータを表示・更新
                         currentPlanContainer.innerHTML = ''; // 既存の内容をクリア
@@ -501,10 +496,66 @@
             }
         });
 
+
+
+        function handleButtonClick(response) {
+            const messageInput = document.getElementById('message');
+            const chatMessages = document.getElementById('chatMessages1');
+            const currentPlanContainer = document.getElementById('chatMessages2');
+
+            const userMessage = document.createElement('div');
+            userMessage.classList.add('chat-message', 'user');
+            userMessage.innerText = response;
+            chatMessages.appendChild(userMessage);
+
+            fetch('/send_message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message: response })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    const botMessage = document.createElement('div');
+                    botMessage.classList.add('chat-message', 'bot');
+                    botMessage.innerText = data.remaining_text;
+                    chatMessages.appendChild(botMessage);
+
+                    if (data.yes_no_phrase != null) {
+                        console.log("nullではなく: ");
+                        const chatMessage = document.createElement('div');
+                        chatMessage.className = 'chat-message bot';
+                        chatMessage.innerHTML = `
+                    ${data.yes_no_phrase}
+                    <div class="button-container">
+                        <button class="btn btn-yes mb-2 mx-3" onclick="handleButtonClick('はい')">Yes <i class="bi bi-hand-thumbs-up-fill"></i></button>
+                        <button class="btn btn-no mb-2 mx-3" onclick="handleButtonClick('いいえ')">No <i class="bi bi-hand-thumbs-down-fill"></i></button>
+                    </div>
+                `;
+                        chatMessages.appendChild(chatMessage);
+                    }
+
+                    current_plan = data.current_plan;
+                    currentPlanContainer.innerHTML = '';
+                    const planMessage = document.createElement('a');
+                    planMessage.innerText = data.current_plan;
+                    currentPlanContainer.appendChild(planMessage);
+
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                });
+
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+
+
         document.getElementById('message').addEventListener('input', function () {
             this.style.height = 'auto';
             this.style.height = (this.scrollHeight) + 'px';
         });
+
+
 
 
     </script>

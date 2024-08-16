@@ -17,6 +17,7 @@
 Thumbs.db
 .vscode/
 
+cut.py
 venv/
 gemie/
 # ビルドディレクトリを無視
