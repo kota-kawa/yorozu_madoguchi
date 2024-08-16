@@ -1,9 +1,17 @@
 import re
 from groq import Groq
+from dotenv import load_dotenv
+import os
+
+# .envファイルの読み込み
+load_dotenv()
+
+# 環境変数の値を取得
+groq_api_key = os.getenv("GROQ_API_KEY")
 
 # Groqクライアントの初期化
 client = Groq(
-    api_key="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",  # 必要に応じてAPIキーを設定
+    api_key = groq_api_key,  # 必要に応じてAPIキーを設定
 )
 
 # チャットコンプリーションの生成
