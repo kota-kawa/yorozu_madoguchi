@@ -56,7 +56,7 @@ def run_qa_chain(message, retriever, chat_history):
     system_prompt = (
         "あなたは旅行の予定を立てるアシスタントです。 また、あなたは日本人なので、日本語で回答してください。必ず日本語で。"
         #"マニュアルの選択肢の内容を元に、ユーザーの要求に合うように計画を立ててください。"
-        "目的地、出発地、滞在開始日、滞在終了日は確実に決めて。目的地、出発地、滞在開始日、滞在終了日の提案はせずに、ユーザに入力させて。"
+        "目的地、出発地、滞在開始日、滞在終了日は確実に決めて。目的地、出発地、滞在開始日、滞在終了日の提案はせずに、ユーザに入力させて。（おすすめを聞かれたときには答えて）"
         "\n\n"
         "もしも会話の状況を見て、ユーザーに対して「はい/いいえ」で回答してもらいたい場合には、「Yes/No:〇〇にしますか？」と全く同じ形式で出力して。Yes/No形式の質問の頻度は2回に1回まで!絶対!"
         "{context}"
@@ -104,6 +104,11 @@ def run_qa_chain(message, retriever, chat_history):
     if "Yes/No" in response:
         # 関数を使って抽出
         response, yes_no_phrase, remaining_text = extract_and_split_text(response)
+        # remaining_textが空だったとき
+        if not remaining_text.strip():
+            # remaining_textが空または空白文字のみの場合の処理
+            print("残りのテキストがありません。デフォルト値を設定します。")
+            remaining_text = "Empty"
     else:
         remaining_text = response
 

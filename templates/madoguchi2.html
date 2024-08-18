@@ -409,6 +409,7 @@
                     <div class="option">・どこに行くのがおすすめ？</div>
                     <div class="option">・どんな有名スポットがある？</div>
                     <div class="option">・落ち着ける場所はある？</div>
+                    <div class="option">・！（Yes,Noと選択肢が出てきた場合にも、無視して入力できます。）</div>
                 </div>
                 <div class="chat-input">
                     <button type="button" id="information" class="btn-info original-btn"><i
@@ -468,10 +469,15 @@
                 })
                     .then(response => response.json())
                     .then(data => {
-                        const botMessage = document.createElement('div');
-                        botMessage.classList.add('chat-message', 'bot');
-                        botMessage.innerText = data.remaining_text;
-                        chatMessages.appendChild(botMessage);
+
+
+                        if (data.remaining_text != 'Empty') {
+                            console.log("本来はnullの時には表示されない", data.remaining_text);
+                            const botMessage = document.createElement('div');
+                            botMessage.classList.add('chat-message', 'bot');
+                            botMessage.innerText = data.remaining_text;
+                            chatMessages.appendChild(botMessage);
+                        }
                         // dataオブジェクトが存在するか確認
                         if (data.yes_no_phrase != null) {
                             // HTML要素を生成する
@@ -529,10 +535,14 @@
             })
                 .then(response => response.json())
                 .then(data => {
-                    const botMessage = document.createElement('div');
-                    botMessage.classList.add('chat-message', 'bot');
-                    botMessage.innerText = data.remaining_text;
-                    chatMessages.appendChild(botMessage);
+                    if (data.remaining_text != 'Empty') {
+                        console.log("本来はnullの時には表示されない", data.remaining_text);
+                        const botMessage = document.createElement('div');
+                        botMessage.classList.add('chat-message', 'bot');
+                        botMessage.innerText = data.remaining_text;
+                        chatMessages.appendChild(botMessage);
+                    }
+
 
                     if (data.yes_no_phrase != null) {
                         console.log("nullではなく: ");
