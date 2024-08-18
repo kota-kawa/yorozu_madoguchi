@@ -85,23 +85,24 @@ def run_qa_chain(message, retriever, chat_history):
         # "Yes/No:"と"？"の位置を見つける
         yes_no_start = text.find('Yes/No:')
         if yes_no_start == -1:
-            return None, text  # "Yes/No:"が見つからない場合は全体を返す
-
-        question_end = text.find('？', yes_no_start)
-        question_end_half = text.find('?', yes_no_start)
+            return text, None, None  # "Yes/No:"が見つからない場合は全体を返す
+        #?が全角の場合
+        question_full = text.find('？', yes_no_start)
+        #?が半角の場合
+        question_half = text.find('?', yes_no_start)
             # 有効な位置を選択
-        if question_end == -1 and question_end_half == -1:
-            return None, text  # 両方の"？"が見つからない場合は全体を返す
+        if question_full == -1 and question_half == -1:
+            return text, None, None  # 両方の"？"が見つからない場合は全体を返す
 
         # "Yes/No:"部分の抽出
-        yes_no_phrase = text[yes_no_start + len('Yes/No:'):question_end + 1]
+        yes_no_phrase = text[yes_no_start + len('Yes/No:'):question_full + 1]
 
         # "Yes/No:"部分を除いた残りの文章
-        remaining_text = text[:yes_no_start] + text[question_end + 1:]
+        remaining_text = text[:yes_no_start] + text[question_full + 1:]
 
         return response, yes_no_phrase, remaining_text
 
-    # Yas/No形式の質問だった場合
+    # Yes/No形式の質問だった場合
     if "Yes/No" in response:
         # 関数を使って抽出
         response, yes_no_phrase, remaining_text = extract_and_split_text(response)
@@ -118,10 +119,18 @@ def run_qa_chain(message, retriever, chat_history):
 #　決定している事項をテキストファイルに書き込む
 def write_decision_txt(chat_history):
     file_path = "./decision.txt"
+    default_message = "決定している項目がありません。"
     message = "決定している項目のみを抽出してください、説明などは一切必要ありません"
     # ファイルを読み込む
     with open(file_path, 'r', encoding='utf-8') as file:
         content = file.read()
+    
+    # ファイルが空の場合は、デフォルトメッセージを書き込む
+    if not content.strip():
+        with open(file_path, 'w', encoding='utf-8') as file:
+            file.write(default_message)
+            return default_message
+
     decision_index = create_faiss_index(content)
     # Groqのチャットモデルを初期化する
     groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama3-70b-8192")

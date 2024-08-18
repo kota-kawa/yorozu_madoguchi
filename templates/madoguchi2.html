@@ -7,6 +7,7 @@
     <title>ChatGPT-like Chat App</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <style>
         .chat-container {
             display: flex;
@@ -400,7 +401,7 @@
             <div class="card-body chat-messages" id="chatMessages1">
                 <!-- ここにチャットの内容が表示される -->
                 <div class="chat-message bot">
-                    さあ！楽しい旅行を気軽に計画しましょう！😊
+                    どんな計画を一緒に立てますか？😊
                 </div>
 
             </div>
@@ -409,7 +410,7 @@
                     <div class="option">・どこに行くのがおすすめ？</div>
                     <div class="option">・どんな有名スポットがある？</div>
                     <div class="option">・落ち着ける場所はある？</div>
-                    <div class="option">・！（Yes,Noと選択肢が出てきた場合にも、無視して入力できます。）</div>
+                    <div class="option">・(Yes/No:と選択肢が出てきた場合にも、無視して入力できます。)</div>
                 </div>
                 <div class="chat-input">
                     <button type="button" id="information" class="btn-info original-btn"><i
