@@ -12,7 +12,7 @@ def home():
 @app.route('/complete')
 def complete():
     reservation_data = []
-    with open('reservation_plan.csv', 'r', encoding='utf-8-sig') as file:
+    with open('./reservation_plan.csv', 'r', encoding='utf-8-sig') as file:
         lines = file.readlines()
         for line in lines:
             row = line.strip().split(',')

@@ -42,7 +42,7 @@ def create_faiss_index(text):
     return retriever
 
 # PDFファイルを処理してテキストを抽出する
-pdf_file = "travel_choice.pdf"
+pdf_file = "./travel_choice.pdf"
 text = process_pdf(pdf_file)
 # テキストからFAISSインデックスを作成する
 retriever = create_faiss_index(text)
@@ -117,7 +117,7 @@ def run_qa_chain(message, retriever, chat_history):
 
 #　決定している事項をテキストファイルに書き込む
 def write_decision_txt(chat_history):
-    file_path = "decision.txt"
+    file_path = "./decision.txt"
     message = "決定している項目のみを抽出してください、説明などは一切必要ありません"
     # ファイルを読み込む
     with open(file_path, 'r', encoding='utf-8') as file:
@@ -183,7 +183,7 @@ def save_chat_history(file_path, chat_history):
 # メインのプログラムにLLMの結果を返す
 def chat_with_llama(prompt):
     # チャット履歴を読み込む
-    chat_history_file = "chat_history.txt"
+    chat_history_file = "./chat_history.txt"
     chat_history = load_chat_history(chat_history_file)
     # 入力メッセージを追加してQAチェーンを実行する
     message = prompt

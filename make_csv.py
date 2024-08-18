@@ -14,7 +14,7 @@ def write_reservation_plan(destinations, departure, hotel, airlines, railway, ta
     ]
 
     # CSVファイルに書き込む
-    with open('reservation_plan.csv', mode='w', newline='', encoding='utf-8-sig') as file:
+    with open('./reservation_plan.csv', mode='w', newline='', encoding='utf-8-sig') as file:
         writer = csv.writer(file)
         writer.writerows(data)
 
