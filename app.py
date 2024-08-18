@@ -11,10 +11,21 @@ def home():
 
 @app.route('/complete')
 def complete():
+    reservation_data = []
     with open('sample.csv', 'r', encoding='utf-8-sig') as file:
         lines = file.readlines()
-    # 空ではない要素をリストに追加
-    reservation_data = [line.strip() for line in lines if line.strip()]
+        for line in lines:
+            row = line.strip().split(',')
+            if len(row) == 2 and row[0] and row[1]:
+                key = row[0].strip()
+                value = row[1].strip()
+                if key and value:
+                    reservation_data.append(f"{key}：{value}")
+
+    # 結果を表示
+    for item in reservation_data:
+        print(item)
+   
     return render_template('complete.html', reservation_data = reservation_data)
 
 # メッセージを受け取り、レスポンスを返すエンドポイント
