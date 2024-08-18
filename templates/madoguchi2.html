@@ -207,14 +207,14 @@
         }
 
         .card-header h1 {
-            background-color: #ffc107;
+            background-color: #27dbb7;
             border-radius: 30px;
             text-align: center;
             padding: 10px 20px;
             margin: 10px;
             font-weight: bold;
             font-size: 1.2em;
-            border: 2px solid #000;
+            border: 2px solid #ce13a9;
         }
 
         .card-body {
@@ -291,10 +291,6 @@
             background-color: rgb(74, 218, 218);
         }
 
-        #add_file:hover {
-            background-color: #21af8c;
-        }
-
         .btn-chat {
             align-self: flex-end;
             /* 送信ボタンの位置をテキストエリアの底に揃える */
@@ -302,6 +298,18 @@
             /* 送信ボタンの高さを固定 */
             background-color: rgb(26, 144, 173);
             width: 100px;
+        }
+
+        .btn-decide {
+            color: rgb(29, 52, 182);
+            align-self: flex-end;
+            /* 送信ボタンの位置をテキストエリアの底に揃える */
+            height: 45px;
+            width: 100px;
+            background-color: rgb(28, 210, 159);
+            margin-right: 5px;
+            border: none;
+            font-size: 24px;
         }
 
 
@@ -387,13 +395,8 @@
                 <div class="chat-input">
                     <button type="button" id="information" class="btn-info original-btn"><i
                             class="bi bi-info-circle-fill"></i></button>
-                    <label for="image_file" id="add_file" class="btn-file original-btn rounded mx-1">
-                        <i class="bi bi-file-earmark-text-fill"></i>
-                        <input type="file" name="image_file" id="image_file" class="form-control"
-                            accept=".jpg, .jpeg, .png, .heic" style="display: none;" onchange="checkFileSize(this)">
-                    </label>
                     <form id="chat-form" class="d-flex flex-grow-1" enctype="multipart/form-data">
-                        <textarea id="message" name="message" class="form-control" placeholder="Type your message..."
+                        <textarea id="message" name="message" class="form-control" placeholder="メッセージを入力．．．"
                             rows="1"></textarea>
 
                         <button type="submit" class="btn-chat original-btn rounded"><i
@@ -413,7 +416,7 @@
             </div>
             <div class="card-footer">
                 <div class="bottom-right-content">
-                    <button class="btn btn-primary" id="sendBu">決定</button>
+                    <button class="btn-decide rounded" id="sendBu"><i class="bi bi-hand-thumbs-up-fill"></i>決定</button>
                 </div>
             </div>
         </div>
@@ -537,41 +540,49 @@
 
         //決定ボタンのデータ送信
         document.getElementById('sendBu').addEventListener('click', function () {
-        const currentPlanContainer = document.getElementById('chatMessages2');
-        const currentPlan = currentPlanContainer.innerText.trim();
+            const currentPlanContainer = document.getElementById('chatMessages2');
+            const currentPlan = currentPlanContainer.innerText.trim();
 
-        if (currentPlan !== '') {
-            fetch('/submit_plan', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ plan: currentPlan })
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('Plan submitted successfully:', data);
-                // 必要であれば、ここに追加の処理を記載します
-            })
-            .catch(error => {
-                console.error('Error submitting plan:', error);
-            });
-        } else {
-            console.warn('No plan to submit.');
-        }
-    });
+            if (currentPlan !== '') {
+                fetch('/submit_plan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ plan: currentPlan })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Plan submitted successfully:', data);
+                        // 必要であれば、ここに追加の処理を記載します
+                    })
+                    .catch(error => {
+                        console.error('Error submitting plan:', error);
+                    });
+            } else {
+                console.warn('No plan to submit.');
+            }
+        });
 
+        // Enterキーを押したときに、メッセージを送信
+        document.getElementById('message').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                document.querySelector('.btn-chat').click();
+            }
+        });
 
+        //入力のテキストエリアを大きくする
         document.getElementById('message').addEventListener('input', function () {
             this.style.height = 'auto';
             this.style.height = (this.scrollHeight) + 'px';
         });
 
-        //チャット案の表示
+        //iボタンを押したときに、チャット案の表示
         document.getElementById('information').addEventListener('click', function () {
-        const infoOptions = document.getElementById('info-options');
-        infoOptions.style.display = infoOptions.style.display === 'none' ? 'block' : 'none';
-    });
+            const infoOptions = document.getElementById('info-options');
+            infoOptions.style.display = infoOptions.style.display === 'none' ? 'block' : 'none';
+        });
 
 
     </script>

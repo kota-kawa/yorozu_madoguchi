@@ -5,6 +5,7 @@
 *.sock
 *.exe
 *.xlsx
+*.csv
 *.dll
 *.txt
 *.pdf
@@ -20,6 +21,7 @@ Thumbs.db
 
 cut.py
 excel_test.py
+csv_test.py
 venv/
 gemie/
 # ビルドディレクトリを無視

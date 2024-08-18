@@ -1,6 +1,6 @@
 from pypdf import PdfReader
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
@@ -55,7 +55,8 @@ def run_qa_chain(message, retriever, chat_history):
     # システムプロンプトを定義する
     system_prompt = (
         "あなたは旅行の予定を立てるアシスタントです。 また、あなたは日本人なので、日本語で回答してください。必ず日本語で。"
-        "マニュアルの選択肢の内容を元に、ユーザーの要求に合うように計画を立ててください。"
+        #"マニュアルの選択肢の内容を元に、ユーザーの要求に合うように計画を立ててください。"
+        "目的地、出発地、滞在開始日、滞在終了日は確実に決めて。"
         "\n\n"
         "もしも会話の状況を見て、ユーザーに対して「はい/いいえ」で回答してもらいたい場合には、「Yes/No:〇〇にしますか？」と全く同じ形式で出力して。Yes/No形式の質問の頻度は2回に1回まで!絶対!"
         "{context}"

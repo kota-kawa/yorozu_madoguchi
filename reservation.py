@@ -1,6 +1,6 @@
 from pypdf import PdfReader
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
@@ -9,7 +9,7 @@ from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
 import os
 import re
-import excel_test
+import csv_test
 
 # .envファイルの読み込み
 load_dotenv()
@@ -59,10 +59,11 @@ def complete_plan():
     system_prompt = (
         "あなたは、渡された文章からプログラムを作成するアシスタントです。あなたは日本人なので、日本語で回答してください。必ず日本語で。"
         "以下の形式で目的地やタクシー会社のような部分を、適切な要素に変更してpythonのプログラムを生成して。空白の項目があっても構わないが、空白ならはNoneを挿入して。"
-        f"目的地: {text}\n"
+        "目的地やタクシー会社のような部分に挿入する要素はテキスト形式にして。リストなどは使わずに。"
+        f"{text}\n"
         "\n\n"
         """
-        import excel_test
+        import csv_test
 
         destinations = 目的地
         departure = 出発地
@@ -72,7 +73,7 @@ def complete_plan():
         taxi = タクシー会社
         start = 滞在開始日
         end = 滞在終了日
-        set_reservation = excel_test.write_reservation_plan(destinations, departure, hotel, airlines, railway, taxi, start, end)
+        set_reservation = csv_test.write_reservation_plan(destinations, departure, hotel, airlines, railway, taxi, start, end)
         """
     )
     # プロンプトメッセージを作成する
@@ -91,8 +92,6 @@ def complete_plan():
         | StrOutputParser()
     )
     response = rag_chain.invoke(message)
-
     execute_reservation(response)
-
     return 'Complete!'
 

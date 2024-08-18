@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>予約完了</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1rem; /* 全体のフォントサイズを大きくする */
+        }
+        .container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            transform: translateY(-50px); /* 全体を少し上に移動させる */
+        }
+        .custom-header {
+            background-color: #007bff; /* 任意の色に変更可能 */
+            color: white;
+            border-radius: 10px;
+            padding: 20px; /* パディングを大きくする */
+            font-size: 1.75rem; /* ヘッダーのフォントサイズを大きくする */
+        }
+        .custom-message {
+            color: #28a745; /* 任意の色に変更可能 */
+            font-size: 1.5rem; /* メッセージのフォントサイズを大きくする */
+        }
+        .card-text, .list-group-item, .card-footer {
+            font-size: 1rem; /* 本文やリスト、フッターのフォントサイズを大きくする */
+        }
+        .rounded-card {
+            border-radius: 20px;
+            padding: 20px; /* カード全体のパディングを追加 */
+        }
+        .card {
+            max-width: 800px; /* カードの幅を大きくする */
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-10 col-lg-8">
+                <div class="card text-center rounded-card">
+                    <div class="card-header custom-header">
+                        <h3>予約完了</h3>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title custom-message">ご予約ありがとうございます！</h5>
+                        <p class="card-text">以下の内容で予約が完了しました。</p>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item">予約番号: 123456</li>
+                            <li class="list-group-item">日時: 2024年8月20日 15:00</li>
+                            <li class="list-group-item">場所: 東京タワー</li>
+                        </ul>
+                    </div>
+                    <div class="card-footer text-muted">
+                        ご不明な点がございましたら、サポートまでご連絡ください。
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
