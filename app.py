@@ -11,7 +11,11 @@ def home():
 
 @app.route('/complete')
 def complete():
-    return render_template('complete.html')
+    with open('sample.csv', 'r', encoding='utf-8-sig') as file:
+        lines = file.readlines()
+    # 空ではない要素をリストに追加
+    reservation_data = [line.strip() for line in lines if line.strip()]
+    return render_template('complete.html', reservation_data = reservation_data)
 
 # メッセージを受け取り、レスポンスを返すエンドポイント
 @app.route('/send_message', methods=['POST'])
@@ -25,7 +29,7 @@ def send_message():
 @app.route('/submit_plan', methods=['POST'])
 def submit_plan():
     compile = reservation.complete_plan()
-    return redirect('/compile')
+    return jsonify({'compile': compile})
 
 if __name__ == '__main__':
     app.run(debug=True)
