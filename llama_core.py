@@ -10,6 +10,10 @@ from dotenv import load_dotenv
 import os
 import guard
 
+import warnings
+warnings.filterwarnings("ignore", message=".*clean_up_tokenization_spaces.*")
+
+
 # .envファイルの読み込み
 load_dotenv()
 
@@ -43,24 +47,40 @@ def create_faiss_index(text):
     return retriever
 
 # PDFファイルを処理してテキストを抽出する
-pdf_file = "./travel_choice.pdf"
-text = process_pdf(pdf_file)
+#pdf_file = "./travel_choice.pdf"
+#text = process_pdf(pdf_file)
 # テキストからFAISSインデックスを作成する
-retriever = create_faiss_index(text)
+#retriever = create_faiss_index(text)
+
+# 既存のFAISSインデックスを読み込む
+def load_faiss_index(index_path):
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
+    )
+    index = FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True)
+    retriever = index.as_retriever(search_kwargs={"k": 1})
+    return retriever
+
+
+# 既存のFAISSインデックスのパス
+index_path = "./faiss_index"
+
+# テキストからFAISSインデックスを読み込む
+retriever = load_faiss_index(index_path)
 
 #　旅行計画の相談チャットのプロンプト
 def run_qa_chain(message, retriever, chat_history):
     yes_no_phrase, remaining_text = None, None
     # Groqのチャットモデルを初期化する
     groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama3-70b-8192")
-    # システムプロンプトを定義する
+    # システムプロンプトを定義する Yes/No形式の質問の頻度は2回に1回まで!絶対!
     system_prompt = (
         "あなたは旅行の予定を立てるアシスタントです。 また、あなたは日本人なので、日本語で回答してください。必ず日本語で。"
-        #"マニュアルの選択肢の内容を元に、ユーザーの要求に合うように計画を立ててください。"
+        "マニュアルの会話例を元に、ユーザーの要求に合うように計画を立ててください。"
         "出発地、目的地、滞在開始日、滞在終了日は確実に決めて。出発地、目的地、滞在開始日、滞在終了日の提案はせずに、ユーザに入力させて。（おすすめを聞かれたときには答えて）"
         "出発地、目的地は駅か空港名にして。"
         "\n\n"
-        "もしも会話の状況を見て、ユーザーに対して「はい/いいえ」で回答してもらいたい場合には、「Yes/No:〇〇にしますか？」と全く同じ形式で出力して。Yes/No形式の質問の頻度は2回に1回まで!絶対!"
+        "もしも会話の状況を見て、ユーザーに対して「はい/いいえ」で回答してもらいたい場合には、「Yes/No:〇〇にしますか？」と全く同じ形式で出力して。"
         "{context}"
     )
     # プロンプトメッセージを作成する

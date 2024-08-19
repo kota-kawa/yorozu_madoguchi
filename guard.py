@@ -1,7 +1,6 @@
 from groq import Groq
 from dotenv import load_dotenv
 import os
-import re
 
 # .envファイルの読み込み
 load_dotenv()
