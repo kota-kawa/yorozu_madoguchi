@@ -14,6 +14,8 @@ client = Groq(
 )
 
 def content_checker(prompt):
+    if len(prompt) <= 50:
+        return "safe"
     chat_completion = client.chat.completions.create(
         messages=[
             {

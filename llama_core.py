@@ -72,15 +72,18 @@ retriever = load_faiss_index(index_path)
 def run_qa_chain(message, retriever, chat_history):
     yes_no_phrase, remaining_text = None, None
     # Groqのチャットモデルを初期化する
-    groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama3-70b-8192")
+    groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama-3.1-70b-versatile")
     # システムプロンプトを定義する Yes/No形式の質問の頻度は2回に1回まで!絶対!
     system_prompt = (
-        "あなたは旅行の予定を立てるアシスタントです。 また、あなたは日本人なので、日本語で回答してください。必ず日本語で。"
-        "マニュアルの会話例を元に、ユーザーの要求に合うように計画を立ててください。"
-        "出発地、目的地、滞在開始日、滞在終了日は確実に決めて。出発地、目的地、滞在開始日、滞在終了日の提案はせずに、ユーザに入力させて。（おすすめを聞かれたときには答えて）"
+        "あなたは旅行の予定を立てるアシスタントです。 また、あなたは日本人なので、日本語で回答してください。必ず日本語で。回答は150文字以内にして。"
+        "会話例を参考にしながら、ユーザーの要求に合うように計画を立てて。"
+        "出発地、目的地、滞在開始日、滞在終了日はユーザに決めさせて。（おすすめを聞かれたときには答えていいよ）"
+        "ユーザーに質問するときには、１回で１つの項目についてだけにして。"
+        #"出発地、目的地、滞在開始日、滞在終了日の提案はせずに、ユーザに入力させて。（おすすめを聞かれたときには答えて）"
+        "出発地、目的地、滞在開始日、滞在終了日は確実に決めて。"
         "出発地、目的地は駅か空港名にして。"
         "\n\n"
-        "もしも会話の状況を見て、ユーザーに対して「はい/いいえ」で回答してもらいたい場合には、「Yes/No:〇〇にしますか？」と全く同じ形式で出力して。"
+        "もしも会話の状況を見て、ユーザーに対して「はい/いいえ」で回答してもらいたい場合には、「Yes/No:〇〇にしますか？」と全く同じ形式で出力して。Yes/No形式の質問の頻度は2回に1回まで!絶対!"
         "{context}"
     )
     # プロンプトメッセージを作成する
@@ -153,8 +156,8 @@ def write_decision_txt(chat_history):
             return default_message
 
     decision_index = create_faiss_index(content)
-    # Groqのチャットモデルを初期化する
-    groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama3-70b-8192")
+    # Groqのチャットモデルを初期化する llama3-70b-8192
+    groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama3-8b-8192")
     # システムプロンプトを定義する
     system_prompt = (
         "あなたは、渡された文章から決定されている項目を抽出するアシスタントです。あなたは日本人なので、日本語で回答してください。必ず日本語で。"
