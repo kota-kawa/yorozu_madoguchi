@@ -479,6 +479,12 @@
                     chatMessages.scrollTop = chatMessages.scrollHeight;
                 }, 100); // 1000ミリ秒（1秒）後に実行
 
+
+                // タイムアウトを設定（1分）
+                const timeoutId = setTimeout(function () {
+                    alert("サーバーからの応答がありません。もう一度お試しください。");
+                }, 60000); // 60000ミリ秒（1分）
+
                 // メッセージをサーバーに送信
                 fetch('/send_message', {
                     method: 'POST',
@@ -491,6 +497,8 @@
 
                     .then(response => response.json())
                     .then(data => {
+                        clearTimeout(timeoutId); // 応答があった場合、タイムアウトをクリア
+
                         //remaining_textだけの時とremaining_text＋yes/noの時
                         if (data.remaining_text != 'Empty') {
                             console.log("本来はnullの時には表示されない", data.remaining_text);
@@ -587,6 +595,9 @@
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             }, 100); // 1000ミリ秒（1秒）後に実行
 
+            const timeoutId = setTimeout(function () {
+                alert("サーバーからの応答がありません。もう一度お試しください。");
+            }, 60000);
 
             fetch('/send_message', {
                 method: 'POST',
@@ -597,6 +608,8 @@
             })
                 .then(response => response.json())
                 .then(data => {
+                    clearTimeout(timeoutId);
+
                     // チャットを一番下までスクロール
                     chatMessages.scrollTop = chatMessages.scrollHeight;
 
