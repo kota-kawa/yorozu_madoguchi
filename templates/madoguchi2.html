@@ -485,7 +485,7 @@
                             botMessage.innerText = data.remaining_text;
                             chatMessages.appendChild(botMessage);
                         }
-                        // dataオブジェクトが存在するか確認
+                        // yes_noが存在するか確認
                         if (data.yes_no_phrase != null) {
                             // HTML要素を生成する
                             console.log("nullではなく: ");
@@ -494,8 +494,8 @@
                             chatMessage.innerHTML = `
                             ${data.yes_no_phrase}
                                 <div class="button-container">
-                                    <button class="btn btn-yes mb-2 mx-3" onclick="handleButtonClick('はい')">Yes <i class="bi bi-hand-thumbs-up-fill"></i></button>
-                                    <button class="btn btn-no mb-2 mx-3" onclick="handleButtonClick('いいえ')">No <i class="bi bi-hand-thumbs-down-fill"></i></button>
+                                    <button class="btn btn-yes mb-2 mx-3" onclick="handleButtonClick('はい')">はい　<i class="bi bi-hand-thumbs-up-fill"></i></button>
+                                    <button class="btn btn-no mb-2 mx-3" onclick="handleButtonClick('いいえ')">いいえ <i class="bi bi-hand-thumbs-down-fill"></i></button>
                                 </div>
 
                             `;
@@ -558,8 +558,8 @@
                         chatMessage.innerHTML = `
                     ${data.yes_no_phrase}
                     <div class="button-container">
-                        <button class="btn btn-yes mb-2 mx-3" onclick="handleButtonClick('はい')">Yes <i class="bi bi-hand-thumbs-up-fill"></i></button>
-                        <button class="btn btn-no mb-2 mx-3" onclick="handleButtonClick('いいえ')">No <i class="bi bi-hand-thumbs-down-fill"></i></button>
+                        <button class="btn btn-yes mb-2 mx-3" onclick="handleButtonClick('はい')">はい  <i class="bi bi-hand-thumbs-up-fill"></i></button>
+                        <button class="btn btn-no mb-2 mx-3" onclick="handleButtonClick('いいえ')">いいえ <i class="bi bi-hand-thumbs-down-fill"></i></button>
                     </div>
                 `;
                         chatMessages.appendChild(chatMessage);

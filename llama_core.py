@@ -128,7 +128,7 @@ def run_qa_chain(message, retriever, chat_history):
         # 関数を使って抽出
         response, yes_no_phrase, remaining_text = extract_and_split_text(response)
         # remaining_textが空だったとき
-        if not remaining_text.strip():
+        if remaining_text == None or remaining_text == "":
             # remaining_textが空または空白文字のみの場合の処理
             print("残りのテキストがありません。デフォルト値を設定します。")
             remaining_text = "Empty"
