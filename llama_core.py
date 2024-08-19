@@ -8,6 +8,7 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
 import os
+import guard
 
 # .envファイルの読み込み
 load_dotenv()
@@ -191,19 +192,32 @@ def save_chat_history(file_path, chat_history):
 
 # メインのプログラムにLLMの結果を返す
 def chat_with_llama(prompt):
-    # チャット履歴を読み込む
-    chat_history_file = "./chat_history.txt"
-    chat_history = load_chat_history(chat_history_file)
-    # 入力メッセージを追加してQAチェーンを実行する
-    message = prompt
-    chat_history.append(("human", message))
-    response, yes_no_phrase, remaining_text = run_qa_chain(message, retriever, chat_history)
-    chat_history.append(("assistant", response))
-    # チャット履歴を保存する
-    save_chat_history(chat_history_file, chat_history)
-    # 決定している項目を保存する
-    chat_history = load_chat_history(chat_history_file)
-    current_plan = write_decision_txt(chat_history)
-    print("回答：", response)
+    result = guard.content_checker(prompt)
+    #　悪意のあるプロンプトだった場合
+    if 'unsafe' in result:
+        remaining_text = "それには答えられません"
+        yes_no_phrase, response = None, None
+
+        file_path = "./decision.txt"
+        # ファイルを読み込む
+        with open(file_path, 'r', encoding='utf-8') as file:
+            content = file.read()
+        current_plan = content
+    #　通常の返答
+    else:
+        # チャット履歴を読み込む
+        chat_history_file = "./chat_history.txt"
+        chat_history = load_chat_history(chat_history_file)
+        # 入力メッセージを追加してQAチェーンを実行する
+        message = prompt
+        chat_history.append(("human", message))
+        response, yes_no_phrase, remaining_text = run_qa_chain(message, retriever, chat_history)
+        chat_history.append(("assistant", response))
+        # チャット履歴を保存する
+        save_chat_history(chat_history_file, chat_history)
+        # 決定している項目を保存する
+        chat_history = load_chat_history(chat_history_file)
+        current_plan = write_decision_txt(chat_history)
+        print("回答：", response)
 
     return response, current_plan, yes_no_phrase, remaining_text

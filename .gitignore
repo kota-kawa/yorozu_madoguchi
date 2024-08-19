@@ -23,7 +23,9 @@ cut.py
 excel_test.py
 csv_test.py
 venv/
+No_Use/
 gemie/
+static/
 # ビルドディレクトリを無視
 /build/
 __pycache__/
