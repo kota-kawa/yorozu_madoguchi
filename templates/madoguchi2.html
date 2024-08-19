@@ -392,7 +392,7 @@
             height: auto;
         }
 
-        h1{
+        h1 {
             font-size: 1.5em;
             font-weight: bold;
         }
@@ -466,6 +466,19 @@
                 userMessage.classList.add('chat-message', 'user');
                 userMessage.innerText = messageInput.value;
                 chatMessages.appendChild(userMessage);
+
+                setTimeout(function () {
+                    const botMessage = document.createElement('div');
+                    botMessage.classList.add('chat-message', 'bot');
+                    botMessage.innerHTML = `
+                    <div class="spinner-grow text-info" id="spiner" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                    </div>`
+                    chatMessages.appendChild(botMessage);
+                    // チャットを一番下までスクロール
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }, 100); // 1000ミリ秒（1秒）後に実行
+
                 // メッセージをサーバーに送信
                 fetch('/send_message', {
                     method: 'POST',
@@ -474,21 +487,51 @@
                     },
                     body: JSON.stringify({ message: messageInput.value })
                 })
+
+
                     .then(response => response.json())
                     .then(data => {
-
-
+                        //remaining_textだけの時とremaining_text＋yes/noの時
                         if (data.remaining_text != 'Empty') {
                             console.log("本来はnullの時には表示されない", data.remaining_text);
-                            const botMessage = document.createElement('div');
-                            botMessage.classList.add('chat-message', 'bot');
-                            botMessage.innerText = data.remaining_text;
-                            chatMessages.appendChild(botMessage);
+                            //const botMessage = document.createElement('div');
+                            //botMessage.classList.add('chat-message', 'bot');
+                            //botMessage.innerText = data.remaining_text;
+                            //chatMessages.appendChild(botMessage);
+                            var spinnerElement = document.getElementById("spiner");
+                            // 要素が存在する場合に削除
+                            if (spinnerElement) {
+                                // スピナーの親要素を取得
+                                var botMessage = spinnerElement.parentElement;
+                                // スピナー要素を削除
+                                spinnerElement.remove();
+                                // テキストを挿入
+                                botMessage.innerText = data.remaining_text;
+                            }
                         }
-                        // yes_noが存在するか確認
+
+                        //yes/noだけが存在する時
+                        if (data.remaining_text == 'Empty') {
+                            var spinnerElement = document.getElementById("spiner");
+                            // 要素が存在する場合に削除
+                            if (spinnerElement) {
+                                // スピナーの親要素を取得
+                                var botMessage = spinnerElement.parentElement;
+                                // スピナー要素を削除
+                                spinnerElement.remove();
+                                // yes/noを挿入
+                                botMessage.innerHTML = `
+                                    ${data.yes_no_phrase}
+                                <div class="button-container">
+                                    <button class="btn btn-yes mb-2 mx-3" onclick="handleButtonClick('はい')">はい　<i class="bi bi-hand-thumbs-up-fill"></i></button>
+                                    <button class="btn btn-no mb-2 mx-3" onclick="handleButtonClick('いいえ')">いいえ <i class="bi bi-hand-thumbs-down-fill"></i></button>
+                                </div> `
+                            }
+                        }
+
+                        // remaining_text＋yes/noが存在する時
                         if (data.yes_no_phrase != null) {
                             // HTML要素を生成する
-                            console.log("nullではなく: ");
                             const chatMessage = document.createElement('div');
                             chatMessage.className = 'chat-message bot';
                             chatMessage.innerHTML = `
@@ -497,8 +540,7 @@
                                     <button class="btn btn-yes mb-2 mx-3" onclick="handleButtonClick('はい')">はい　<i class="bi bi-hand-thumbs-up-fill"></i></button>
                                     <button class="btn btn-no mb-2 mx-3" onclick="handleButtonClick('いいえ')">いいえ <i class="bi bi-hand-thumbs-down-fill"></i></button>
                                 </div>
-
-                            `;
+                                `;
                             chatMessages.appendChild(chatMessage);
                         }
                         current_plan = data.current_plan;
@@ -533,6 +575,19 @@
             userMessage.innerText = response;
             chatMessages.appendChild(userMessage);
 
+            setTimeout(function () {
+                const botMessage = document.createElement('div');
+                botMessage.classList.add('chat-message', 'bot');
+                botMessage.innerHTML = `
+                    <div class="spinner-grow text-info" id="spiner" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                    </div>`
+                chatMessages.appendChild(botMessage);
+                // チャットを一番下までスクロール
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }, 100); // 1000ミリ秒（1秒）後に実行
+
+
             fetch('/send_message', {
                 method: 'POST',
                 headers: {
@@ -542,25 +597,53 @@
             })
                 .then(response => response.json())
                 .then(data => {
+                    // チャットを一番下までスクロール
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                    //remaining_textだけの時とremaining_text＋yes/noの時
                     if (data.remaining_text != 'Empty') {
-                        console.log("本来はnullの時には表示されない", data.remaining_text);
-                        const botMessage = document.createElement('div');
-                        botMessage.classList.add('chat-message', 'bot');
-                        botMessage.innerText = data.remaining_text;
-                        chatMessages.appendChild(botMessage);
+                        var spinnerElement = document.getElementById("spiner");
+                        // 要素が存在する場合に削除
+                        if (spinnerElement) {
+                            // スピナーの親要素を取得
+                            var botMessage = spinnerElement.parentElement;
+                            // スピナー要素を削除
+                            spinnerElement.remove();
+                            // テキストを挿入
+                            botMessage.innerText = data.remaining_text;
+                        }
                     }
 
+                    //yes/noだけが存在する時
+                    if (data.remaining_text == 'Empty') {
+                        var spinnerElement = document.getElementById("spiner");
+                        // 要素が存在する場合に削除
+                        if (spinnerElement) {
+                            // スピナーの親要素を取得
+                            var botMessage = spinnerElement.parentElement;
+                            // スピナー要素を削除
+                            spinnerElement.remove();
+                            // yes/noを挿入
+                            botMessage.innerHTML = `
+                                    ${data.yes_no_phrase}
+                                <div class="button-container">
+                                    <button class="btn btn-yes mb-2 mx-3" onclick="handleButtonClick('はい')">はい　<i class="bi bi-hand-thumbs-up-fill"></i></button>
+                                    <button class="btn btn-no mb-2 mx-3" onclick="handleButtonClick('いいえ')">いいえ <i class="bi bi-hand-thumbs-down-fill"></i></button>
+                                </div> `
+                        }
+                    }
 
+                    // remaining_text＋yes/noが存在する時
                     if (data.yes_no_phrase != null) {
                         console.log("nullではなく: ");
                         const chatMessage = document.createElement('div');
                         chatMessage.className = 'chat-message bot';
                         chatMessage.innerHTML = `
                     ${data.yes_no_phrase}
-                    <div class="button-container">
-                        <button class="btn btn-yes mb-2 mx-3" onclick="handleButtonClick('はい')">はい  <i class="bi bi-hand-thumbs-up-fill"></i></button>
-                        <button class="btn btn-no mb-2 mx-3" onclick="handleButtonClick('いいえ')">いいえ <i class="bi bi-hand-thumbs-down-fill"></i></button>
-                    </div>
+                                <div class="button-container">
+                                    <button class="btn btn-yes mb-2 mx-3" onclick="handleButtonClick('はい')">はい  <i class="bi bi-hand-thumbs-up-fill"></i></button>
+                                    <button class="btn btn-no mb-2 mx-3" onclick="handleButtonClick('いいえ')">いいえ <i class="bi bi-hand-thumbs-down-fill"></i></button>
+                                </div>
                 `;
                         chatMessages.appendChild(chatMessage);
                     }
