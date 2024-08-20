@@ -24,7 +24,6 @@ excel_test.py
 csv_test.py
 venv/
 No_Use/
-gemie/
 # ビルドディレクトリを無視
 /build/
 __pycache__/
