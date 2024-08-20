@@ -27,11 +27,9 @@ def complete():
                 value = row[1].strip()
                 if key and value:
                     reservation_data.append(f"{key}：{value}")
-
     # 結果を表示
     for item in reservation_data:
         print(item)
-   
     return render_template('complete.html', reservation_data = reservation_data)
 
 # メッセージを受け取り、レスポンスを返すエンドポイント
