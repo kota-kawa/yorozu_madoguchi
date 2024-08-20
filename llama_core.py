@@ -206,7 +206,6 @@ def load_chat_history(file_path):
                 chat_history.append((current_role, "\n".join(current_text).strip()))
     return chat_history
 
-
 # チャット履歴をファイルに保存する
 def save_chat_history(file_path, chat_history):
     with open(file_path, "w", encoding="utf-8") as f:
