@@ -5,6 +5,7 @@
 *.sock
 *.exe
 *.xlsx
+*.docx
 *.csv
 *.dll
 *.txt

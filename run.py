@@ -14,6 +14,15 @@ def home():
         pass  # ファイルを開いて何も書かないことで内容が空になります。
     return render_template('madoguchi2.html')
 
+@app.route('/test')
+def test():
+    # テキストファイルの内容を消す
+    with open('./chat_history.txt', 'w') as file:
+        pass  # ファイルを開いて何も書かないことで内容が空になります。
+    with open('./decision.txt', 'w') as file:
+        pass  # ファイルを開いて何も書かないことで内容が空になります。
+    return render_template('madoguchi_test.html')
+
 # 予約完了画面
 @app.route('/complete')
 def complete():
