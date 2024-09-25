@@ -106,6 +106,8 @@ def run_qa_chain(message, retriever, chat_history):
 
     # Yes/No形式の文章の整形
     def extract_and_split_text(text):
+        # 関数を使って抽出
+        print("Yes/No!!!")
         # "Yes/No:"と"？"の位置を見つける
         yes_no_start = text.find('Yes/No:')
         if yes_no_start == -1:
@@ -117,7 +119,7 @@ def run_qa_chain(message, retriever, chat_history):
             # 有効な位置を選択
         if question_full == -1 and question_half == -1:
             return text, None, None  # 両方の"？"が見つからない場合は全体を返す
-
+        print("Yes/No???")
         # "Yes/No:"部分の抽出
         yes_no_phrase = text[yes_no_start + len('Yes/No:'):question_full + 1]
 
@@ -126,7 +128,7 @@ def run_qa_chain(message, retriever, chat_history):
 
         return response, yes_no_phrase, remaining_text
 
-    # Yes/No形式の質問だった場合
+    # Yes/No形式の質問ではなかった場合
     if "Yes/No" in response:
         # 関数を使って抽出
         response, yes_no_phrase, remaining_text = extract_and_split_text(response)
