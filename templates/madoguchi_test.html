@@ -537,12 +537,29 @@
                                     } else {
                                         // 全ての文字が出力されたらインターバルをクリア
                                         clearInterval(interval);
-                                    }
-                                }, 40); // 100ミリ秒ごとに1文字表示
 
+                                        // 全ての文字が出力された後にYes/Noボタンを追加
+                                        if (data.yes_no_phrase != null) {
+                                            // HTML要素を生成する
+                                            const chatMessage = document.createElement('div');
+                                            chatMessage.className = 'chat-message bot';
+                                            chatMessage.innerHTML = `
+                                 ${data.yes_no_phrase}
+                            <div class="button-container">
+                                <button class="btn btn-yes mb-2 mx-3" onclick="handleButtonClick('はい')">はい　<i class="bi bi-hand-thumbs-up-fill"></i></button>
+                                <button class="btn btn-no mb-2 mx-3" onclick="handleButtonClick('いいえ')">いいえ <i class="bi bi-hand-thumbs-down-fill"></i></button>
+                            </div>
+                            `;
+                                            chatMessages.appendChild(chatMessage);
+                                            // チャットを一番下までスクロール
+                                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                                        }
+                                    }
+                                }, 40); // 40ミリ秒ごとに1文字表示
                             }
                         }
 
+                        
                         //yes/noだけが存在する時
                         if (data.remaining_text == 'Empty') {
                             var spinnerElement = document.getElementById("spiner");
@@ -562,20 +579,7 @@
                             }
                         }
 
-                        // remaining_text＋yes/noが存在する時
-                        if (data.yes_no_phrase != null) {
-                            // HTML要素を生成する
-                            const chatMessage = document.createElement('div');
-                            chatMessage.className = 'chat-message bot';
-                            chatMessage.innerHTML = `
-                            ${data.yes_no_phrase}
-                                <div class="button-container">
-                                    <button class="btn btn-yes mb-2 mx-3" onclick="handleButtonClick('はい')">はい　<i class="bi bi-hand-thumbs-up-fill"></i></button>
-                                    <button class="btn btn-no mb-2 mx-3" onclick="handleButtonClick('いいえ')">いいえ <i class="bi bi-hand-thumbs-down-fill"></i></button>
-                                </div>
-                                `;
-                            chatMessages.appendChild(chatMessage);
-                        }
+
                         current_plan = data.current_plan;
                         // current_plan のデータを表示・更新
                         currentPlanContainer.innerHTML = ''; // 既存の内容をクリア
@@ -590,7 +594,6 @@
                 // 入力フィールドをクリアし、サイズを元に戻す
                 messageInput.value = '';
                 messageInput.style.height = 'auto';
-                messageInput.style.height = '1em'; // 初期サイズに戻す
                 // チャットを一番下までスクロール
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             }
@@ -631,43 +634,55 @@
                 },
                 body: JSON.stringify({ message: response })
             })
-                .then(response => response.json())
-                .then(data => {
-                    clearTimeout(timeoutId);
+            .then(response => response.json())
+                    .then(data => {
+                        clearTimeout(timeoutId); // 応答があった場合、タイムアウトをクリア
 
-                    // チャットを一番下までスクロール
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                        // remaining_textだけの時とremaining_text＋yes/noの時
+                        if (data.remaining_text != 'Empty') {
+                            console.log("本来はnullの時には表示されない", data.remaining_text);
+                            var spinnerElement = document.getElementById("spiner");
+                            // 要素が存在する場合に削除
+                            if (spinnerElement) {
+                                var botMessage = spinnerElement.parentElement;
+                                spinnerElement.remove();
 
-                    //remaining_textだけの時とremaining_text＋yes/noの時
-                    if (data.remaining_text != 'Empty') {
-                        var spinnerElement = document.getElementById("spiner");
-                        // 要素が存在する場合に削除
-                        if (spinnerElement) {
-                            // スピナーの親要素を取得
-                            var botMessage = spinnerElement.parentElement;
-                            // スピナー要素を削除
-                            spinnerElement.remove();
+                                // テキストを挿入
+                                let index = 0; // 現在の文字位置を示すインデックス
+                                let remainingText = data.remaining_text; // 出力するテキスト
+                                botMessage.innerText = ''; // テキストを一旦クリア
 
-                            // テキストを挿入
-                            let index = 0; // 現在の文字位置を示すインデックス
-                            let remainingText = data.remaining_text; // 出力するテキスト
-                            botMessage.innerText = ''; // テキストを一旦クリア
+                                let interval = setInterval(function () {
+                                    if (index < remainingText.length) {
+                                        // 1文字ずつ追加
+                                        botMessage.innerText += remainingText.charAt(index);
+                                        index++;
+                                        // チャットを一番下までスクロール
+                                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                                    } else {
+                                        // 全ての文字が出力されたらインターバルをクリア
+                                        clearInterval(interval);
 
-                            let interval = setInterval(function () {
-                                if (index < remainingText.length) {
-                                    // 1文字ずつ追加
-                                    botMessage.innerText += remainingText.charAt(index);
-                                    index++;
-                                    // チャットを一番下までスクロール
-                                    chatMessages.scrollTop = chatMessages.scrollHeight;
-                                } else {
-                                    // 全ての文字が出力されたらインターバルをクリア
-                                    clearInterval(interval);
-                                }
-                            }, 40); // 100ミリ秒ごとに1文字表示
-
+                                        // 全ての文字が出力された後にYes/Noボタンを追加
+                                        if (data.yes_no_phrase != null) {
+                                            // HTML要素を生成する
+                                            const chatMessage = document.createElement('div');
+                                            chatMessage.className = 'chat-message bot';
+                                            chatMessage.innerHTML = `
+                                 ${data.yes_no_phrase}
+                            <div class="button-container">
+                                <button class="btn btn-yes mb-2 mx-3" onclick="handleButtonClick('はい')">はい　<i class="bi bi-hand-thumbs-up-fill"></i></button>
+                                <button class="btn btn-no mb-2 mx-3" onclick="handleButtonClick('いいえ')">いいえ <i class="bi bi-hand-thumbs-down-fill"></i></button>
+                            </div>
+                            `;
+                                            chatMessages.appendChild(chatMessage);
+                                            // チャットを一番下までスクロール
+                                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                                        }
+                                    }
+                                }, 40); // 40ミリ秒ごとに1文字表示
+                            }
                         }
-                    }
 
                     //yes/noだけが存在する時
                     if (data.remaining_text == 'Empty') {
@@ -688,20 +703,7 @@
                         }
                     }
 
-                    // remaining_text＋yes/noが存在する時
-                    if (data.yes_no_phrase != null) {
-                        console.log("nullではなく: ");
-                        const chatMessage = document.createElement('div');
-                        chatMessage.className = 'chat-message bot';
-                        chatMessage.innerHTML = `
-                    ${data.yes_no_phrase}
-                                <div class="button-container">
-                                    <button class="btn btn-yes mb-2 mx-3" onclick="handleButtonClick('はい')">はい  <i class="bi bi-hand-thumbs-up-fill"></i></button>
-                                    <button class="btn btn-no mb-2 mx-3" onclick="handleButtonClick('いいえ')">いいえ <i class="bi bi-hand-thumbs-down-fill"></i></button>
-                                </div>
-                `;
-                        chatMessages.appendChild(chatMessage);
-                    }
+
 
                     current_plan = data.current_plan;
                     currentPlanContainer.innerHTML = '';
@@ -766,6 +768,10 @@
             spinnerOverlay.style.display = 'flex';
         });
 
+        // ページを開いた直後にテキストエリアにフォーカスを当てる
+        window.onload = function() {
+            document.getElementById('message').focus();
+        };
 
     </script>
 </body>
