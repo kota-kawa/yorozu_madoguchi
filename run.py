@@ -12,7 +12,7 @@ def home():
         pass  # ファイルを開いて何も書かないことで内容が空になります。
     with open('./decision.txt', 'w') as file:
         pass  # ファイルを開いて何も書かないことで内容が空になります。
-    return render_template('madoguchi2.html')
+    return render_template('madoguchi.html')
 
 @app.route('/test')
 def test():
