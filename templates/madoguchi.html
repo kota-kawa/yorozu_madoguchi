@@ -44,6 +44,19 @@
             /* 必要に応じて調整 */
         }
 
+        /* フェードイン効果 */
+        .fade-in {
+            opacity: 0;
+            animation: fadeIn 1s forwards;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+
+
 
         .chat-input {
             display: flex;
@@ -579,12 +592,13 @@
                             }
                         }
 
-
                         current_plan = data.current_plan;
-                        // current_plan のデータを表示・更新
+                        // 決定事項のデータを表示・更新
                         currentPlanContainer.innerHTML = ''; // 既存の内容をクリア
-                        const planMessage = document.createElement('a');
+                        const planMessage = document.createElement('p');
                         planMessage.innerText = data.current_plan;
+                        // フェードイン効果を追加
+                        planMessage.classList.add('fade-in');
                         currentPlanContainer.appendChild(planMessage);
 
                         // チャットを一番下までスクロール
@@ -704,10 +718,15 @@
                     }
 
                     current_plan = data.current_plan;
-                    currentPlanContainer.innerHTML = '';
-                    const planMessage = document.createElement('a');
+ 
+                    // 決定事項のデータを表示・更新
+                    currentPlanContainer.innerHTML = ''; // 既存の内容をクリア
+                    const planMessage = document.createElement('p');
                     planMessage.innerText = data.current_plan;
+                    // フェードイン効果を追加
+                    planMessage.classList.add('fade-in');
                     currentPlanContainer.appendChild(planMessage);
+
 
                     chatMessages.scrollTop = chatMessages.scrollHeight;
                 });

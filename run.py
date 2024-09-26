@@ -14,15 +14,6 @@ def home():
         pass  # ファイルを開いて何も書かないことで内容が空になります。
     return render_template('madoguchi.html')
 
-@app.route('/test')
-def test():
-    # テキストファイルの内容を消す
-    with open('./chat_history.txt', 'w') as file:
-        pass  # ファイルを開いて何も書かないことで内容が空になります。
-    with open('./decision.txt', 'w') as file:
-        pass  # ファイルを開いて何も書かないことで内容が空になります。
-    return render_template('madoguchi_test.html')
-
 # 予約完了画面
 @app.route('/complete')
 def complete():
@@ -46,8 +37,6 @@ def complete():
 def send_message():
     prompt = request.json.get('message')
     response, current_plan, yes_no_phrase, remaining_text = llama_core.chat_with_llama(prompt)
-    #print("yes_no_phrase: " + yes_no_phrase)
-    #print("remaining_text: " + remaining_text)
     return jsonify({'response': response, 'current_plan': current_plan,'yes_no_phrase': yes_no_phrase,'remaining_text': remaining_text})
 
 @app.route('/submit_plan', methods=['POST'])
