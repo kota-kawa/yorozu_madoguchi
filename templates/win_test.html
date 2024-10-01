@@ -1,0 +1,255 @@
+{% extends "layout.html" %}
+
+<head>
+    <title>お問い合わせフォーム</title>
+    
+</head>
+
+{% block content %}
+<style>
+    body {
+        background-color: #f0f2f5;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    #draggable-window {
+        width: 400px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        position: absolute;
+        top: 100px;
+        left: 100px;
+        background-color: #fff;
+        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        height: 500px;
+    }
+
+    #window-header {
+        background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+        padding: 15px;
+        cursor: move;
+        font-weight: bold;
+        color: #fff;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    #window-header .close-btn {
+        width: 20px;
+        height: 20px;
+        text-align: center;
+        line-height: 20px;
+        border-radius: 50%;
+        background-color: rgba(255, 255, 255, 0.3);
+        cursor: pointer;
+    }
+
+    #window-header .close-btn:hover {
+        background-color: rgba(255, 255, 255, 0.5);
+    }
+
+    #chat-area {
+        flex-grow: 1;
+        padding: 10px;
+        overflow-y: auto;
+        border-top: 1px solid #ccc;
+        border-bottom: 1px solid #ccc;
+        background-color: #f7f7f7;
+    }
+
+    #chat-area p {
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 8px;
+        max-width: 80%;
+        word-wrap: break-word;
+    }
+
+    .user-message {
+        background-color: #d1e7ff;
+        align-self: flex-end;
+    }
+
+    .bot-message {
+        background-color: #f1f0f0;
+        align-self: flex-start;
+    }
+
+    #input-area {
+        padding: 10px;
+        background-color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    #input-area textarea {
+        flex-grow: 1;
+        padding: 10px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        font-size: 14px;
+        resize: none;
+    }
+
+    #input-area button {
+        padding: 10px 20px;
+        background-color: #4facfe;
+        border: none;
+        border-radius: 4px;
+        color: #fff;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    #input-area button:hover {
+        background-color: #00f2fe;
+    }
+</style>
+
+
+    <div class="contact-form">
+        <h1>お問い合わせフォーム</h1>
+        <form action="/submit_form" method="post">
+            <label for="name">名前:</label>
+            <input type="text" id="name" name="name" placeholder="お名前を入力してください" required>
+
+            <label for="email">メールアドレス:</label>
+            <input type="email" id="email" name="email" placeholder="メールアドレスを入力してください" required>
+
+            <label for="message">メッセージ:</label>
+            <textarea id="message" name="message" placeholder="メッセージを入力してください" required></textarea>
+
+            <button type="submit">送信</button>
+        </form>
+    </div>
+
+    <div id="draggable-window">
+        <div id="window-header">
+            チャットウィンドウ
+            <div class="close-btn" onclick="closeWindow()">×</div>
+        </div>
+        <div id="chat-area">
+            <p class="bot-message">こんにちは！ご質問はありますか？</p>
+        </div>
+        <div id="input-area">
+            <textarea id="user-input" rows="2" placeholder="ここに入力..."></textarea>
+            <button>送信</button>
+        </div>
+    </div>
+
+
+    <script>
+        // ドラッグ可能なウィンドウの機能を追加
+        dragElement(document.getElementById("draggable-window"));
+
+        function dragElement(element) {
+            var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+
+            // ウィンドウのヘッダーをドラッグ可能にする
+            var header = document.getElementById("window-header");
+            if (header) {
+                header.onmousedown = dragMouseDown;
+            } else {
+                element.onmousedown = dragMouseDown;
+            }
+
+            function dragMouseDown(e) {
+                e = e || window.event;
+                e.preventDefault();
+                // マウスカーソルの初期位置を取得
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                // カーソル移動時に呼び出す関数を設定
+                document.onmousemove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e = e || window.event;
+                e.preventDefault();
+                // カーソルの移動距離を計算
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                // ウィンドウの新しい位置を設定
+                element.style.top = (element.offsetTop - pos2) + "px";
+                element.style.left = (element.offsetLeft - pos1) + "px";
+            }
+
+            function closeDragElement() {
+                // イベントリスナーを削除
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        }
+
+        function closeWindow() {
+            var windowElement = document.getElementById('draggable-window');
+            windowElement.style.display = 'none';
+        }
+
+
+        document.querySelector('#input-area button').addEventListener('click', function () {
+            event.preventDefault();  // ページのリロードを防ぐ
+            var userInput = document.getElementById('user-input').value;
+            // 現在のページのHTMLコードを取得
+            var htmlCode = document.documentElement.outerHTML;
+            if (userInput) {
+                // AJAXでサーバーにデータを送信
+                fetch('/submit_message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: userInput,  // ユーザーの入力
+                        html: htmlCode       // 現在のHTML
+                    }),
+                })
+                    .then(response => {
+                        // レスポンスが正しいか確認
+                        console.log('Response received:', response);
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Data received:', data);  // デバッグ用
+
+                        // eval()でコードを実行
+                        eval(data.extracted_code);
+
+                        var chatArea = document.getElementById('chat-area');
+
+                        // チャットエリアにユーザーのメッセージを追加
+                        var newMessage = document.createElement('p');
+                        newMessage.className = 'user-message';
+                        newMessage.textContent = data.remaining_text;
+                        chatArea.appendChild(newMessage);
+
+                        // ボットの返答を追加
+                        var botMessage = document.createElement('p');
+                        botMessage.className = 'bot-message';
+                        botMessage.textContent = data.bot_response;
+                        chatArea.appendChild(botMessage);
+
+                        // チャットエリアをスクロールダウン
+                        chatArea.scrollTop = chatArea.scrollHeight;
+
+                        // 入力欄をクリア
+                        document.getElementById('user-input').value = '';
+                    })
+
+                    .catch(error => {
+                        console.error('Error:', error);
+                    });
+            }
+        });
+
+    </script>
+
+{% endblock %}
