@@ -472,7 +472,9 @@
             <div class="card-body chat-messages" id="chatMessages1">
                 <!-- ここにチャットの内容が表示される -->
                 <div class="chat-message bot">
-                    どんな旅行の計画を一緒に立てますか？😊
+                    返信したいLINEやDMの内容と、どのようなことをしたいか・言いたいかを教えてください
+                    <br>
+                    より多くの会話履歴が示されると良い答えを考えやすいです！
                 </div>
 
             </div>
@@ -552,7 +554,7 @@
                 }, 60000); // 60000ミリ秒（1分）
 
                 // メッセージをサーバーに送信
-                fetch('/send_message', {
+                fetch('/love_send_message', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -680,7 +682,7 @@
                 alert("サーバーからの応答がありません。もう一度お試しください。");
             }, 60000);
 
-            fetch('/send_message', {
+            fetch('/love_send_message', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -780,7 +782,7 @@
             const currentPlan = currentPlanContainer.innerText.trim();
 
             if (currentPlan !== '') {
-                fetch('/submit_plan', {
+                fetch('/love_submit_plan', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

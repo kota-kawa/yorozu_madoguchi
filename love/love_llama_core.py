@@ -47,7 +47,7 @@ def create_faiss_index(text):
     return retriever
 
 # PDFファイルを処理してテキストを抽出する
-#pdf_file = "./travel_choice.pdf"
+#pdf_file = "./static/rag2.pdf"
 #text = process_pdf(pdf_file)
 # テキストからFAISSインデックスを作成する
 #retriever = create_faiss_index(text)
@@ -63,7 +63,7 @@ def load_faiss_index(index_path):
 
 
 # 既存のFAISSインデックスのパス
-index_path = "./faiss_index"
+index_path = "./rag_love2"
 
 # テキストからFAISSインデックスを読み込む
 retriever = load_faiss_index(index_path)
@@ -75,15 +75,8 @@ def run_qa_chain(message, retriever, chat_history):
     groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama-3.1-70b-versatile")
     # システムプロンプトを定義する Yes/No形式の質問の頻度は2回に1回まで!絶対!
     system_prompt = (
-        "あなたは旅行の予定を立てるアシスタントです。 また、あなたは日本人なので、日本語で回答してください。必ず日本語で。回答は150文字以内にして。"
-        "会話例を参考にしながら、ユーザーの要求に合うように計画を立てて。"
-        "出発地、目的地、滞在開始日、滞在終了日はユーザに決めさせて。（おすすめを聞かれたときには答えていいよ）"
-        "ユーザーに質問するときには、１回で１つの項目についてだけにして。"
-        #"出発地、目的地、滞在開始日、滞在終了日の提案はせずに、ユーザに入力させて。（おすすめを聞かれたときには答えて）"
-        "出発地、目的地、滞在開始日、滞在終了日は確実に決めて。"
-        "出発地、目的地は駅か空港名にして。"
-        "\n\n"
-        "もしも会話の状況を見て、ユーザーに対して「はい/いいえ」で回答してもらいたい場合には、「Yes/No:〇〇にしますか？」と全く同じ形式で出力して。"
+        "あなたはメッセージへの返答を考えるアシスタントです。 また、あなたは日本人なので、日本語で回答してください。必ず日本語で。"
+
         "{context}"
     )
     # プロンプトメッセージを作成する
