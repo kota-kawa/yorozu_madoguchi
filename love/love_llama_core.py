@@ -63,7 +63,7 @@ def load_faiss_index(index_path):
 
 
 # 既存のFAISSインデックスのパス
-index_path = "./rag_love2"
+index_path = "./nice"
 
 # テキストからFAISSインデックスを読み込む
 retriever = load_faiss_index(index_path)
@@ -76,7 +76,9 @@ def run_qa_chain(message, retriever, chat_history):
     # システムプロンプトを定義する Yes/No形式の質問の頻度は2回に1回まで!絶対!
     system_prompt = (
         "あなたはメッセージへの返答を考えるアシスタントです。 また、あなたは日本人なので、日本語で回答してください。必ず日本語で。"
-
+        "近い間柄ならば、丁寧になりすぎない（ですます調は年齢が近い人には使わない）親しみやすさが大切。"
+        "\n\n"
+        "もしも会話の状況を見て、ユーザーに対して「はい/いいえ」で回答してもらいたい場合には、「Yes/No:〇〇にしますか？」と全く同じ形式で出力して。"
         "{context}"
     )
     # プロンプトメッセージを作成する

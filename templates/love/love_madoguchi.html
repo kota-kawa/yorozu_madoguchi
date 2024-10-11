@@ -79,6 +79,8 @@
             background-color: #d1e7dd;
             margin-left: 100px;
             text-align: right;
+            /*浮き上がり*/
+            animation: slideUp 0.5s ease-out;
         }
 
         .chat-message.user::after {
@@ -96,10 +98,25 @@
             margin-bottom: -10px;
         }
 
+        /* 浮き上がる効果 */
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
         .chat-message.bot {
             background-color: #e2e3e5;
             margin-right: 100px;
             text-align: left;
+            /*浮き上がり*/
+            animation: slideUp 0.5s ease-out;
         }
 
         .chat-message.bot::after {
@@ -132,12 +149,12 @@
         }
 
         .btn-no {
-            background-color: #6918ac;
+            background-color: #1824ac;
             color: white;
         }
 
         .btn-no:hover {
-            background-color: #7226ff;
+            background-color: #267dff;
             transform: scale(1.2);
         }
 
@@ -151,90 +168,15 @@
             transform: scale(1.2);
         }
 
-
-        .arrow-left::before,
-        .arrow-right::before {
-            content: '';
-            position: absolute;
-            width: 20px;
-            /* 中心部の背景の幅 */
-            height: 20px;
-            /* 中心部の背景の高さ */
-            border-radius: 50%;
-            /* 円形にする */
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: -1;
-            /* アイコンの背後に配置 */
-        }
-
-        .arrow-left::before {
-            background-color: #c736d7;
-            /* 中心部の背景色 */
-        }
-
-        .arrow-right::before {
-            background-color: #eeff00;
-            /* 中心部の背景色 */
-        }
-
-
-
-        .arrow-left,
-        .arrow-right {
-            background: none;
-            /* 背景を削除 */
-            border: none;
-            /* 境界線を削除 */
-            position: absolute;
-            font-size: 30px;
-            top: 40%;
-            transition: color 0.3s, transform 0.3s;
-            z-index: 1
-        }
-
-        .arrow-left {
-            color: #3b0568;
-            /* アイコンの色を黒に設定 */
-            left: 10px;
-        }
-
-        .arrow-right {
-            color: #c9580d;
-            /* アイコンの色を黒に設定 */
-            right: 10px;
-        }
-
-        .arrow-left:hover {
-            color: #9c13b8;
-            transform: scale(1.2);
-            /* ホバー時に拡大 */
-        }
-
-        .arrow-right:hover {
-            color: #f15213;
-            transform: scale(1.2);
-            /* ホバー時に拡大 */
-        }
-
-        .arrow-left:active,
-        .arrow-right:active {
-            color: #2cc8e4;
-            /* クリック時の色を緑に設定 */
-            transform: scale(0.9);
-            /* クリック時に縮小 */
-        }
-
         .card-header h1 {
-            background-color: #8427db;
+            background-color: #273cdb;
             border-radius: 30px;
             text-align: center;
             padding: 10px 20px;
             margin: 10px;
             font-weight: bold;
             font-size: 1.2em;
-            border: 2px solid #ce13a9;
+            border: 2px solid #1380ce;
         }
 
         .card-body {
@@ -267,7 +209,7 @@
             width: 100%;
             height: 100%;
             background-color: rgba(255, 255, 255, 0.8);
-            color: blueviolet;
+            color: rgb(43, 80, 226);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -296,7 +238,6 @@
         }
 
         .btn-info,
-        .btn-file,
         .btn-chat,
         .btn-record {
             color: white;
@@ -318,15 +259,8 @@
             align-self: flex-end;
             /* 送信ボタンの位置をテキストエリアの底に揃える */
             height: 45px;
-            background-color: rgb(160, 84, 159);
+            background-color: rgb(84, 89, 160);
             margin-right: 5px;
-        }
-
-        .btn-file {
-            align-self: flex-end;
-            /* 送信ボタンの位置をテキストエリアの底に揃える */
-            height: 45px;
-            background-color: rgb(74, 218, 218);
         }
 
         .btn-chat {
@@ -334,17 +268,17 @@
             /* 送信ボタンの位置をテキストエリアの底に揃える */
             height: 45px;
             /* 送信ボタンの高さを固定 */
-            background-color: rgb(146, 26, 173);
+            background-color: rgb(50, 26, 173);
             width: 100px;
         }
 
         .btn-decide {
-            color: rgb(29, 39, 182);
+            color: rgb(25, 4, 255);
             align-self: flex-end;
             /* 送信ボタンの位置をテキストエリアの底に揃える */
             height: 45px;
             width: 100px;
-            background-color: rgb(210, 28, 195);
+            background-color: rgb(36, 226, 219);
             margin-right: 5px;
             border: none;
             font-size: 24px;
@@ -412,7 +346,7 @@
         }
 
         textarea#message {
-            background-color: #ffd0f7;
+            background-color: #d0efff;
             /* 背景色を設定 #d0ffdf;*/
             border: none;
         }
@@ -435,7 +369,7 @@
         }
 
         .menu-btn {
-            background-color: #af4c8e;
+            background-color: #4c53af;
             /* カスタムカラーを指定 */
             color: rgb(255, 255, 255);
             /* テキストの色を白に設定 */
@@ -444,7 +378,7 @@
         }
 
         .menu-btn:hover {
-            background-color: #992aac;
+            background-color: #2a6bac;
             /* ホバー時の色を変更 */
         }
     </style>
@@ -523,6 +457,19 @@
     </div>
 
     <script>
+        let autoScroll = true;
+
+        // チャットがスクロールされたら、自動スクロールをオフにする
+        document.getElementById('chatMessages1').addEventListener('scroll', function () {
+            const chatMessages = document.getElementById('chatMessages1');
+            const isAtBottom = chatMessages.scrollTop + chatMessages.clientHeight >= chatMessages.scrollHeight - 10;
+
+            if (!isAtBottom) {
+                autoScroll = false;
+            }
+        });
+
+
         document.getElementById('chat-form').addEventListener('submit', function (event) {
             event.preventDefault(); // フォームのデフォルトの送信動作を防ぐ
             const messageInput = document.getElementById('message');
@@ -543,8 +490,10 @@
                     <span class="visually-hidden">Loading...</span>
                     </div>`
                     chatMessages.appendChild(botMessage);
-                    // チャットを一番下までスクロール
                     chatMessages.scrollTop = chatMessages.scrollHeight;
+                    // 自動でスクロールされるようにする
+                    autoScroll = true;
+
                 }, 100); // 1000ミリ秒（1秒）後に実行
 
 
@@ -553,6 +502,7 @@
                     alert("サーバーからの応答がありません。もう一度お試しください。");
                 }, 60000); // 60000ミリ秒（1分）
 
+                let worker;
                 // メッセージをサーバーに送信
                 fetch('/love_send_message', {
                     method: 'POST',
@@ -561,55 +511,57 @@
                     },
                     body: JSON.stringify({ message: messageInput.value })
                 })
-
-
                     .then(response => response.json())
                     .then(data => {
                         clearTimeout(timeoutId); // 応答があった場合、タイムアウトをクリア
 
-                        // remaining_textだけの時とremaining_text＋yes/noの時
                         if (data.remaining_text != 'Empty') {
                             console.log("本来はnullの時には表示されない", data.remaining_text);
                             var spinnerElement = document.getElementById("spiner");
-                            // 要素が存在する場合に削除
                             if (spinnerElement) {
                                 var botMessage = spinnerElement.parentElement;
                                 spinnerElement.remove();
-
-                                // テキストを挿入
-                                let index = 0; // 現在の文字位置を示すインデックス
-                                let remainingText = data.remaining_text; // 出力するテキスト
                                 botMessage.innerText = ''; // テキストを一旦クリア
 
-                                let interval = setInterval(function () {
-                                    if (index < remainingText.length) {
-                                        // 1文字ずつ追加
-                                        botMessage.innerText += remainingText.charAt(index);
-                                        index++;
-                                        // チャットを一番下までスクロール
-                                        chatMessages.scrollTop = chatMessages.scrollHeight;
-                                    } else {
-                                        // 全ての文字が出力されたらインターバルをクリア
-                                        clearInterval(interval);
-
-                                        // 全ての文字が出力された後にYes/Noボタンを追加
-                                        if (data.yes_no_phrase != null) {
-                                            // HTML要素を生成する
-                                            const chatMessage = document.createElement('div');
-                                            chatMessage.className = 'chat-message bot';
-                                            chatMessage.innerHTML = `
-                                 ${data.yes_no_phrase}
-                            <div class="button-container">
-                                <button class="btn btn-yes mb-2 mx-3" onclick="handleButtonClick('はい')">はい　<i class="bi bi-hand-thumbs-up-fill"></i></button>
-                                <button class="btn btn-no mb-2 mx-3" onclick="handleButtonClick('いいえ')">いいえ <i class="bi bi-hand-thumbs-down-fill"></i></button>
-                            </div>
-                            `;
-                                            chatMessages.appendChild(chatMessage);
-                                            // チャットを一番下までスクロール
-                                            chatMessages.scrollTop = chatMessages.scrollHeight;
-                                        }
+                                // Web Workerの作成と処理開始
+                                if (typeof (Worker) !== "undefined") {
+                                    if (worker) {
+                                        worker.terminate();
                                     }
-                                }, 40); // 40ミリ秒ごとに1文字表示
+                                    worker = new Worker('static/textGeneratorWorker.js');
+                                    worker.postMessage({ remaining_text: data.remaining_text });
+
+                                    worker.onmessage = function (e) {
+                                        if (e.data.type === 'text') {
+                                            botMessage.innerText += e.data.content; // 文字を1つずつ追加
+
+
+                                            if (autoScroll) {
+                                                chatMessages.scrollTop = chatMessages.scrollHeight;
+                                                console.log(autoScroll);
+                                            }
+                                        } else if (e.data.type === 'done') {
+                                            // 全ての文字が出力された後にYes/Noボタンを追加
+                                            if (data.yes_no_phrase != null) {
+                                                const chatMessage = document.createElement('div');
+                                                chatMessage.className = 'chat-message bot';
+                                                chatMessage.innerHTML = `
+                                    ${data.yes_no_phrase}
+                                    <div class="button-container">
+                                        <button class="btn btn-yes mb-2 mx-3" onclick="handleButtonClick('はい')">はい　<i class="bi bi-hand-thumbs-up-fill"></i></button>
+                                        <button class="btn btn-no mb-2 mx-3" onclick="handleButtonClick('いいえ')">いいえ <i class="bi bi-hand-thumbs-down-fill"></i></button>
+                                    </div>`;
+                                                chatMessages.appendChild(chatMessage);
+
+
+                                                chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                                            }
+                                        }
+                                    };
+                                } else {
+                                    console.log("Web Workers are not supported.");
+                                }
                             }
                         }
 
@@ -657,7 +609,6 @@
 
         //Yes/Noボタンからのデータ送信
         function handleButtonClick(response) {
-            const messageInput = document.getElementById('message');
             const chatMessages = document.getElementById('chatMessages1');
             const currentPlanContainer = document.getElementById('chatMessages2');
 
@@ -670,18 +621,18 @@
                 const botMessage = document.createElement('div');
                 botMessage.classList.add('chat-message', 'bot');
                 botMessage.innerHTML = `
-                    <div class="spinner-grow text-info" id="spiner" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                    </div>`
+            <div class="spinner-grow text-info" id="spiner" role="status">
+            <span class="visually-hidden">Loading...</span>
+            </div>`
                 chatMessages.appendChild(botMessage);
-                // チャットを一番下までスクロール
                 chatMessages.scrollTop = chatMessages.scrollHeight;
-            }, 100); // 1000ミリ秒（1秒）後に実行
+            }, 100);
 
             const timeoutId = setTimeout(function () {
                 alert("サーバーからの応答がありません。もう一度お試しください。");
             }, 60000);
 
+            let worker;
             fetch('/love_send_message', {
                 method: 'POST',
                 headers: {
@@ -693,49 +644,48 @@
                 .then(data => {
                     clearTimeout(timeoutId); // 応答があった場合、タイムアウトをクリア
 
-                    // remaining_textだけの時とremaining_text＋yes/noの時
                     if (data.remaining_text != 'Empty') {
-                        console.log("本来はnullの時には表示されない", data.remaining_text);
                         var spinnerElement = document.getElementById("spiner");
-                        // 要素が存在する場合に削除
                         if (spinnerElement) {
                             var botMessage = spinnerElement.parentElement;
                             spinnerElement.remove();
-
-                            // テキストを挿入
-                            let index = 0; // 現在の文字位置を示すインデックス
-                            let remainingText = data.remaining_text; // 出力するテキスト
                             botMessage.innerText = ''; // テキストを一旦クリア
 
-                            let interval = setInterval(function () {
-                                if (index < remainingText.length) {
-                                    // 1文字ずつ追加
-                                    botMessage.innerText += remainingText.charAt(index);
-                                    index++;
-                                    // チャットを一番下までスクロール
-                                    chatMessages.scrollTop = chatMessages.scrollHeight;
-                                } else {
-                                    // 全ての文字が出力されたらインターバルをクリア
-                                    clearInterval(interval);
-
-                                    // 全ての文字が出力された後にYes/Noボタンを追加
-                                    if (data.yes_no_phrase != null) {
-                                        // HTML要素を生成する
-                                        const chatMessage = document.createElement('div');
-                                        chatMessage.className = 'chat-message bot';
-                                        chatMessage.innerHTML = `
-                                 ${data.yes_no_phrase}
-                            <div class="button-container">
-                                <button class="btn btn-yes mb-2 mx-3" onclick="handleButtonClick('はい')">はい　<i class="bi bi-hand-thumbs-up-fill"></i></button>
-                                <button class="btn btn-no mb-2 mx-3" onclick="handleButtonClick('いいえ')">いいえ <i class="bi bi-hand-thumbs-down-fill"></i></button>
-                            </div>
-                            `;
-                                        chatMessages.appendChild(chatMessage);
-                                        // チャットを一番下までスクロール
-                                        chatMessages.scrollTop = chatMessages.scrollHeight;
-                                    }
+                            // Web Workerの作成と処理開始
+                            if (typeof (Worker) !== "undefined") {
+                                if (worker) {
+                                    worker.terminate(); // 以前のWorkerが存在したら終了
                                 }
-                            }, 40); // 40ミリ秒ごとに1文字表示
+                                worker = new Worker('static/textGeneratorWorker.js');
+                                worker.postMessage({ remaining_text: data.remaining_text });
+
+                                worker.onmessage = function (e) {
+                                    if (e.data.type === 'text') {
+                                        botMessage.innerText += e.data.content; // 1文字ずつ追加
+                                        //スクロールがtrueの時にはスクロールする
+                                        if (autoScroll) {
+                                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                                            console.log(autoScroll);
+                                        }
+                                    } else if (e.data.type === 'done') {
+                                        // 全ての文字が出力された後にYes/Noボタンを追加
+                                        if (data.yes_no_phrase != null) {
+                                            const chatMessage = document.createElement('div');
+                                            chatMessage.className = 'chat-message bot';
+                                            chatMessage.innerHTML = `
+                                    ${data.yes_no_phrase}
+                                    <div class="button-container">
+                                        <button class="btn btn-yes mb-2 mx-3" onclick="handleButtonClick('はい')">はい　<i class="bi bi-hand-thumbs-up-fill"></i></button>
+                                        <button class="btn btn-no mb-2 mx-3" onclick="handleButtonClick('いいえ')">いいえ <i class="bi bi-hand-thumbs-down-fill"></i></button>
+                                    </div>`;
+                                            chatMessages.appendChild(chatMessage);
+                                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                                        }
+                                    }
+                                };
+                            } else {
+                                console.log("Web Workers are not supported.");
+                            }
                         }
                     }
 
