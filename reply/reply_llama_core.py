@@ -63,7 +63,7 @@ def load_faiss_index(index_path):
 
 
 # 既存のFAISSインデックスのパス
-index_path = "./nice"
+index_path = "./reply_methods"
 
 # テキストからFAISSインデックスを読み込む
 retriever = load_faiss_index(index_path)

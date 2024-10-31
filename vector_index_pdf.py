@@ -4,7 +4,7 @@ from langchain_community.embeddings import SentenceTransformerEmbeddings
 from langchain_community.vectorstores import FAISS
 
 # ファイルパスを絶対パスで指定
-file_path = "./travel_choice.pdf"
+file_path = "./static/nice.pdf"
 
 # ファイルが存在するか確認
 if not os.path.exists(file_path):
@@ -23,6 +23,6 @@ text_embeddings = embedding_model.embed_documents(texts)
 faiss_db = FAISS.from_texts(texts, embedding_model)
 
 # FAISSベクトルデータベースを保存（任意）
-faiss_db.save_local("travel_choice")
+faiss_db.save_local("reply_methods")
 
 print("FAISSベクトルデータベースの作成が完了しました。")
