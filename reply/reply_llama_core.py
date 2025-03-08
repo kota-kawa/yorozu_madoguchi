@@ -72,7 +72,8 @@ retriever = load_faiss_index(index_path)
 def run_qa_chain(message, retriever, chat_history):
     yes_no_phrase, remaining_text = None, None
     # Groqのチャットモデルを初期化する
-    groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama-3.1-70b-versatile")
+    groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama-3.3-70b-versatile")
+
     # システムプロンプトを定義する Yes/No形式の質問の頻度は2回に1回まで!絶対!
     system_prompt = (
         "あなたはメッセージへの返答を考えるアシスタントです。 また、あなたは日本人なので、日本語で回答してください。必ず日本語で。"
