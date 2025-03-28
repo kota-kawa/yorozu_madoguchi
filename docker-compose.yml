@@ -1,0 +1,10 @@
+services:
+  web:
+    build: .
+    ports:
+      - "5003:5003"
+    env_file:
+      - .env
+    # 必要に応じてボリュームマウント（例: ローカルのコード変更を反映させる場合）
+    volumes:
+      - .:/app
