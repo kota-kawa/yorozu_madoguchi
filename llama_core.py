@@ -159,7 +159,7 @@ def write_decision_txt(chat_history):
 
     decision_index = create_faiss_index(content)
     # Groqのチャットモデルを初期化する llama3-70b-8192
-    groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama3-8b-8192")
+    groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama-3.1-8b-instant")
     # システムプロンプトを定義する
     system_prompt = (
         "あなたは、渡された文章から決定されている項目を抽出するアシスタントです。あなたは日本人なので、日本語で回答してください。必ず日本語で。"
