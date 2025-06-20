@@ -5,6 +5,8 @@ services:
       - "5003:5003"
     env_file:
       - .env
+    environment:
+      - TOKENIZERS_PARALLELISM=false
     # 必要に応じてボリュームマウント（例: ローカルのコード変更を反映させる場合）
     volumes:
       - .:/app

@@ -6,19 +6,22 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
-from dotenv import load_dotenv
 import os
 import guard
 
 import warnings
 warnings.filterwarnings("ignore", message=".*clean_up_tokenization_spaces.*")
 
-
-# .envファイルの読み込み
-load_dotenv()
-
-# 環境変数の値を取得
 groq_api_key = os.getenv("GROQ_API_KEY")
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+# API キーが設定されていない、または .env に誤りがある場合はここで明示的にエラーを出す
+if not groq_api_key:
+    raise RuntimeError(
+        "GROQ_API_KEY が設定されていないか、無効です。"
+        ".env ファイルを確認し、正しい API キーを指定してください。"
+    )
 
 # PDFファイルを読み込み、全ページのテキストを抽出する
 def process_pdf(pdf_file):

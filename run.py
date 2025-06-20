@@ -1,6 +1,10 @@
 from flask import Flask, render_template, request, jsonify, redirect
 import llama_core
 import reservation
+from dotenv import load_dotenv 
+import os 
+
+load_dotenv()
 
 app = Flask(__name__)
 
