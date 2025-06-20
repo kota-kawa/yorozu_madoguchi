@@ -23,6 +23,7 @@ if not groq_api_key:
         ".env ファイルを確認し、正しい API キーを指定してください。"
     )
 
+
 # PDFファイルを読み込み、全ページのテキストを抽出する
 def process_pdf(pdf_file):
     reader = PdfReader(pdf_file)
