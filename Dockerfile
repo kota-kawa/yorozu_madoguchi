@@ -20,10 +20,10 @@ COPY . .
 EXPOSE 5003
 
 # gunicorn を使ってアプリケーションを起動
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5003", "run:app"]
+#CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5003", "run:app"]
 
 ########## デバッグ用の実行 ##############
 # Flask の環境変数を設定（run.py がエントリーポイントの場合）
-#ENV FLASK_APP=run.py
-#ENV FLASK_ENV=development
-#CMD ["flask", "run", "--host=0.0.0.0", "--port=5003"]
+ENV FLASK_APP=run.py
+ENV FLASK_ENV=development
+CMD ["flask", "run", "--host=0.0.0.0", "--port=5003"]
