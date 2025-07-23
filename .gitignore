@@ -8,7 +8,7 @@
 *.docx
 *.csv
 *.dll
-*.txt
+
 *.pdf
 *.Identifier
 # ログファイルを無視
@@ -19,6 +19,10 @@
 .DS_Store
 Thumbs.db
 .vscode/
+
+chat_history.txt
+decision.txt
+ssh.txt
 
 cut.py
 excel_test.py
