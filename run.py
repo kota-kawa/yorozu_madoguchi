@@ -57,6 +57,16 @@ def send_message():
         })
 
     prompt = request.json.get('message')
+
+    # 文字数制限のチェック
+    if len(prompt) > 3000:
+        return jsonify({
+            'response': "入力された文字数が3000文字を超えています。短くして再度お試しください。",
+            'current_plan': "",
+            'yes_no_phrase': "",
+            'remaining_text': ""
+        })
+
     response, current_plan, yes_no_phrase, remaining_text = llama_core.chat_with_llama(prompt)
     return jsonify({'response': response, 'current_plan': current_plan,'yes_no_phrase': yes_no_phrase,'remaining_text': remaining_text})
 

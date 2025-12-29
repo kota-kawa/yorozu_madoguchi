@@ -18,6 +18,10 @@ let autoScroll = true;
             const currentPlanContainer = document.getElementById('chatMessages2');
 
             if (messageInput.value.trim() !== '') {
+                if (messageInput.value.length > 3000) {
+                    alert("入力された文字数が3000文字を超えています。3000文字以内で入力してください。");
+                    return;
+                }
                 const userMessage = document.createElement('div');
                 userMessage.classList.add('chat-message', 'user');
                 userMessage.innerText = messageInput.value;
