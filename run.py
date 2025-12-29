@@ -41,9 +41,21 @@ def complete():
         print(item)
     return render_template('complete.html', reservation_data = reservation_data)
 
+import limit_manager
+
 # メッセージを受け取り、レスポンスを返すエンドポイント
 @app.route('/travel_send_message', methods=['POST'])
 def send_message():
+    # 利用制限のチェック
+    is_allowed, count = limit_manager.check_and_increment_limit()
+    if not is_allowed:
+        return jsonify({
+            'response': f"申し訳ありませんが、本日の利用制限（{limit_manager.MAX_DAILY_LIMIT}回）に達しました。明日またご利用ください。",
+            'current_plan': "",
+            'yes_no_phrase': "",
+            'remaining_text': ""
+        })
+
     prompt = request.json.get('message')
     response, current_plan, yes_no_phrase, remaining_text = llama_core.chat_with_llama(prompt)
     return jsonify({'response': response, 'current_plan': current_plan,'yes_no_phrase': yes_no_phrase,'remaining_text': remaining_text})
