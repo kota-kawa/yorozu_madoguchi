@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './App.css'
 
 const SAMPLE_PROMPTS = [
@@ -14,13 +14,7 @@ const initialMessage = {
   text: 'どんな旅行の計画を一緒に立てますか？😊',
 }
 
-const normalizeApiBase = () => {
-  const base = import.meta.env.VITE_API_BASE_URL || ''
-  return base.endsWith('/') ? base.slice(0, -1) : base
-}
-
 function App() {
-  const apiBase = useMemo(normalizeApiBase, [])
   const [messages, setMessages] = useState([initialMessage])
   const [input, setInput] = useState('')
   const [currentPlan, setCurrentPlan] = useState('')
@@ -32,17 +26,15 @@ function App() {
 
   useEffect(() => {
     const controller = new AbortController()
-    fetch(`${apiBase}/api/reset`, { method: 'POST', signal: controller.signal }).catch(() => {})
+    fetch('/api/reset', { method: 'POST', signal: controller.signal }).catch(() => {})
     return () => controller.abort()
-  }, [apiBase])
+  }, [])
 
   useEffect(() => {
     if (autoScroll) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages, autoScroll])
-
-  const buildUrl = (path) => `${apiBase}${path}`
 
   const handleScroll = (event) => {
     const target = event.currentTarget
@@ -87,12 +79,21 @@ function App() {
     setInput('')
     setLoading(true)
     try {
-      const response = await fetch(buildUrl('/travel_send_message'), {
+      const response = await fetch('/travel_send_message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: trimmed }),
       })
+
+      if (!response.ok) {
+        throw new Error(`Server Error: ${response.status}`)
+      }
+
       const data = await response.json()
+
+      if (data.error) {
+         throw new Error(data.response || 'API Error')
+      }
 
       const remainingText = data?.remaining_text
       const hasRemainingText =
@@ -123,6 +124,7 @@ function App() {
         setCurrentPlan(data.current_plan)
       }
     } catch (error) {
+      console.error("SendMessage Error:", error)
       setMessages((prev) =>
         prev
           .filter((message) => message.id !== loadingMessage.id)
@@ -144,15 +146,19 @@ function App() {
 
     setSubmittingPlan(true)
     try {
-      await fetch(buildUrl('/travel_submit_plan'), {
+      const response = await fetch('/travel_submit_plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan: currentPlan }),
       })
 
+      if (!response.ok) {
+        throw new Error('Failed to submit plan')
+      }
+
       let summary = null
       try {
-        const summaryResponse = await fetch(buildUrl('/complete'), {
+        const summaryResponse = await fetch('/complete', {
           headers: { Accept: 'application/json' },
         })
         if (summaryResponse.ok) {
@@ -160,6 +166,7 @@ function App() {
         }
       } catch (error) {
         // 予約情報の読み込みは任意
+        console.warn("Failed to fetch summary:", error)
       }
 
       setMessages((prev) => [
@@ -178,6 +185,7 @@ function App() {
         ])
       }
     } catch (error) {
+      console.error("SubmitPlan Error:", error)
       setMessages((prev) => [
         ...prev,
         { id: `error-submit-${Date.now()}`, sender: 'bot', text: 'プランの保存に失敗しました。' },

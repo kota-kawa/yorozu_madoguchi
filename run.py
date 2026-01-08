@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify, redirect
+from flask_cors import CORS
 import llama_core
 import reservation
 from dotenv import load_dotenv 
@@ -6,38 +7,39 @@ import os
 from pathlib import Path
 import limit_manager
 from reply.reply_main import reply_bp
-from urllib.parse import urlsplit
+import logging
 
 load_dotenv()
+
+# ロギング設定
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
 
-
-def is_valid_origin(url: str) -> bool:
-    try:
-        parsed = urlsplit(url)
-        return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
-    except ValueError:
-        return False
-
-
+# 環境変数からオリジンを取得し、Flask-CORS用にリスト化
 raw_origins = os.getenv("ALLOWED_ORIGINS", FRONTEND_ORIGIN).split(",")
-ALLOWED_ORIGINS = {origin.strip() for origin in raw_origins if origin.strip() and is_valid_origin(origin.strip())}
-if not ALLOWED_ORIGINS and is_valid_origin(FRONTEND_ORIGIN):
-    ALLOWED_ORIGINS = {FRONTEND_ORIGIN}
+ALLOWED_ORIGINS = [origin.strip() for origin in raw_origins if origin.strip()]
 if not ALLOWED_ORIGINS:
-    ALLOWED_ORIGINS = {"http://localhost:5173"}
-FRONTEND_REDIRECT = next(iter(ALLOWED_ORIGINS))
+    ALLOWED_ORIGINS = ["http://localhost:5173"]
+
+# リダイレクト先は許可されたオリジンの最初、またはデフォルト
+FRONTEND_REDIRECT = ALLOWED_ORIGINS[0]
 
 app = Flask(__name__)
+# CORSの設定
+CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS}}, supports_credentials=True)
 
 
 def reset_session_files():
-    for filename in ("chat_history.txt", "decision.txt"):
-        file_path = BASE_DIR / filename
-        with open(file_path, 'w', encoding='utf-8') as file:
-            file.write("")
+    try:
+        for filename in ("chat_history.txt", "decision.txt"):
+            file_path = BASE_DIR / filename
+            with open(file_path, 'w', encoding='utf-8') as file:
+                file.write("")
+    except Exception as e:
+        logger.error(f"Failed to reset session files: {e}")
 
 
 def load_reservation_data():
@@ -46,15 +48,20 @@ def load_reservation_data():
     if not file_path.exists():
         return reservation_data
 
-    with open(file_path, 'r', encoding='utf-8-sig') as file:
-        lines = file.readlines()
-        for line in lines:
-            row = line.strip().split(',')
-            if len(row) == 2 and row[0] and row[1]:
-                key = row[0].strip()
-                value = row[1].strip()
-                if key and value:
-                    reservation_data.append(f"{key}：{value}")
+    try:
+        with open(file_path, 'r', encoding='utf-8-sig') as file:
+            lines = file.readlines()
+            for line in lines:
+                row = line.strip().split(',')
+                if len(row) == 2 and row[0] and row[1]:
+                    key = row[0].strip()
+                    value = row[1].strip()
+                    if key and value:
+                        reservation_data.append(f"{key}：{value}")
+    except Exception as e:
+        logger.error(f"Failed to load reservation data: {e}")
+        return ["予約データの読み込みに失敗しました。"]
+
     return reservation_data
 
 
@@ -68,22 +75,6 @@ def error_response(message, status=400):
     }), status
 
 
-@app.after_request
-def add_cors_headers(response):
-    origin = request.headers.get('Origin')
-    allow_origin = origin if origin in ALLOWED_ORIGINS else FRONTEND_ORIGIN
-    response.headers['Access-Control-Allow-Origin'] = allow_origin
-    response.headers['Access-Control-Allow-Methods'] = 'GET,POST,OPTIONS'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-    return response
-
-
-@app.before_request
-def handle_options():
-    if request.method == 'OPTIONS':
-        response = app.make_default_options_response()
-        return add_cors_headers(response)
-
 # Blueprintの登録
 app.register_blueprint(reply_bp)
 
@@ -96,54 +87,74 @@ def home():
 
 @app.route('/api/reset', methods=['POST'])
 def reset():
-    reset_session_files()
-    return jsonify({"status": "reset"})
+    try:
+        reset_session_files()
+        return jsonify({"status": "reset"})
+    except Exception as e:
+        logger.error(f"Reset endpoint failed: {e}")
+        return jsonify({"error": "Reset failed"}), 500
 
 
 # 予約完了画面
 @app.route('/complete')
 def complete():
-    reservation_data = load_reservation_data()
-    accepts_json = request.accept_mimetypes.get('application/json', 0)
-    accepts_html = request.accept_mimetypes.get('text/html', 0)
-    if accepts_json >= accepts_html:
-        return jsonify({"reservation_data": reservation_data})
+    try:
+        reservation_data = load_reservation_data()
+        accepts_json = request.accept_mimetypes.get('application/json', 0)
+        accepts_html = request.accept_mimetypes.get('text/html', 0)
+        if accepts_json >= accepts_html:
+            return jsonify({"reservation_data": reservation_data})
 
-    # 結果を表示
-    for item in reservation_data:
-        print(item)
-    return render_template('complete.html', reservation_data = reservation_data)
+        # 結果を表示
+        for item in reservation_data:
+            print(item)
+        return render_template('complete.html', reservation_data = reservation_data)
+    except Exception as e:
+        logger.error(f"Complete endpoint failed: {e}")
+        return "サーバー内部エラーが発生しました。", 500
+
+
 # メッセージを受け取り、レスポンスを返すエンドポイント
 @app.route('/travel_send_message', methods=['POST'])
 def send_message():
-    # 利用制限のチェック
-    is_allowed, count = limit_manager.check_and_increment_limit()
-    if not is_allowed:
-        return error_response(
-            f"申し訳ありませんが、本日の利用制限（{limit_manager.MAX_DAILY_LIMIT}回）に達しました。明日またご利用ください。",
-            status=429
-        )
+    try:
+        # 利用制限のチェック
+        is_allowed, count = limit_manager.check_and_increment_limit()
+        if not is_allowed:
+            return error_response(
+                f"申し訳ありませんが、本日の利用制限（{limit_manager.MAX_DAILY_LIMIT}回）に達しました。明日またご利用ください。",
+                status=429
+            )
 
-    data = request.get_json(silent=True)
-    if data is None:
-        return error_response("リクエストの形式が正しくありません（JSONを送信してください）。", status=400)
+        data = request.get_json(silent=True)
+        if data is None:
+            return error_response("リクエストの形式が正しくありません（JSONを送信してください）。", status=400)
 
-    prompt = data.get('message', '')
+        prompt = data.get('message', '')
 
-    if not prompt:
-        return error_response("メッセージを入力してください。", status=400)
+        if not prompt:
+            return error_response("メッセージを入力してください。", status=400)
 
-    # 文字数制限のチェック
-    if len(prompt) > 3000:
-        return error_response("入力された文字数が3000文字を超えています。短くして再度お試しください。", status=400)
+        # 文字数制限のチェック
+        if len(prompt) > 3000:
+            return error_response("入力された文字数が3000文字を超えています。短くして再度お試しください。", status=400)
 
-    response, current_plan, yes_no_phrase, remaining_text = llama_core.chat_with_llama(prompt)
-    return jsonify({'response': response, 'current_plan': current_plan,'yes_no_phrase': yes_no_phrase,'remaining_text': remaining_text})
+        response, current_plan, yes_no_phrase, remaining_text = llama_core.chat_with_llama(prompt)
+        return jsonify({'response': response, 'current_plan': current_plan,'yes_no_phrase': yes_no_phrase,'remaining_text': remaining_text})
+
+    except Exception as e:
+        logger.error(f"Error in send_message: {e}", exc_info=True)
+        return error_response("サーバー内部でエラーが発生しました。しばらく待ってから再試行してください。", status=500)
+
 
 @app.route('/travel_submit_plan', methods=['POST'])
 def submit_plan():
-    result = reservation.complete_plan()
-    return jsonify({'compile': result})
+    try:
+        result = reservation.complete_plan()
+        return jsonify({'compile': result})
+    except Exception as e:
+        logger.error(f"Error in submit_plan: {e}", exc_info=True)
+        return jsonify({'error': 'プランの保存に失敗しました。'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

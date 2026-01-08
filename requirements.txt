@@ -10,3 +10,4 @@ langchain-community
 langchain-huggingface
 langchain-groq
 numpy<2
+flask-cors

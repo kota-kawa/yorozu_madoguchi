@@ -1,3 +1,11 @@
+import logging
+import os
+import guard
+
+# ロギング設定
+logger = logging.getLogger(__name__)
+
+# ... imports ...
 from pypdf import PdfReader
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -6,8 +14,6 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
-import os
-import guard
 
 import warnings
 warnings.filterwarnings("ignore", message=".*clean_up_tokenization_spaces.*")
@@ -159,8 +165,6 @@ def run_qa_chain(message, retriever, chat_history):
 
     # Yes/No形式の文章の整形
     def extract_and_split_text(text):
-        # 関数を使って抽出
-        print("Yes/No!!!")
         # "Yes/No:"と"？"の位置を見つける
         yes_no_start = text.find('Yes/No:')
         if yes_no_start == -1:
@@ -172,7 +176,7 @@ def run_qa_chain(message, retriever, chat_history):
             # 有効な位置を選択
         if question_full == -1 and question_half == -1:
             return text, None, None  # 両方の"？"が見つからない場合は全体を返す
-        print("Yes/No???")
+
         # "Yes/No:"部分の抽出
         yes_no_phrase = text[yes_no_start + len('Yes/No:'):question_full + 1]
 
@@ -188,7 +192,6 @@ def run_qa_chain(message, retriever, chat_history):
         # remaining_textが空だったとき
         if remaining_text == None or remaining_text == "":
             # remaining_textが空または空白文字のみの場合の処理
-            print("残りのテキストがありません。デフォルト値を設定します。")
             remaining_text = "Empty"
     else:
         remaining_text = response
@@ -200,50 +203,58 @@ def write_decision_txt(chat_history):
     file_path = "./decision.txt"
     default_message = "決定している項目がありません。"
     message = "決定している項目のみを抽出してください、説明などは一切必要ありません"
-    # ファイルを読み込む
-    with open(file_path, 'r', encoding='utf-8') as file:
-        content = file.read()
     
-    # ファイルが空の場合は、デフォルトメッセージを書き込む
-    if not content.strip():
+    try:
+        # ファイルを読み込む
+        with open(file_path, 'r', encoding='utf-8') as file:
+            content = file.read()
+        
+        # ファイルが空の場合は、デフォルトメッセージを書き込む
+        if not content.strip():
+            with open(file_path, 'w', encoding='utf-8') as file:
+                file.write(default_message)
+                return default_message
+
+        decision_index = create_faiss_index(content)
+        # Groqのチャットモデルを初期化する llama3-70b-8192
+        groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama-3.1-8b-instant")
+        # システムプロンプトを定義する
+        system_prompt = (
+            "あなたは、渡された文章から決定されている項目を抽出するアシスタントです。あなたは日本人なので、日本語で回答してください。必ず日本語で。"
+            "\n\n"
+        )
+        # プロンプトメッセージを作成する
+        prompt_messages = [
+            ("system", system_prompt),
+        ] + chat_history + [
+            ("human", "{input}")
+        ]
+        # プロンプトテンプレートを作成する
+        prompt = ChatPromptTemplate.from_messages(prompt_messages)
+        # RAG（Retrieval-Augmented Generation）チェーンを構築する
+        rag_chain = (
+            {"context": decision_index, "input": RunnablePassthrough()}
+            | prompt
+            | groq_chat
+            | StrOutputParser()
+        )
+        response = rag_chain.invoke(message)
+        # 決定事項をファイルに保存する
         with open(file_path, 'w', encoding='utf-8') as file:
-            file.write(default_message)
-            return default_message
+            file.writelines(response)
 
-    decision_index = create_faiss_index(content)
-    # Groqのチャットモデルを初期化する llama3-70b-8192
-    groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama-3.1-8b-instant")
-    # システムプロンプトを定義する
-    system_prompt = (
-        "あなたは、渡された文章から決定されている項目を抽出するアシスタントです。あなたは日本人なので、日本語で回答してください。必ず日本語で。"
-        "\n\n"
-    )
-    # プロンプトメッセージを作成する
-    prompt_messages = [
-        ("system", system_prompt),
-    ] + chat_history + [
-        ("human", "{input}")
-    ]
-    # プロンプトテンプレートを作成する
-    prompt = ChatPromptTemplate.from_messages(prompt_messages)
-    # RAG（Retrieval-Augmented Generation）チェーンを構築する
-    rag_chain = (
-        {"context": decision_index, "input": RunnablePassthrough()}
-        | prompt
-        | groq_chat
-        | StrOutputParser()
-    )
-    response = rag_chain.invoke(message)
-    # 決定事項をファイルに保存する
-    with open(file_path, 'w', encoding='utf-8') as file:
-        file.writelines(response)
-
-    return response
+        return response
+    except Exception as e:
+        logger.error(f"Error in write_decision_txt: {e}")
+        return "決定事項の更新中にエラーが発生しました。"
 
 # チャット履歴をファイルから読み込む
 def load_chat_history(file_path):
     chat_history = []
-    if os.path.exists(file_path):
+    if not os.path.exists(file_path):
+        return chat_history
+
+    try:
         with open(file_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
             current_role = None
@@ -259,13 +270,20 @@ def load_chat_history(file_path):
                     current_text.append(stripped_line)
             if current_role is not None:
                 chat_history.append((current_role, "\n".join(current_text).strip()))
+    except Exception as e:
+        logger.error(f"Error loading chat history from {file_path}: {e}")
+        return []
+
     return chat_history
 
 # チャット履歴をファイルに保存する
 def save_chat_history(file_path, chat_history):
-    with open(file_path, "w", encoding="utf-8") as f:
-        for role, text in chat_history:
-            f.write(f"{role}:{text}\n")
+    try:
+        with open(file_path, "w", encoding="utf-8") as f:
+            for role, text in chat_history:
+                f.write(f"{role}:{text}\n")
+    except Exception as e:
+        logger.error(f"Error saving chat history to {file_path}: {e}")
 
 # メインのプログラムにLLMの結果を返す
 def chat_with_llama(prompt):
@@ -275,12 +293,15 @@ def chat_with_llama(prompt):
     if 'unsafe' in result:
         remaining_text = "それには答えられません"
         yes_no_phrase, response = None, None
-
-        file_path = "./decision.txt"
-        # ファイルを読み込む
-        with open(file_path, 'r', encoding='utf-8') as file:
-            content = file.read()
-        current_plan = content
+        
+        try:
+            file_path = "./decision.txt"
+            # ファイルを読み込む
+            with open(file_path, 'r', encoding='utf-8') as file:
+                content = file.read()
+            current_plan = content
+        except Exception:
+            current_plan = "情報を読み取れませんでした。"
     #　通常の返答
     else:
         # チャット履歴を読み込む
@@ -296,6 +317,6 @@ def chat_with_llama(prompt):
         # 決定している項目を保存する
         chat_history = load_chat_history(chat_history_file)
         current_plan = write_decision_txt(chat_history)
-        print("回答：", response)
+        # print("回答：", response) # 不要なprintは削除
 
     return response, current_plan, yes_no_phrase, remaining_text
