@@ -1,33 +1,32 @@
-from flask import Flask, render_template, request, jsonify, redirect
+from flask import Flask, render_template, request, jsonify
 import llama_core
 import reservation
 from dotenv import load_dotenv 
 import os 
+from pathlib import Path
 
 load_dotenv()
 
+BASE_DIR = Path(__file__).resolve().parent
+FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+
 app = Flask(__name__)
 
-from reply.reply_main import reply_bp
 
-# Blueprintの登録
-app.register_blueprint(reply_bp)
+def reset_session_files():
+    for filename in ("chat_history.txt", "decision.txt"):
+        file_path = BASE_DIR / filename
+        with open(file_path, 'w', encoding='utf-8') as file:
+            file.write("")
 
-# ホームのチャット画面
-@app.route('/')
-def home():
-    # テキストファイルの内容を消す
-    with open('./chat_history.txt', 'w') as file:
-        pass  # ファイルを開いて何も書かないことで内容が空になります。
-    with open('./decision.txt', 'w') as file:
-        pass  # ファイルを開いて何も書かないことで内容が空になります。
-    return render_template('travel_madoguchi.html')
 
-# 予約完了画面
-@app.route('/complete')
-def complete():
+def load_reservation_data():
     reservation_data = []
-    with open('./reservation_plan.csv', 'r', encoding='utf-8-sig') as file:
+    file_path = BASE_DIR / "reservation_plan.csv"
+    if not file_path.exists():
+        return reservation_data
+
+    with open(file_path, 'r', encoding='utf-8-sig') as file:
         lines = file.readlines()
         for line in lines:
             row = line.strip().split(',')
@@ -36,6 +35,44 @@ def complete():
                 value = row[1].strip()
                 if key and value:
                     reservation_data.append(f"{key}：{value}")
+    return reservation_data
+
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = FRONTEND_ORIGIN
+    response.headers['Access-Control-Allow-Methods'] = 'GET,POST,OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    return response
+
+from reply.reply_main import reply_bp
+
+# Blueprintの登録
+app.register_blueprint(reply_bp)
+
+# ホームのチャット画面（React フロントエンドに切り替え）
+@app.route('/')
+def home():
+    reset_session_files()
+    return jsonify({
+        "message": "フロントエンドはReactに移行しました。frontend/ ディレクトリで npm run dev を実行してください。",
+        "frontend": FRONTEND_ORIGIN
+    })
+
+
+@app.route('/api/reset', methods=['POST'])
+def reset():
+    reset_session_files()
+    return jsonify({"status": "reset"})
+
+
+# 予約完了画面
+@app.route('/complete')
+def complete():
+    reservation_data = load_reservation_data()
+    if request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']:
+        return jsonify({"reservation_data": reservation_data})
+
     # 結果を表示
     for item in reservation_data:
         print(item)
@@ -56,7 +93,15 @@ def send_message():
             'remaining_text': ""
         })
 
-    prompt = request.json.get('message')
+    prompt = (request.json or {}).get('message', '')
+
+    if not prompt:
+        return jsonify({
+            'response': "メッセージを入力してください。",
+            'current_plan': "",
+            'yes_no_phrase': "",
+            'remaining_text': ""
+        }), 400
 
     # 文字数制限のチェック
     if len(prompt) > 3000:
