@@ -28,6 +28,7 @@ if not ALLOWED_ORIGINS and is_valid_origin(FRONTEND_ORIGIN):
     ALLOWED_ORIGINS = {FRONTEND_ORIGIN}
 if not ALLOWED_ORIGINS:
     ALLOWED_ORIGINS = {"http://localhost:5173"}
+FRONTEND_REDIRECT = next(iter(ALLOWED_ORIGINS))
 
 app = Flask(__name__)
 
@@ -90,7 +91,7 @@ app.register_blueprint(reply_bp)
 @app.route('/')
 def home():
     reset_session_files()
-    return redirect(FRONTEND_ORIGIN)
+    return redirect(FRONTEND_REDIRECT)
 
 
 @app.route('/api/reset', methods=['POST'])
@@ -112,9 +113,6 @@ def complete():
     for item in reservation_data:
         print(item)
     return render_template('complete.html', reservation_data = reservation_data)
-
-import limit_manager
-
 # メッセージを受け取り、レスポンスを返すエンドポイント
 @app.route('/travel_send_message', methods=['POST'])
 def send_message():
