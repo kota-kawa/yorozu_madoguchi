@@ -93,7 +93,16 @@ def send_message():
             'remaining_text': ""
         })
 
-    prompt = (request.json or {}).get('message', '')
+    data = request.get_json(silent=True)
+    if data is None:
+        return jsonify({
+            'response': "リクエストの形式が正しくありません（JSONを送信してください）。",
+            'current_plan': "",
+            'yes_no_phrase': "",
+            'remaining_text': ""
+        }), 400
+
+    prompt = data.get('message', '')
 
     if not prompt:
         return jsonify({
