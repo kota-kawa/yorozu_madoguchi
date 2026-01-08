@@ -278,7 +278,7 @@ function App() {
                   disabled={loading || submittingPlan}
                   aria-label="送信"
                 >
-                  <i className="bi bi-chat-dots-fill" aria-hidden />
+                  <i className="bi bi-send-fill" aria-hidden />
                 </button>
               </form>
             </div>
@@ -309,7 +309,7 @@ function App() {
                 onClick={submitPlan}
                 disabled={!currentPlan || submittingPlan}
               >
-                <i className="bi bi-hand-thumbs-up-fill" aria-hidden /> 決定
+                <i className="bi bi-check-circle-fill" aria-hidden /> 決定
               </button>
             </div>
           </div>
@@ -318,7 +318,7 @@ function App() {
 
       {(loading || submittingPlan) && (
         <div id="spinnerOverlay" role="status">
-          <div className="spinner-border" style={{ width: '5rem', height: '5rem' }}>
+          <div className="spinner-border">
             <span className="visually-hidden">Loading...</span>
           </div>
         </div>
