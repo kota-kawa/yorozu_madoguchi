@@ -6,10 +6,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/travel_send_message': 'http://localhost:5000',
-      '/travel_submit_plan': 'http://localhost:5000',
-      '/complete': 'http://localhost:5000',
-      '/api/reset': 'http://localhost:5000',
+      '/travel_send_message': process.env.VITE_BACKEND_ORIGIN || 'http://localhost:5000',
+      '/travel_submit_plan': process.env.VITE_BACKEND_ORIGIN || 'http://localhost:5000',
+      '/complete': process.env.VITE_BACKEND_ORIGIN || 'http://localhost:5000',
+      '/api/reset': process.env.VITE_BACKEND_ORIGIN || 'http://localhost:5000',
     },
   },
 })

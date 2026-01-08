@@ -94,8 +94,10 @@ function App() {
       })
       const data = await response.json()
 
-      const botText =
-        data?.remaining_text && data.remaining_text !== 'Empty' ? data.remaining_text : data?.response
+      const remainingText = data?.remaining_text
+      const hasRemainingText =
+        remainingText !== null && remainingText !== undefined && remainingText !== 'Empty'
+      const botText = hasRemainingText ? remainingText : data?.response
 
       const updates = []
       if (botText) {

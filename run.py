@@ -1,14 +1,33 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect
 import llama_core
 import reservation
 from dotenv import load_dotenv 
 import os 
 from pathlib import Path
+import limit_manager
+from reply.reply_main import reply_bp
+from urllib.parse import urlsplit
 
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+
+
+def is_valid_origin(url: str) -> bool:
+    try:
+        parsed = urlsplit(url)
+        return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+    except ValueError:
+        return False
+
+
+raw_origins = os.getenv("ALLOWED_ORIGINS", FRONTEND_ORIGIN).split(",")
+ALLOWED_ORIGINS = {origin.strip() for origin in raw_origins if origin.strip() and is_valid_origin(origin.strip())}
+if not ALLOWED_ORIGINS and is_valid_origin(FRONTEND_ORIGIN):
+    ALLOWED_ORIGINS = {FRONTEND_ORIGIN}
+if not ALLOWED_ORIGINS:
+    ALLOWED_ORIGINS = {"http://localhost:5173"}
 
 app = Flask(__name__)
 
@@ -38,14 +57,31 @@ def load_reservation_data():
     return reservation_data
 
 
+def error_response(message, status=400):
+    return jsonify({
+        'error': True,
+        'response': message,
+        'current_plan': "",
+        'yes_no_phrase': "",
+        'remaining_text': ""
+    }), status
+
+
 @app.after_request
 def add_cors_headers(response):
-    response.headers['Access-Control-Allow-Origin'] = FRONTEND_ORIGIN
+    origin = request.headers.get('Origin')
+    allow_origin = origin if origin in ALLOWED_ORIGINS else FRONTEND_ORIGIN
+    response.headers['Access-Control-Allow-Origin'] = allow_origin
     response.headers['Access-Control-Allow-Methods'] = 'GET,POST,OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     return response
 
-from reply.reply_main import reply_bp
+
+@app.before_request
+def handle_options():
+    if request.method == 'OPTIONS':
+        response = app.make_default_options_response()
+        return add_cors_headers(response)
 
 # Blueprintの登録
 app.register_blueprint(reply_bp)
@@ -54,10 +90,7 @@ app.register_blueprint(reply_bp)
 @app.route('/')
 def home():
     reset_session_files()
-    return jsonify({
-        "message": "フロントエンドはReactに移行しました。frontend/ ディレクトリで npm run dev を実行してください。",
-        "frontend": FRONTEND_ORIGIN
-    })
+    return redirect(FRONTEND_ORIGIN)
 
 
 @app.route('/api/reset', methods=['POST'])
@@ -70,7 +103,9 @@ def reset():
 @app.route('/complete')
 def complete():
     reservation_data = load_reservation_data()
-    if request.accept_mimetypes['application/json'] >= request.accept_mimetypes['text/html']:
+    accepts_json = request.accept_mimetypes.get('application/json', 0)
+    accepts_html = request.accept_mimetypes.get('text/html', 0)
+    if accepts_json >= accepts_html:
         return jsonify({"reservation_data": reservation_data})
 
     # 結果を表示
@@ -86,40 +121,23 @@ def send_message():
     # 利用制限のチェック
     is_allowed, count = limit_manager.check_and_increment_limit()
     if not is_allowed:
-        return jsonify({
-            'response': f"申し訳ありませんが、本日の利用制限（{limit_manager.MAX_DAILY_LIMIT}回）に達しました。明日またご利用ください。",
-            'current_plan': "",
-            'yes_no_phrase': "",
-            'remaining_text': ""
-        })
+        return error_response(
+            f"申し訳ありませんが、本日の利用制限（{limit_manager.MAX_DAILY_LIMIT}回）に達しました。明日またご利用ください。",
+            status=429
+        )
 
     data = request.get_json(silent=True)
     if data is None:
-        return jsonify({
-            'response': "リクエストの形式が正しくありません（JSONを送信してください）。",
-            'current_plan': "",
-            'yes_no_phrase': "",
-            'remaining_text': ""
-        }), 400
+        return error_response("リクエストの形式が正しくありません（JSONを送信してください）。", status=400)
 
     prompt = data.get('message', '')
 
     if not prompt:
-        return jsonify({
-            'response': "メッセージを入力してください。",
-            'current_plan': "",
-            'yes_no_phrase': "",
-            'remaining_text': ""
-        }), 400
+        return error_response("メッセージを入力してください。", status=400)
 
     # 文字数制限のチェック
     if len(prompt) > 3000:
-        return jsonify({
-            'response': "入力された文字数が3000文字を超えています。短くして再度お試しください。",
-            'current_plan': "",
-            'yes_no_phrase': "",
-            'remaining_text': ""
-        })
+        return error_response("入力された文字数が3000文字を超えています。短くして再度お試しください。", status=400)
 
     response, current_plan, yes_no_phrase, remaining_text = llama_core.chat_with_llama(prompt)
     return jsonify({'response': response, 'current_plan': current_plan,'yes_no_phrase': yes_no_phrase,'remaining_text': remaining_text})
