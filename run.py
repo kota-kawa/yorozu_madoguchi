@@ -142,8 +142,8 @@ def send_message():
 
 @app.route('/travel_submit_plan', methods=['POST'])
 def submit_plan():
-    compile = reservation.complete_plan()
-    return jsonify({'compile': compile})
+    result = reservation.complete_plan()
+    return jsonify({'compile': result})
 
 if __name__ == '__main__':
     app.run(debug=True)
