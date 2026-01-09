@@ -23,70 +23,50 @@ logger = logging.getLogger(__name__)
 init_db()
 
 BASE_DIR = Path(__file__).resolve().parent
-FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "https://chat.project-kk.com")
 
 # 環境変数からオリジンを取得し、Flask-CORS用にリスト化
+# 本番ドメインとローカル開発環境の両方を許可リストに含める
 raw_origins = os.getenv("ALLOWED_ORIGINS", FRONTEND_ORIGIN).split(",")
 ALLOWED_ORIGINS = [origin.strip() for origin in raw_origins if origin.strip()]
-if not ALLOWED_ORIGINS:
-    ALLOWED_ORIGINS = ["http://localhost:5173"]
-
-# リダイレクト先は許可されたオリジンの最初、またはデフォルト
-FRONTEND_REDIRECT = ALLOWED_ORIGINS[0]
+if "https://chat.project-kk.com" not in ALLOWED_ORIGINS:
+    ALLOWED_ORIGINS.append("https://chat.project-kk.com")
+if "http://localhost:5173" not in ALLOWED_ORIGINS:
+    ALLOWED_ORIGINS.append("http://localhost:5173")
 
 app = Flask(__name__)
 # CORSの設定
 CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS}}, supports_credentials=True)
 
-
 def reset_session_data(session_id):
-    try:
-        redis_client.reset_session(session_id)
-    except Exception as e:
-        logger.error(f"Failed to reset session data for {session_id}: {e}")
-
-
-def load_reservation_data():
-    reservation_data = []
-    db = SessionLocal()
-    try:
-        plan = db.query(ReservationPlan).first()
-        if plan:
-            # 表示順序やラベルは既存CSVに合わせて定義
-            fields = [
-                ('目的地', plan.destinations),
-                ('出発地', plan.departure),
-                ('ホテル', plan.hotel),
-                ('航空会社', plan.airlines),
-                ('鉄道会社', plan.railway),
-                ('タクシー会社', plan.taxi),
-                ('滞在開始日', plan.start_date),
-                ('滞在終了日', plan.end_date)
-            ]
-            for key, value in fields:
-                if value: # 値が存在する場合のみ追加
-                    reservation_data.append(f"{key}：{value}")
-    except Exception as e:
-        logger.error(f"Failed to load reservation data: {e}")
-        return ["予約データの読み込みに失敗しました。"]
-    finally:
-        db.close()
-
-    return reservation_data
-
+    """Redisのセッションデータをリセットする"""
+    redis_client.reset_session(session_id)
 
 def error_response(message, status=400):
-    return jsonify({
-        'error': True,
-        'response': message,
-        'current_plan': "",
-        'yes_no_phrase': "",
-        'remaining_text': ""
-    }), status
+    """エラーレスポンスを返すヘルパー関数"""
+    return jsonify({"error": message}), status
 
-
-# Blueprintの登録
-app.register_blueprint(reply_bp)
+def load_reservation_data():
+    """データベースから最新の予約プランを読み込む"""
+    db = SessionLocal()
+    try:
+        # 最新の予約プランを取得
+        plan = db.query(ReservationPlan).order_by(ReservationPlan.id.desc()).first()
+        if plan:
+            return [{
+                "id": plan.id,
+                "destinations": plan.destinations,
+                "departure": plan.departure,
+                "hotel": plan.hotel,
+                "airlines": plan.airlines,
+                "railway": plan.railway,
+                "taxi": plan.taxi,
+                "start_date": plan.start_date,
+                "end_date": plan.end_date
+            }]
+        return []
+    finally:
+        db.close()
 
 # ホームのチャット画面（React フロントエンドに切り替え）
 @app.route('/')
@@ -95,9 +75,15 @@ def home():
     # セッションデータを初期化
     reset_session_data(session_id)
     
-    response = make_response(redirect(FRONTEND_REDIRECT))
-    # CookieにセッションIDを設定 (有効期限やSameSite設定は環境に合わせて調整)
-    # ローカル開発(HTTP)とクロスオリジンを考慮して設定
+    # リクエストのHostヘッダーを見てリダイレクト先を決定
+    host = request.headers.get('Host', '')
+    if 'chat.project-kk.com' in host:
+        redirect_url = "https://chat.project-kk.com"
+    else:
+        redirect_url = "http://localhost:5173"
+        
+    response = make_response(redirect(redirect_url))
+    # CookieにセッションIDを設定
     response.set_cookie('session_id', session_id, httponly=True, samesite='Lax')
     return response
 
