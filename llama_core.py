@@ -1,6 +1,7 @@
 import logging
 import os
 import guard
+import redis_client
 
 # ロギング設定
 logger = logging.getLogger(__name__)
@@ -127,20 +128,16 @@ def run_qa_chain(message, chat_history):
 
     return response, yes_no_phrase, remaining_text
 
-#　決定している事項をテキストファイルに書き込む
-def write_decision_txt(chat_history):
-    file_path = "./decision.txt"
+#　決定している事項をRedisに書き込む
+def write_decision(session_id, chat_history):
     default_message = "決定している項目がありません。"
     message = "決定している項目のみを抽出してください、説明などは一切必要ありません"
     
     try:
-        # ファイルを読み込む
-        content = ""
-        if os.path.exists(file_path):
-            with open(file_path, 'r', encoding='utf-8') as file:
-                content = file.read()
+        # Redisから読み込む
+        content = redis_client.get_decision(session_id)
         
-        # ファイルが空の場合は、デフォルトメッセージを書き込む（が、ここでは読み込みのみで処理続行）
+        # コンテンツが空の場合は、デフォルトメッセージを使用
         if not content.strip():
             content = default_message
 
@@ -169,54 +166,16 @@ def write_decision_txt(chat_history):
         )
         response = chain.invoke({"input": message})
         
-        # 決定事項をファイルに保存する
-        with open(file_path, 'w', encoding='utf-8') as file:
-            file.writelines(response)
+        # 決定事項をRedisに保存する
+        redis_client.save_decision(session_id, response)
 
         return response
     except Exception as e:
-        logger.error(f"Error in write_decision_txt: {e}")
+        logger.error(f"Error in write_decision: {e}")
         return "決定事項の更新中にエラーが発生しました。"
 
-# チャット履歴をファイルから読み込む
-def load_chat_history(file_path):
-    chat_history = []
-    if not os.path.exists(file_path):
-        return chat_history
-
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-            current_role = None
-            current_text = []
-            for line in lines:
-                stripped_line = line.strip()
-                if stripped_line.startswith("human:") or stripped_line.startswith("assistant:"):
-                    if current_role is not None:
-                        chat_history.append((current_role, "\n".join(current_text).strip()))
-                    current_role, current_text = stripped_line.split(":", 1)
-                    current_text = [current_text.strip()]
-                else:
-                    current_text.append(stripped_line)
-            if current_role is not None:
-                chat_history.append((current_role, "\n".join(current_text).strip()))
-    except Exception as e:
-        logger.error(f"Error loading chat history from {file_path}: {e}")
-        return []
-
-    return chat_history
-
-# チャット履歴をファイルに保存する
-def save_chat_history(file_path, chat_history):
-    try:
-        with open(file_path, "w", encoding="utf-8") as f:
-            for role, text in chat_history:
-                f.write(f"{role}:{text}\n")
-    except Exception as e:
-        logger.error(f"Error saving chat history to {file_path}: {e}")
-
 # メインのプログラムにLLMの結果を返す
-def chat_with_llama(prompt):
+def chat_with_llama(session_id, prompt):
     result = guard.content_checker(prompt)
 
     #　悪意のあるプロンプトだった場合
@@ -225,18 +184,15 @@ def chat_with_llama(prompt):
         yes_no_phrase, response = None, None
         
         try:
-            file_path = "./decision.txt"
-            # ファイルを読み込む
-            with open(file_path, 'r', encoding='utf-8') as file:
-                content = file.read()
-            current_plan = content
+            current_plan = redis_client.get_decision(session_id)
+            if not current_plan:
+                current_plan = "情報を読み取れませんでした。"
         except Exception:
             current_plan = "情報を読み取れませんでした。"
     #　通常の返答
     else:
         # チャット履歴を読み込む
-        chat_history_file = "./chat_history.txt"
-        chat_history = load_chat_history(chat_history_file)
+        chat_history = redis_client.get_chat_history(session_id)
         # 入力メッセージを追加してQAチェーンを実行する
         message = prompt
         chat_history.append(("human", message))
@@ -246,10 +202,10 @@ def chat_with_llama(prompt):
         
         chat_history.append(("assistant", response))
         # チャット履歴を保存する
-        save_chat_history(chat_history_file, chat_history)
+        redis_client.save_chat_history(session_id, chat_history)
         # 決定している項目を保存する
-        chat_history = load_chat_history(chat_history_file)
-        current_plan = write_decision_txt(chat_history)
+        # ここで再読み込みは不要。メモリ上のchat_historyを使う。
+        current_plan = write_decision(session_id, chat_history)
         # print("回答：", response) # 不要なprintは削除
 
     return response, current_plan, yes_no_phrase, remaining_text

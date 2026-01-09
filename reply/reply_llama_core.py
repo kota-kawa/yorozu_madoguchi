@@ -4,6 +4,7 @@ from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
 import os
 import guard
+import redis_client
 
 import warnings
 warnings.filterwarnings("ignore", message=".*clean_up_tokenization_spaces.*")
@@ -85,16 +86,13 @@ def run_qa_chain(message, chat_history):
 
     return response, yes_no_phrase, remaining_text
 
-#　決定している事項をテキストファイルに書き込む
-def write_decision_txt(chat_history):
-    file_path = "./decision.txt"
+#　決定している事項をRedisに書き込む
+def write_decision(session_id, chat_history):
     default_message = "決定している項目がありません。"
     message = "決定している項目のみを抽出してください、説明などは一切必要ありません"
-    # ファイルを読み込む
-    content = ""
-    if os.path.exists(file_path):
-        with open(file_path, 'r', encoding='utf-8') as file:
-            content = file.read()
+    
+    # Redisから読み込む
+    content = redis_client.get_decision(session_id)
     
     # ファイルが空の場合は、デフォルトメッセージを書き込む
     if not content.strip():
@@ -123,57 +121,25 @@ def write_decision_txt(chat_history):
         | StrOutputParser()
     )
     response = chain.invoke({"input": message})
-    # 決定事項をファイルに保存する
-    with open(file_path, 'w', encoding='utf-8') as file:
-        file.writelines(response)
+    # 決定事項をRedisに保存する
+    redis_client.save_decision(session_id, response)
 
     return response
 
-# チャット履歴をファイルから読み込む
-def load_chat_history(file_path):
-    chat_history = []
-    if os.path.exists(file_path):
-        with open(file_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-            current_role = None
-            current_text = []
-            for line in lines:
-                stripped_line = line.strip()
-                if stripped_line.startswith("human:") or stripped_line.startswith("assistant:"):
-                    if current_role is not None:
-                        chat_history.append((current_role, "\n".join(current_text).strip()))
-                    current_role, current_text = stripped_line.split(":", 1)
-                    current_text = [current_text.strip()]
-                else:
-                    current_text.append(stripped_line)
-            if current_role is not None:
-                chat_history.append((current_role, "\n".join(current_text).strip()))
-    return chat_history
-
-# チャット履歴をファイルに保存する
-def save_chat_history(file_path, chat_history):
-    with open(file_path, "w", encoding="utf-8") as f:
-        for role, text in chat_history:
-            f.write(f"{role}:{text}\n")
-
 # メインのプログラムにLLMの結果を返す
-def chat_with_llama(prompt):
+def chat_with_llama(session_id, prompt):
     result = guard.content_checker(prompt)
     #　悪意のあるプロンプトだった場合
     if 'unsafe' in result:
         remaining_text = "それには答えられません"
         yes_no_phrase, response = None, None
 
-        file_path = "./decision.txt"
-        # ファイルを読み込む
-        with open(file_path, 'r', encoding='utf-8') as file:
-            content = file.read()
+        content = redis_client.get_decision(session_id)
         current_plan = content
     #　通常の返答
     else:
         # チャット履歴を読み込む
-        chat_history_file = "./chat_history.txt"
-        chat_history = load_chat_history(chat_history_file)
+        chat_history = redis_client.get_chat_history(session_id)
         # 入力メッセージを追加してQAチェーンを実行する
         message = prompt
         chat_history.append(("human", message))
@@ -183,10 +149,10 @@ def chat_with_llama(prompt):
         
         chat_history.append(("assistant", response))
         # チャット履歴を保存する
-        save_chat_history(chat_history_file, chat_history)
+        redis_client.save_chat_history(session_id, chat_history)
         # 決定している項目を保存する
-        chat_history = load_chat_history(chat_history_file)
-        current_plan = write_decision_txt(chat_history)
+        # メモリ上のhistoryを使う
+        current_plan = write_decision(session_id, chat_history)
         print("回答：", response)
 
     return response, current_plan, yes_no_phrase, remaining_text

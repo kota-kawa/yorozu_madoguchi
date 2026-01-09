@@ -1,6 +1,13 @@
-from flask import Blueprint, render_template, request, jsonify, redirect
+from flask import Blueprint, render_template, request, jsonify, redirect, make_response
 import reply.reply_llama_core
 import reservation
+from database import SessionLocal
+from models import ReservationPlan
+import uuid
+import redis_client
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Blueprintの定義
 reply_bp = Blueprint('reply', __name__)
@@ -8,26 +15,42 @@ reply_bp = Blueprint('reply', __name__)
 # ホームのチャット画面
 @reply_bp.route('/reply')
 def reply_home():
-    # テキストファイルの内容を消す
-    with open('./chat_history.txt', 'w') as file:
-        pass  # ファイルを開いて何も書かないことで内容が空になります。
-    with open('./decision.txt', 'w') as file:
-        pass  # ファイルを開いて何も書かないことで内容が空になります。
-    return render_template('reply/reply_madoguchi.html')
+    session_id = str(uuid.uuid4())
+    try:
+        redis_client.reset_session(session_id)
+    except Exception as e:
+        logger.error(f"Failed to reset session for {session_id}: {e}")
+        
+    response = make_response(render_template('reply/reply_madoguchi.html'))
+    response.set_cookie('session_id', session_id, httponly=True, samesite='Lax')
+    return response
 
 # 予約完了画面
 @reply_bp.route('/reply_complete')
 def reply_complete():
     reservation_data = []
-    with open('./reservation_plan.csv', 'r', encoding='utf-8-sig') as file:
-        lines = file.readlines()
-        for line in lines:
-            row = line.strip().split(',')
-            if len(row) == 2 and row[0] and row[1]:
-                key = row[0].strip()
-                value = row[1].strip()
-                if key and value:
+    db = SessionLocal()
+    try:
+        plan = db.query(ReservationPlan).first()
+        if plan:
+            fields = [
+                ('目的地', plan.destinations),
+                ('出発地', plan.departure),
+                ('ホテル', plan.hotel),
+                ('航空会社', plan.airlines),
+                ('鉄道会社', plan.railway),
+                ('タクシー会社', plan.taxi),
+                ('滞在開始日', plan.start_date),
+                ('滞在終了日', plan.end_date)
+            ]
+            for key, value in fields:
+                if value:
                     reservation_data.append(f"{key}：{value}")
+    except Exception as e:
+        print(f"Error loading reservation data: {e}")
+    finally:
+        db.close()
+
     # 結果を表示
     for item in reservation_data:
         print(item)
@@ -38,6 +61,10 @@ import limit_manager
 # メッセージを受け取り、レスポンスを返すエンドポイント
 @reply_bp.route('/reply_send_message', methods=['POST'])
 def reply_send_message():
+    session_id = request.cookies.get('session_id')
+    if not session_id:
+        return jsonify({'error': 'セッションが無効です。ページをリロードしてください。'}), 400
+
     # 利用制限のチェック
     is_allowed, count = limit_manager.check_and_increment_limit()
     if not is_allowed:
@@ -59,10 +86,14 @@ def reply_send_message():
             'remaining_text': ""
         })
 
-    response, current_plan, yes_no_phrase, remaining_text = reply.reply_llama_core.chat_with_llama(prompt)
+    response, current_plan, yes_no_phrase, remaining_text = reply.reply_llama_core.chat_with_llama(session_id, prompt)
     return jsonify({'response': response, 'current_plan': current_plan,'yes_no_phrase': yes_no_phrase,'remaining_text': remaining_text})
 
 @reply_bp.route('/reply_submit_plan', methods=['POST'])
 def reply_submit_plan():
-    compile = reservation.complete_plan()
+    session_id = request.cookies.get('session_id')
+    if not session_id:
+        return jsonify({'error': 'セッションが無効です。'}), 400
+        
+    compile = reservation.complete_plan(session_id)
     return jsonify({'compile': compile})

@@ -1,66 +1,61 @@
-import json
 import datetime
-import os
-import fcntl
-from pathlib import Path
+import logging
+from redis_client import redis_client
 
-BASE_DIR = Path(__file__).resolve().parent
-LIMIT_FILE = BASE_DIR / 'daily_usage.json'
+logger = logging.getLogger(__name__)
+
 MAX_DAILY_LIMIT = 10
+EXPIRATION_SECONDS = 86400 * 2  # 48 hours
 
 def check_and_increment_limit():
     """
-    全ユーザー合計の利用回数をチェックし、
-    制限内であればカウントを増やしてTrueを返す。
-    制限を超えていればFalseを返す。
-    ファイルロックを使用して同時アクセス時の整合性を保つ。
+    Check total usage count in Redis using Lua script for atomicity.
+    Returns (True, current_count) if within limit,
+    (False, current_count) if limit exceeded.
     """
+    if not redis_client:
+        logger.error("Redis client is not available.")
+        # Fail safe: deny access or allow? Assuming deny for safety/rate limiting.
+        return False, -1
+
     today_str = datetime.date.today().isoformat()
-    
-    if not LIMIT_FILE.exists():
-        with open(LIMIT_FILE, 'w') as f:
-            json.dump({'date': today_str, 'count': 0}, f)
-            
+    key = f"daily_usage:{today_str}"
+
+    # Lua script to check and increment atomically
+    # KEYS[1]: usage key
+    # ARGV[1]: max limit
+    # ARGV[2]: expiration in seconds
+    lua_script = """
+    local key = KEYS[1]
+    local limit = tonumber(ARGV[1])
+    local expire_time = tonumber(ARGV[2])
+
+    local new_val = redis.call("incr", key)
+
+    if new_val == 1 then
+        redis.call("expire", key, expire_time)
+    end
+
+    if new_val > limit then
+        redis.call("decr", key) -- Revert increment
+        return -1
+    end
+
+    return new_val
+    """
+
     try:
-        with open(LIMIT_FILE, 'r+') as f:
-            # 排他ロックを取得
-            fcntl.flock(f, fcntl.LOCK_EX)
+        result = redis_client.eval(lua_script, 1, key, MAX_DAILY_LIMIT, EXPIRATION_SECONDS)
+        
+        if result == -1:
+            # Limit exceeded. 
+            # Ideally get the current count (which is limit or limit+1 depending on timing),
+            # but usually just returning limit is enough for display.
+            # Or fetch actual value if strictly needed.
+            return False, MAX_DAILY_LIMIT
             
-            try:
-                content = f.read()
-                if not content:
-                    data = {'date': today_str, 'count': 0}
-                else:
-                    try:
-                        data = json.loads(content)
-                    except json.JSONDecodeError:
-                        data = {'date': today_str, 'count': 0}
+        return True, result
 
-                # 日付が変わっていたらリセット
-                # データ構造が古い場合('usage'がある場合など)もリセット
-                if data.get('date') != today_str or 'count' not in data:
-                    data = {'date': today_str, 'count': 0}
-                
-                if data['count'] >= MAX_DAILY_LIMIT:
-                    return False, data['count']
-                
-                # カウントアップ
-                data['count'] += 1
-                
-                # ファイルの先頭に戻って書き込み
-                f.seek(0)
-                f.truncate()
-                json.dump(data, f)
-                f.flush()
-                os.fsync(f.fileno())
-                
-                return True, data['count']
-
-            finally:
-                # ロック解除
-                fcntl.flock(f, fcntl.LOCK_UN)
-                
-    except IOError as e:
-        print(f"Error accessing limit file: {e}")
-        # エラー時は安全のためFalseを返す（または運用に合わせてTrue）
+    except Exception as e:
+        logger.error(f"Error accessing Redis limit: {e}")
         return False, -1

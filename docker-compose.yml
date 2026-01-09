@@ -7,9 +7,14 @@ services:
       - .env
     environment:
       - TOKENIZERS_PARALLELISM=false
+      - DATABASE_URL=postgresql://user:password@db:5432/yorozu
+      - REDIS_URL=redis://redis:6379/0
     # 必要に応じてボリュームマウント（例: ローカルのコード変更を反映させる場合）
     volumes:
       - .:/app
+    depends_on:
+      - db
+      - redis
 
   frontend:
     image: node:22-slim
@@ -23,3 +28,25 @@ services:
       - VITE_BACKEND_ORIGIN=http://web:5003
     depends_on:
       - web
+
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=yorozu
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
