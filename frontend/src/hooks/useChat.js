@@ -45,11 +45,12 @@ export const useChat = () => {
         body: JSON.stringify({ message: trimmed }),
       })
 
-      if (!response.ok) {
-        throw new Error(`Server Error: ${response.status}`)
-      }
+      const data = await response.json().catch(() => null)
 
-      const data = await response.json()
+      if (!response.ok) {
+        const serverMessage = data?.response
+        throw new Error(serverMessage || `Server Error: ${response.status}`)
+      }
 
       if (data.error) {
          throw new Error(data.response || 'API Error')
@@ -85,13 +86,17 @@ export const useChat = () => {
       }
     } catch (error) {
       console.error("SendMessage Error:", error)
+      const displayMessage = error.message && error.message !== 'Failed to fetch' 
+        ? error.message 
+        : 'サーバーからの応答に失敗しました。時間をおいて再試行してください。'
+
       setMessages((prev) =>
         prev
           .filter((message) => message.id !== loadingMessage.id)
           .concat({
             id: `error-${Date.now()}`,
             sender: 'bot',
-            text: 'サーバーからの応答に失敗しました。時間をおいて再試行してください。',
+            text: displayMessage,
           }),
       )
     } finally {

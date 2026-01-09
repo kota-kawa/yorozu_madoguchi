@@ -119,16 +119,10 @@ def complete():
 def send_message():
     try:
         # 利用制限のチェック
-        # プロキシ経由の場合も考慮してIPアドレスを取得
-        if request.headers.getlist("X-Forwarded-For"):
-            user_ip = request.headers.getlist("X-Forwarded-For")[0]
-        else:
-            user_ip = request.remote_addr
-
-        is_allowed, count = limit_manager.check_and_increment_limit(user_ip)
+        is_allowed, count = limit_manager.check_and_increment_limit()
         if not is_allowed:
             return error_response(
-                f"申し訳ありませんが、本日の利用制限（{limit_manager.MAX_DAILY_LIMIT}回）に達しました。明日またご利用ください。",
+                f"本日の利用制限（{limit_manager.MAX_DAILY_LIMIT}回）に達しました。明日またご利用ください。",
                 status=429
             )
 
