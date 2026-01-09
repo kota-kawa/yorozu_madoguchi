@@ -1,10 +1,5 @@
-from pypdf import PdfReader
-from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
-from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
 import os
@@ -20,56 +15,8 @@ load_dotenv()
 # 環境変数の値を取得
 groq_api_key = os.getenv("GROQ_API_KEY")
 
-# PDFファイルを読み込み、全ページのテキストを抽出する
-def process_pdf(pdf_file):
-    reader = PdfReader(pdf_file)
-    text = ""
-    for page_num in range(len(reader.pages)):
-        page = reader.pages[page_num]
-        text += page.extract_text()
-    return text
-
-#　RAGに渡せるように文章の形式にする
-def create_faiss_index(text):
-    # テキストをチャンクに分割する
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=200,  # 各チャンクのサイズ
-        chunk_overlap=50,  # チャンク間の重なり
-    )
-    splited_text = text_splitter.split_text(text)
-    # テキストチャンクの埋め込みを生成する
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
-    )
-    # FAISSインデックスを作成し、レトリーバーとして設定する
-    index = FAISS.from_texts(splited_text, embedding=embeddings)
-    retriever = index.as_retriever(search_kwargs={"k": 1})
-    return retriever
-
-# PDFファイルを処理してテキストを抽出する
-#pdf_file = "./static/rag2.pdf"
-#text = process_pdf(pdf_file)
-# テキストからFAISSインデックスを作成する
-#retriever = create_faiss_index(text)
-
-# 既存のFAISSインデックスを読み込む
-def load_faiss_index(index_path):
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
-    )
-    index = FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True)
-    retriever = index.as_retriever(search_kwargs={"k": 1})
-    return retriever
-
-
-# 既存のFAISSインデックスのパス
-index_path = "./reply_methods"
-
-# テキストからFAISSインデックスを読み込む
-retriever = load_faiss_index(index_path)
-
 #　旅行計画の相談チャットのプロンプト
-def run_qa_chain(message, retriever, chat_history):
+def run_qa_chain(message, chat_history):
     yes_no_phrase, remaining_text = None, None
     # Groqのチャットモデルを初期化する
     groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama-3.3-70b-versatile")
@@ -81,7 +28,6 @@ def run_qa_chain(message, retriever, chat_history):
         "近い間柄ならば、丁寧になりすぎない（ですます調は年齢が近い人には使わない）親しみやすさが大切。"
         "\n\n"
         "もしも会話の状況を見て、ユーザーに対して「はい/いいえ」で回答してもらいたい場合には、「Yes/No:〇〇にしますか？」と全く同じ形式で出力して。"
-        "{context}"
     )
     # プロンプトメッセージを作成する
     prompt_messages = [
@@ -91,15 +37,15 @@ def run_qa_chain(message, retriever, chat_history):
     ]
     # プロンプトテンプレートを作成する
     prompt = ChatPromptTemplate.from_messages(prompt_messages)
-    # RAG（Retrieval-Augmented Generation）チェーンを構築する
-    rag_chain = (
-        {"context": retriever, "input": RunnablePassthrough()}
-        | prompt
+    
+    # チェーンを構築する
+    chain = (
+        prompt
         | groq_chat
         | StrOutputParser()
     )
     #　チャット履歴とプロンプトを元に、回答を生成
-    response = rag_chain.invoke(message)
+    response = chain.invoke({"input": message})
 
     # Yes/No形式の文章の整形
     def extract_and_split_text(text):
@@ -145,22 +91,21 @@ def write_decision_txt(chat_history):
     default_message = "決定している項目がありません。"
     message = "決定している項目のみを抽出してください、説明などは一切必要ありません"
     # ファイルを読み込む
-    with open(file_path, 'r', encoding='utf-8') as file:
-        content = file.read()
+    content = ""
+    if os.path.exists(file_path):
+        with open(file_path, 'r', encoding='utf-8') as file:
+            content = file.read()
     
     # ファイルが空の場合は、デフォルトメッセージを書き込む
     if not content.strip():
-        with open(file_path, 'w', encoding='utf-8') as file:
-            file.write(default_message)
-            return default_message
+        content = default_message
 
-    decision_index = create_faiss_index(content)
     # Groqのチャットモデルを初期化する llama3-70b-8192
-    groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama3-8b-8192")
+    groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama-3.1-8b-instant")
     # システムプロンプトを定義する
     system_prompt = (
         "あなたは、渡された文章から決定されている項目を抽出するアシスタントです。あなたは日本人なので、日本語で回答してください。必ず日本語で。"
-        "\n\n"
+        f"\n\n前回の決定事項:\n{content}\n\n"
     )
     # プロンプトメッセージを作成する
     prompt_messages = [
@@ -170,14 +115,14 @@ def write_decision_txt(chat_history):
     ]
     # プロンプトテンプレートを作成する
     prompt = ChatPromptTemplate.from_messages(prompt_messages)
-    # RAG（Retrieval-Augmented Generation）チェーンを構築する
-    rag_chain = (
-        {"context": decision_index, "input": RunnablePassthrough()}
-        | prompt
+    
+    # チェーンを構築する
+    chain = (
+        prompt
         | groq_chat
         | StrOutputParser()
     )
-    response = rag_chain.invoke(message)
+    response = chain.invoke({"input": message})
     # 決定事項をファイルに保存する
     with open(file_path, 'w', encoding='utf-8') as file:
         file.writelines(response)
@@ -232,7 +177,10 @@ def chat_with_llama(prompt):
         # 入力メッセージを追加してQAチェーンを実行する
         message = prompt
         chat_history.append(("human", message))
-        response, yes_no_phrase, remaining_text = run_qa_chain(message, retriever, chat_history)
+        
+        # RAG用のretriever引数を削除
+        response, yes_no_phrase, remaining_text = run_qa_chain(message, chat_history)
+        
         chat_history.append(("assistant", response))
         # チャット履歴を保存する
         save_chat_history(chat_history_file, chat_history)

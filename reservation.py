@@ -1,10 +1,5 @@
-from pypdf import PdfReader
-from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
-from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
 import os
@@ -20,22 +15,6 @@ load_dotenv()
 
 # 環境変数の値を取得
 groq_api_key = os.getenv("GROQ_API_KEY")
-
-def create_faiss_index(text):
-    # テキストをチャンクに分割する
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=200,  # 各チャンクのサイズ
-        chunk_overlap=50,  # チャンク間の重なり
-    )
-    splited_text = text_splitter.split_text(text)
-    # テキストチャンクの埋め込みを生成する
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
-    )
-    # FAISSインデックスを作成し、レトリーバーとして設定する
-    index = FAISS.from_texts(splited_text, embedding=embeddings)
-    retriever = index.as_retriever(search_kwargs={"k": 1})
-    return retriever
 
 def execute_reservation(response):
     # 正規表現を使ってPythonコード部分を抽出
@@ -56,9 +35,9 @@ def complete_plan():
     # ファイルを読み込む
     with open(file_path, 'r', encoding='utf-8') as file:
         text = file.read()
-    retriever = create_faiss_index(text)
+    
     # Groqのチャットモデルを初期化する
-    groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama3-70b-8192")
+    groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama-3.3-70b-versatile")
     # システムプロンプトを定義する
     system_prompt = (
         "あなたは、渡された文章からプログラムを作成するアシスタントです。あなたは日本人なので、日本語で回答してください。必ず日本語で。"
@@ -89,14 +68,13 @@ def complete_plan():
     ]
     # プロンプトテンプレートを作成する
     prompt = ChatPromptTemplate.from_messages(prompt_messages)
-    # RAG（Retrieval-Augmented Generation）チェーンを構築する
-    rag_chain = (
-        {"context": retriever, "input": RunnablePassthrough()}
-        | prompt
+    
+    # チェーンを構築する
+    chain = (
+        prompt
         | groq_chat
         | StrOutputParser()
     )
-    response = rag_chain.invoke(message)
+    response = chain.invoke({"input": message})
     execute_reservation(response)
     return 'Complete!'
-

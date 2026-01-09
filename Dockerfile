@@ -1,17 +1,24 @@
 # ベースイメージとして軽量な Python 3.9-slim を使用
 FROM python:3.9-slim
 
+# uv を公式イメージからコピー
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
 # 作業ディレクトリを設定
 WORKDIR /app
 
-# 必要なシステムパッケージがあればインストール（必要に応じてコメントアウトを解除）
-# RUN apt-get update && apt-get install -y build-essential
+# 環境変数の設定
+# 仮想環境を /app 以外の場所に作成することで、ボリュームマウントの影響を避ける
+ENV UV_PROJECT_ENVIRONMENT=/venv
+ENV PATH="$UV_PROJECT_ENVIRONMENT/bin:$PATH"
+ENV UV_COMPILE_BYTECODE=1
 
 # 依存パッケージリスト（requirements.txt）をコピー
 COPY requirements.txt .
 
-# pip のアップグレードと依存パッケージのインストール
-RUN pip install --upgrade pip && pip install -r requirements.txt
+# 仮想環境の作成と依存パッケージのインストール
+RUN uv venv /venv && \
+    uv pip install -r requirements.txt
 
 # アプリケーションのソースコードを全てコピー
 COPY . .
@@ -21,9 +28,3 @@ EXPOSE 5003
 
 # gunicorn を使ってアプリケーションを起動
 CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5003", "run:app"]
-
-########## デバッグ用の実行 ##############
-# Flask の環境変数を設定（run.py がエントリーポイントの場合）
-#ENV FLASK_APP=run.py
-#ENV FLASK_ENV=development
-#CMD ["flask", "run", "--host=0.0.0.0", "--port=5003"]

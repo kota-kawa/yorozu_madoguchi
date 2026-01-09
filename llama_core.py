@@ -5,14 +5,8 @@ import guard
 # ロギング設定
 logger = logging.getLogger(__name__)
 
-# ... imports ...
-from pypdf import PdfReader
-from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
-from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 
 import warnings
@@ -29,74 +23,11 @@ if not groq_api_key:
         ".env ファイルを確認し、正しい API キーを指定してください。"
     )
 
-
-# PDFファイルを読み込み、全ページのテキストを抽出する
-def process_pdf(pdf_file):
-    reader = PdfReader(pdf_file)
-    text = ""
-    for page_num in range(len(reader.pages)):
-        page = reader.pages[page_num]
-        text += page.extract_text()
-    return text
-
-#　RAGに渡せるように文章の形式にする
-def create_faiss_index(text):
-    # テキストをチャンクに分割する
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=200,  # 各チャンクのサイズ
-        chunk_overlap=50,  # チャンク間の重なり
-    )
-    splited_text = text_splitter.split_text(text)
-    # テキストチャンクの埋め込みを生成する
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
-    )
-    # FAISSインデックスを作成し、レトリーバーとして設定する
-    index = FAISS.from_texts(splited_text, embedding=embeddings)
-    retriever = index.as_retriever(search_kwargs={"k": 1})
-    return retriever
-
-# PDFファイルを処理してテキストを抽出する
-#pdf_file = "./travel_choice.pdf"
-#text = process_pdf(pdf_file)
-# テキストからFAISSインデックスを作成する
-#retriever = create_faiss_index(text)
-
-# 既存のFAISSインデックスを読み込む
-def load_faiss_index(index_path):
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
-    )
-    index = FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True)
-    retriever = index.as_retriever(search_kwargs={"k": 1})
-    return retriever
-
-
-# 既存のFAISSインデックスのパス
-index_path = "./travel_choice"
-
-# テキストからFAISSインデックスを読み込む
-retriever = load_faiss_index(index_path)
-
 #　旅行計画の相談チャットのプロンプト
-def run_qa_chain(message, retriever, chat_history):
+def run_qa_chain(message, chat_history):
     yes_no_phrase, remaining_text = None, None
     # Groqのチャットモデルを初期化する
     groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama-3.3-70b-versatile")
-
-    """
-    system_prompt = (
-        "あなたは旅行の予定を立てるアシスタントです。 また、あなたは日本人なので、日本語で回答してください。必ず日本語で。回答は150文字以内にして。"
-        "会話例を参考にしながら、ユーザーの要求に合うように計画を立てて。"
-        "出発地、目的地、滞在開始日、滞在終了日はユーザに決めさせて。（おすすめを聞かれたときには答えていいよ）"
-        "ユーザーに質問するときには、１回で１つの項目についてだけにして。"
-        
-        "出発地、目的地、滞在開始日、滞在終了日は確実に決めて。"
-        "出発地、目的地は駅か空港名にして。"
-        "\n\n"
-        "もしも会話の状況を見て、ユーザーに対して「はい/いいえ」で回答してもらいたい場合には、「Yes/No:〇〇にしますか？」と全く同じ形式で出力して。"
-        "{context}"
-    )"""
     
     # 修正後のシステムプロンプト
     system_prompt = """
@@ -141,8 +72,6 @@ def run_qa_chain(message, retriever, chat_history):
     - **Yes/No形式の質問**: ユーザーに二者択一で決めてほしい場合は、必ず「Yes/No:〇〇にしますか？」という形式で質問してください。この形式は、提案を絞り込む際に効果的です。
     - **必須項目の扱い**: 出発地、目的地、日程は、ユーザーに決めてもらいます。もしユーザーが「おまかせ」や「おすすめは？」と尋ねてきた場合にのみ、ユーザーとの会話の情報を基に提案してください。
     - **地名の扱い**: 出発地と目的地は、交通手段の検索を考慮し、駅名または空港名で確定するように促してください。
-
-    {context}
     """
     
     # プロンプトメッセージを作成する
@@ -153,15 +82,15 @@ def run_qa_chain(message, retriever, chat_history):
     ]
     # プロンプトテンプレートを作成する
     prompt = ChatPromptTemplate.from_messages(prompt_messages)
-    # RAG（Retrieval-Augmented Generation）チェーンを構築する
-    rag_chain = (
-        {"context": retriever, "input": RunnablePassthrough()}
-        | prompt
+    
+    # チェーンを構築する (RAGなし)
+    chain = (
+        prompt
         | groq_chat
         | StrOutputParser()
     )
     #　チャット履歴とプロンプトを元に、回答を生成
-    response = rag_chain.invoke(message)
+    response = chain.invoke({"input": message})
 
     # Yes/No形式の文章の整形
     def extract_and_split_text(text):
@@ -206,22 +135,22 @@ def write_decision_txt(chat_history):
     
     try:
         # ファイルを読み込む
-        with open(file_path, 'r', encoding='utf-8') as file:
-            content = file.read()
+        content = ""
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as file:
+                content = file.read()
         
-        # ファイルが空の場合は、デフォルトメッセージを書き込む
+        # ファイルが空の場合は、デフォルトメッセージを書き込む（が、ここでは読み込みのみで処理続行）
         if not content.strip():
-            with open(file_path, 'w', encoding='utf-8') as file:
-                file.write(default_message)
-                return default_message
+            content = default_message
 
-        decision_index = create_faiss_index(content)
-        # Groqのチャットモデルを初期化する llama3-70b-8192
+        # Groqのチャットモデルを初期化する
         groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama-3.1-8b-instant")
         # システムプロンプトを定義する
         system_prompt = (
-            "あなたは、渡された文章から決定されている項目を抽出するアシスタントです。あなたは日本人なので、日本語で回答してください。必ず日本語で。"
-            "\n\n"
+            "あなたは、渡されたチャット履歴と以前の決定事項から、現在決定されている項目を抽出するアシスタントです。\n"
+            "あなたは日本人なので、日本語で回答してください。必ず日本語で。\n"
+            f"以前の決定事項:\n{content}\n\n"
         )
         # プロンプトメッセージを作成する
         prompt_messages = [
@@ -231,14 +160,15 @@ def write_decision_txt(chat_history):
         ]
         # プロンプトテンプレートを作成する
         prompt = ChatPromptTemplate.from_messages(prompt_messages)
-        # RAG（Retrieval-Augmented Generation）チェーンを構築する
-        rag_chain = (
-            {"context": decision_index, "input": RunnablePassthrough()}
-            | prompt
+        
+        # チェーンを構築する (RAGなし)
+        chain = (
+            prompt
             | groq_chat
             | StrOutputParser()
         )
-        response = rag_chain.invoke(message)
+        response = chain.invoke({"input": message})
+        
         # 決定事項をファイルに保存する
         with open(file_path, 'w', encoding='utf-8') as file:
             file.writelines(response)
@@ -310,7 +240,10 @@ def chat_with_llama(prompt):
         # 入力メッセージを追加してQAチェーンを実行する
         message = prompt
         chat_history.append(("human", message))
-        response, yes_no_phrase, remaining_text = run_qa_chain(message, retriever, chat_history)
+        
+        # RAG用のretriever引数を削除
+        response, yes_no_phrase, remaining_text = run_qa_chain(message, chat_history)
+        
         chat_history.append(("assistant", response))
         # チャット履歴を保存する
         save_chat_history(chat_history_file, chat_history)
