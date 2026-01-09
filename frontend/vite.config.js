@@ -7,6 +7,7 @@ const backendTarget = process.env.VITE_BACKEND_ORIGIN || 'http://localhost:5000'
 export default defineConfig({
   plugins: [react()],
   server: {
+    allowedHosts: ['chat.project-kk.com'],
     proxy: {
       '/travel_send_message': backendTarget,
       '/travel_submit_plan': backendTarget,
