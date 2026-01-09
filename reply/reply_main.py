@@ -47,13 +47,13 @@ def reply_complete():
                 if value:
                     reservation_data.append(f"{key}：{value}")
     except Exception as e:
-        print(f"Error loading reservation data: {e}")
+        logger.error(f"Error loading reservation data: {e}")
     finally:
         db.close()
 
-    # 結果を表示
+    # 結果をログ出力
     for item in reservation_data:
-        print(item)
+        logger.info(f"Reservation Data: {item}")
     return render_template('complete.html', reservation_data = reservation_data)
 
 import limit_manager

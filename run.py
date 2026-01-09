@@ -132,9 +132,9 @@ def complete():
         if accepts_json >= accepts_html:
             return jsonify({"reservation_data": reservation_data})
 
-        # 結果を表示
+        # 結果をログ出力
         for item in reservation_data:
-            print(item)
+            logger.info(f"Reservation Data: {item}")
         return render_template('complete.html', reservation_data = reservation_data)
     except Exception as e:
         logger.error(f"Complete endpoint failed: {e}")

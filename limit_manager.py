@@ -14,9 +14,9 @@ def check_and_increment_limit():
     (False, current_count) if limit exceeded.
     """
     if not redis_client:
-        logger.error("Redis client is not available.")
-        # Fail safe: deny access or allow? Assuming deny for safety/rate limiting.
-        return False, -1
+        logger.error("Redis client is not available. Bypassing limit check.")
+        # Fail open: allow access if Redis is down
+        return True, 0
 
     today_str = datetime.date.today().isoformat()
     key = f"daily_usage:{today_str}"
@@ -58,4 +58,5 @@ def check_and_increment_limit():
 
     except Exception as e:
         logger.error(f"Error accessing Redis limit: {e}")
-        return False, -1
+        # Fail open: allow access if Redis fails
+        return True, 0
