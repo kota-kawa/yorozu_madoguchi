@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, make_response
-import reply.reply_llama_core
+import llama_core
 import reservation
 from database import SessionLocal
 from models import ReservationPlan
@@ -86,7 +86,7 @@ def reply_send_message():
             'remaining_text': ""
         })
 
-    response, current_plan, yes_no_phrase, remaining_text = reply.reply_llama_core.chat_with_llama(session_id, prompt)
+    response, current_plan, yes_no_phrase, remaining_text = llama_core.chat_with_llama(session_id, prompt, mode="reply")
     return jsonify({'response': response, 'current_plan': current_plan,'yes_no_phrase': yes_no_phrase,'remaining_text': remaining_text})
 
 @reply_bp.route('/reply_submit_plan', methods=['POST'])
