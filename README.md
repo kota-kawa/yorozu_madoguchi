@@ -1,3 +1,5 @@
+[English](README_en.md)
+
 # 🌟 よろず窓口 (Yorozu Madoguchi) 🌟
 
 こんにちは！「よろず窓口」へようこそ！👋
