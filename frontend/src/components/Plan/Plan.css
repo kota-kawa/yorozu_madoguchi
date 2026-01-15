@@ -168,7 +168,40 @@
 .decision-card-footer {
   padding: 14px 20px 18px;
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.decision-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
   justify-content: flex-end;
+}
+
+.decision-action-btn {
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: white;
+  color: #0f172a;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.decision-action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+  border-color: rgba(14, 165, 233, 0.5);
+}
+
+.decision-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .decision-dismiss {
@@ -187,6 +220,13 @@
 .decision-dismiss:hover {
   transform: translateY(-1px);
   box-shadow: 0 16px 36px rgba(15, 23, 42, 0.25);
+}
+
+.decision-action-message {
+  margin: 0;
+  text-align: right;
+  color: var(--text-muted);
+  font-size: 0.9rem;
 }
 
 @keyframes decision-fade-in {

@@ -139,7 +139,12 @@ textarea:focus {
   margin-top: 12px;
 }
 
-.btn-yes, .btn-no {
+.selection-container {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.btn-yes, .btn-no, .btn-option {
   border: none;
   padding: 10px 24px;
   border-radius: 12px;
@@ -150,6 +155,7 @@ textarea:focus {
   gap: 8px;
   transition: transform 0.2s, box-shadow 0.2s;
   color: white;
+  cursor: pointer;
 }
 
 .btn-yes {
@@ -162,9 +168,21 @@ textarea:focus {
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
 }
 
-.btn-yes:hover, .btn-no:hover {
+.btn-option {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+}
+
+.btn-yes:hover, .btn-no:hover, .btn-option:hover {
   transform: translateY(-2px);
   filter: brightness(1.1);
+}
+
+.btn-yes:disabled, .btn-no:disabled, .btn-option:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 @media (max-width: 480px) {

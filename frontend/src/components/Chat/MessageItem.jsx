@@ -24,6 +24,21 @@ const MessageItem = ({ message, onYesNo, disabled }) => {
           </button>
         </div>
       )}
+      {message.type === 'selection' && (
+        <div className="button-container selection-container">
+          {message.choices.map((choice, index) => (
+            <button
+              key={index}
+              type="button"
+              className="btn btn-option"
+              onClick={() => onYesNo(choice)}
+              disabled={disabled}
+            >
+              {choice}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

@@ -73,10 +73,21 @@ export const useChat = () => {
           type: 'yesno',
         })
       }
+      if (data?.choices && Array.isArray(data.choices) && data.choices.length > 0) {
+        updates.push({
+          id: `selection-${Date.now()}`,
+          sender: 'bot',
+          choices: data.choices,
+          type: 'selection',
+        })
+      }
 
       setMessages((prev) => {
         const withoutPending = prev.filter(
-          (message) => message.id !== loadingMessage.id && message.type !== 'yesno',
+          (message) => 
+            message.id !== loadingMessage.id && 
+            message.type !== 'yesno' && 
+            message.type !== 'selection',
         )
         return [...withoutPending, ...updates]
       })
