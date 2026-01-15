@@ -85,7 +85,7 @@ def reply_send_message():
         return jsonify({'error': 'セッションが無効です。ページをリロードしてください。'}), 400
 
     # 利用制限のチェック
-    is_allowed, count, limit, user_type = limit_manager.check_and_increment_limit(session_id)
+    is_allowed, count, limit, user_type, total_exceeded = limit_manager.check_and_increment_limit(session_id)
     if not user_type:
         return jsonify({
             'error': "ユーザー種別を選択してください。",
@@ -94,6 +94,13 @@ def reply_send_message():
             'yes_no_phrase': "",
             'remaining_text': ""
         }), 400
+    if total_exceeded:
+        return jsonify({
+            'response': "今日の上限に達しました。明日またご利用ください。",
+            'current_plan': "",
+            'yes_no_phrase': "",
+            'remaining_text': ""
+        }), 429
     if not is_allowed:
         return jsonify({
             'response': f"申し訳ありませんが、本日の利用制限（{limit}回）に達しました。明日またご利用ください。",

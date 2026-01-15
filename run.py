@@ -183,9 +183,11 @@ def send_message():
             return error_response("セッションが無効です。ページをリロードしてください。", status=400)
 
         # 利用制限のチェック
-        is_allowed, count, limit, user_type = limit_manager.check_and_increment_limit(session_id)
+        is_allowed, count, limit, user_type, total_exceeded = limit_manager.check_and_increment_limit(session_id)
         if not user_type:
             return error_response("ユーザー種別を選択してください。", status=400)
+        if total_exceeded:
+            return error_response("今日の上限に達しました。明日またご利用ください。", status=429)
         if not is_allowed:
             return error_response(
                 f"本日の利用制限（{limit}回）に達しました。明日またご利用ください。",
@@ -234,9 +236,11 @@ def fitness_send_message():
         if not session_id:
             return error_response("セッションが無効です。ページをリロードしてください。", status=400)
 
-        is_allowed, count, limit, user_type = limit_manager.check_and_increment_limit(session_id)
+        is_allowed, count, limit, user_type, total_exceeded = limit_manager.check_and_increment_limit(session_id)
         if not user_type:
             return error_response("ユーザー種別を選択してください。", status=400)
+        if total_exceeded:
+            return error_response("今日の上限に達しました。明日またご利用ください。", status=429)
         if not is_allowed:
             return error_response(
                 f"本日の利用制限（{limit}回）に達しました。明日またご利用ください。",
