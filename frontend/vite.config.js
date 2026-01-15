@@ -13,6 +13,8 @@ export default defineConfig({
       '/travel_submit_plan': backendTarget,
       '/complete': backendTarget,
       '/api/reset': backendTarget,
+      '/reply_send_message': backendTarget,
+      '/reply_submit_plan': backendTarget,
     },
   },
 })

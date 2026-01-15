@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, make_response
+from flask import Blueprint, request, jsonify, redirect, make_response
 import llama_core
 import reservation
 from database import SessionLocal
@@ -6,11 +6,25 @@ from models import ReservationPlan
 import uuid
 import redis_client
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
 # Blueprintの定義
 reply_bp = Blueprint('reply', __name__)
+
+def resolve_frontend_url(path=""):
+    host = request.headers.get('Host', '')
+    if 'chat.project-kk.com' in host:
+        base_url = "https://chat.project-kk.com"
+    elif 'localhost' in host or '127.0.0.1' in host:
+        base_url = "http://localhost:5173"
+    else:
+        base_url = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+
+    if path and not path.startswith("/"):
+        path = f"/{path}"
+    return f"{base_url}{path}"
 
 # ホームのチャット画面
 @reply_bp.route('/reply')
@@ -21,7 +35,7 @@ def reply_home():
     except Exception as e:
         logger.error(f"Failed to reset session for {session_id}: {e}")
         
-    response = make_response(render_template('reply/reply_madoguchi.html'))
+    response = make_response(redirect(resolve_frontend_url('/reply')))
     response.set_cookie('session_id', session_id, httponly=True, samesite='Lax')
     return response
 
@@ -51,10 +65,15 @@ def reply_complete():
     finally:
         db.close()
 
+    accepts_json = request.accept_mimetypes.get('application/json', 0)
+    accepts_html = request.accept_mimetypes.get('text/html', 0)
+    if accepts_json >= accepts_html:
+        return jsonify({"reservation_data": reservation_data})
+
     # 結果をログ出力
     for item in reservation_data:
         logger.info(f"Reservation Data: {item}")
-    return render_template('complete.html', reservation_data = reservation_data)
+    return redirect(resolve_frontend_url('/complete'))
 
 import limit_manager
 

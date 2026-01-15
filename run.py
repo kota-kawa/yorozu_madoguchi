@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, make_response
+from flask import Flask, request, jsonify, redirect, make_response
 from flask_cors import CORS
 import llama_core
 import reservation
@@ -68,6 +68,19 @@ def load_reservation_data():
     finally:
         db.close()
 
+def resolve_frontend_url(path=""):
+    host = request.headers.get('Host', '')
+    if 'chat.project-kk.com' in host:
+        base_url = "https://chat.project-kk.com"
+    elif 'localhost' in host or '127.0.0.1' in host:
+        base_url = "http://localhost:5173"
+    else:
+        base_url = FRONTEND_ORIGIN
+
+    if path and not path.startswith("/"):
+        path = f"/{path}"
+    return f"{base_url}{path}"
+
 # ホームのチャット画面（React フロントエンドに切り替え）
 @app.route('/')
 def home():
@@ -75,13 +88,7 @@ def home():
     # セッションデータを初期化
     reset_session_data(session_id)
     
-    # リクエストのHostヘッダーを見てリダイレクト先を決定
-    host = request.headers.get('Host', '')
-    if 'chat.project-kk.com' in host:
-        redirect_url = "https://chat.project-kk.com"
-    else:
-        redirect_url = "http://localhost:5173"
-        
+    redirect_url = resolve_frontend_url()
     response = make_response(redirect(redirect_url))
     # CookieにセッションIDを設定
     response.set_cookie('session_id', session_id, httponly=True, samesite='Lax')
@@ -121,7 +128,7 @@ def complete():
         # 結果をログ出力
         for item in reservation_data:
             logger.info(f"Reservation Data: {item}")
-        return render_template('complete.html', reservation_data = reservation_data)
+        return redirect(resolve_frontend_url('/complete'))
     except Exception as e:
         logger.error(f"Complete endpoint failed: {e}")
         return "サーバー内部エラーが発生しました。", 500
