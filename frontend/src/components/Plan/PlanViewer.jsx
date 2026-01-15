@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import html2canvas from 'html2canvas'
 import './Plan.css'
 
-const PlanViewer = ({ plan, isSubmitting, onSubmit, showSubmit = true }) => {
+const PlanViewer = ({ plan, isSubmitting, onSubmit, showSubmit = true, className = '' }) => {
   const [showSummary, setShowSummary] = useState(false)
   const [actionMessage, setActionMessage] = useState('')
   const decisionCardRef = useRef(null)
@@ -97,7 +97,7 @@ const PlanViewer = ({ plan, isSubmitting, onSubmit, showSubmit = true }) => {
 
   return (
     <>
-      <div className="card chat-card">
+      <div className={`card chat-card ${className}`}>
         <div className="card-header">
           <h1>決定している状況</h1>
         </div>
