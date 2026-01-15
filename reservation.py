@@ -2,6 +2,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 import os
+from datetime import datetime
 from pydantic import BaseModel, Field
 from typing import Optional
 import redis_client
@@ -16,6 +17,12 @@ load_dotenv()
 
 # 環境変数の値を取得
 groq_api_key = os.getenv("GROQ_API_KEY")
+
+def current_datetime_jp_line():
+    weekday_map = ["月", "火", "水", "木", "金", "土", "日"]
+    now = datetime.now()
+    weekday = weekday_map[now.weekday()]
+    return f"現在日時: {now.year}年{now.month}月{now.day}日（{weekday}） {now.hour:02d}:{now.minute:02d}"
 
 class ReservationData(BaseModel):
     destinations: Optional[str] = Field(description="目的地", default=None)
@@ -80,7 +87,7 @@ def complete_plan(session_id):
     system_prompt = (
         "あなたは旅行計画のアシスタントです。提供されたテキストから予約に関する情報を抽出してください。"
         "値がない場合はNoneとしてください。"
-    )
+    ) + "\n" + current_datetime_jp_line()
     
     prompt = ChatPromptTemplate.from_messages([
         ("system", system_prompt),

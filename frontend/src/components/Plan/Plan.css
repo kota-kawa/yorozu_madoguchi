@@ -67,3 +67,144 @@
   box-shadow: none;
   cursor: not-allowed;
 }
+
+/* Decision Summary Overlay */
+.decision-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 10000;
+  animation: decision-fade-in 0.2s ease-out;
+}
+
+.decision-card {
+  width: min(640px, 92vw);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 24px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  overflow: hidden;
+  transform: translateY(0);
+  animation: decision-rise 0.25s ease-out;
+}
+
+.decision-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.16), rgba(34, 197, 94, 0.12));
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.decision-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: 0.02em;
+}
+
+.decision-close {
+  border: none;
+  background: white;
+  color: #0f172a;
+  font-size: 1.25rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.decision-close:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.18);
+}
+
+.decision-card-body {
+  padding: 20px 22px 10px;
+  max-height: 50vh;
+  overflow: auto;
+}
+
+.decision-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  font-size: 1rem;
+  color: var(--text-main);
+}
+
+.decision-list li {
+  padding: 12px 14px;
+  background: white;
+  border-radius: 14px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+  position: relative;
+}
+
+.decision-list li::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 14px;
+  width: 6px;
+  height: 60%;
+  background: var(--accent-color);
+  border-radius: 999px;
+}
+
+.decision-card-footer {
+  padding: 14px 20px 18px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.decision-dismiss {
+  border: none;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: #0f172a;
+  color: white;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.2);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.decision-dismiss:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.25);
+}
+
+@keyframes decision-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes decision-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
