@@ -60,8 +60,6 @@ const CompletePage = () => {
     <div className="app complete-page">
       <Header
         subtitle="予約完了"
-        linkHref="/"
-        linkLabel="旅行計画チャットへ"
       />
 
       <main className="complete-content">

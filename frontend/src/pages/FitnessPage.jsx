@@ -56,8 +56,6 @@ const FitnessPage = () => {
     <div className="app">
       <Header
         subtitle="筋トレ・フィットネスアシスタント"
-        linkHref="/"
-        linkLabel="旅行計画チャットへ"
       />
 
       <div className="chat-container">

@@ -83,8 +83,6 @@ const ReplyPage = () => {
     <div className="app">
       <Header
         subtitle="返信作成アシスタント"
-        linkHref="/fitness"
-        linkLabel="筋トレ・フィットネスへ"
       />
 
       <div className="chat-container">
