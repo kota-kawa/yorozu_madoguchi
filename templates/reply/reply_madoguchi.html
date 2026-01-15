@@ -22,17 +22,35 @@
 
 <body>
 
-    <nav class="navbar navbar-expand-lg navbar-light bg-light justify-content-center">
-        <div class="dropdown">
-            <button class="btn menu-btn dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown"
-                aria-expanded="false">
-                メニュー
+    <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm sticky-top mb-4">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand fw-bold" href="/reply" style="font-size: 1.5rem; color: #4c53af;">
+                <i class="bi bi-chat-quote-fill me-2"></i>よろずの窓口 <span class="fs-6 text-muted ms-1">返信作成</span>
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
             </button>
-            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                <li><a class="dropdown-item" href="https://example.com/page1">ページ1</a></li>
-                <li><a class="dropdown-item" href="https://example.com/page2">ページ2</a></li>
-                <li><a class="dropdown-item" href="https://example.com/page3">ページ3</a></li>
-            </ul>
+            
+            <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+                <ul class="navbar-nav align-items-center">
+                    <li class="nav-item">
+                        <a class="nav-link btn btn-outline-primary px-4 rounded-pill fw-bold text-primary border-2 custom-nav-btn" href="/" style="margin-left: 10px;">
+                            <i class="bi bi-airplane-fill me-2"></i>旅行計画チャットへ
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown ms-lg-3 mt-3 mt-lg-0">
+                         <a class="nav-link dropdown-toggle text-secondary" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-gear-fill"></i> メニュー
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="navbarDropdown">
+                            <li><a class="dropdown-item py-2" href="#"><i class="bi bi-question-circle me-2"></i>使い方</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                             <li><a class="dropdown-item py-2" href="#"><i class="bi bi-info-circle me-2"></i>このアプリについて</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
         </div>
     </nav>
 

@@ -2,7 +2,18 @@
     display: flex;
     justify-content: center;
     gap: 20px;
-    margin: 50px auto;
+    margin: 30px auto 50px; /* 上マージンを少し減らす */
+}
+
+/* Navbar Custom Styles */
+.custom-nav-btn {
+    transition: all 0.3s ease;
+}
+.custom-nav-btn:hover {
+    background-color: #0d6efd !important;
+    color: white !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(13, 110, 253, 0.2);
 }
 
 .chat-card {

@@ -1,28 +1,99 @@
 /* Header Styles */
 .app-header {
-  text-align: center;
+  padding: 16px 24px;
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   margin-bottom: 32px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
   animation: fadeInDown 0.8s ease-out;
 }
 
+.header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title-container {
+  text-align: left;
+}
+
 .app-header h1 {
-  font-size: 2.5rem;
-  background: linear-gradient(to right, var(--primary-color), var(--accent-color));
+  font-size: 2rem;
+  background: linear-gradient(to right, var(--primary-color, #646cff), var(--accent-color, #535bf2));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   letter-spacing: -0.05em;
+  line-height: 1.2;
 }
 
 .subtitle {
-  color: var(--text-muted);
-  font-size: 1rem;
+  color: #666;
+  font-size: 0.9rem;
   font-weight: 500;
+  margin: 0;
 }
 
-@media (max-width: 480px) {
+.nav-link-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 24px;
+  background-color: var(--primary-color, #646cff);
+  color: white;
+  border-radius: 50px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px rgba(100, 108, 255, 0.2);
+}
+
+.nav-link-btn:hover {
+  background-color: var(--accent-color, #535bf2);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(83, 91, 242, 0.3);
+}
+
+.nav-link-btn .arrow {
+  margin-left: 8px;
+  transition: transform 0.3s ease;
+  font-size: 1.1em;
+}
+
+.nav-link-btn:hover .arrow {
+  transform: translateX(4px);
+}
+
+@media (max-width: 600px) {
+  .app-header {
+    padding: 12px 16px;
+    position: relative; /* スマホではsticky解除検討 */
+  }
+
+  .header-content {
+    flex-direction: column;
+    text-align: center;
+    gap: 16px;
+  }
+  
+  .title-container {
+    text-align: center;
+  }
+  
   .app-header h1 {
-    font-size: 1.8rem;
+    font-size: 1.6rem;
+  }
+  
+  .nav-link-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 12px;
   }
 }
