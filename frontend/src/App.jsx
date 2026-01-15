@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import './App.css'
 import TravelPage from './pages/TravelPage'
 import ReplyPage from './pages/ReplyPage'
+import FitnessPage from './pages/FitnessPage'
 import CompletePage from './pages/CompletePage'
 
 const App = () => {
@@ -15,6 +16,10 @@ const App = () => {
 
   if (path.startsWith('/reply')) {
     return <ReplyPage />
+  }
+
+  if (path.startsWith('/fitness')) {
+    return <FitnessPage />
   }
 
   if (path.startsWith('/complete')) {

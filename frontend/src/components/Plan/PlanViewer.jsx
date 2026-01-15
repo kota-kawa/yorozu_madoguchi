@@ -1,6 +1,6 @@
 import './Plan.css'
 
-const PlanViewer = ({ plan, isSubmitting, onSubmit }) => {
+const PlanViewer = ({ plan, isSubmitting, onSubmit, showSubmit = true }) => {
   return (
     <div className="card chat-card">
       <div className="card-header">
@@ -17,19 +17,21 @@ const PlanViewer = ({ plan, isSubmitting, onSubmit }) => {
           <p className="muted">まだ決定事項はありません。</p>
         )}
       </div>
-      <div className="card-footer">
-        <div className="bottom-right-content">
-          <button
-            type="button"
-            className="btn-decide"
-            id="sendBu"
-            onClick={onSubmit}
-            disabled={!plan || isSubmitting}
-          >
-            <i className="bi bi-check-circle-fill" aria-hidden /> 決定
-          </button>
+      {showSubmit ? (
+        <div className="card-footer">
+          <div className="bottom-right-content">
+            <button
+              type="button"
+              className="btn-decide"
+              id="sendBu"
+              onClick={onSubmit}
+              disabled={!plan || isSubmitting}
+            >
+              <i className="bi bi-check-circle-fill" aria-hidden /> 決定
+            </button>
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   )
 }

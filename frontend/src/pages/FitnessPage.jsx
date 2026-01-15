@@ -1,32 +1,31 @@
 import { useEffect, useState } from 'react'
 import Header from '../components/Header/Header'
-import MessageList from '../components/Chat/MessageList'
-import ChatInput from '../components/Chat/ChatInput'
+import LoadingSpinner from '../components/UI/LoadingSpinner'
 import InfoPanel from '../components/UI/InfoPanel'
 import PlanViewer from '../components/Plan/PlanViewer'
-import LoadingSpinner from '../components/UI/LoadingSpinner'
-import { useReplyChat } from '../hooks/useReplyChat'
+import MessageList from '../components/Chat/MessageList'
+import ChatInput from '../components/Chat/ChatInput'
+import { useFitnessChat } from '../hooks/useFitnessChat'
 
 const SAMPLE_PROMPTS = [
-  'どこに行くのがおすすめ？',
-  'どんな有名スポットがある？',
-  '落ち着ける場所はある？',
-  'ご飯に行くならどこ？',
+  '筋肥大したい。週3回でどんなメニューが良い？',
+  '運動初心者。まず何から始めればいい？',
+  '肩こり改善のための簡単な運動は？',
+  '自宅でできる減量メニューを教えて',
 ]
 
-const ReplyPage = () => {
+const FitnessPage = () => {
   const [input, setInput] = useState('')
   const [infoOpen, setInfoOpen] = useState(false)
   const [autoScroll, setAutoScroll] = useState(true)
   const [currentPlan, setCurrentPlan] = useState('')
-  const [submittingPlan, setSubmittingPlan] = useState(false)
 
   const {
     messages,
     loading: chatLoading,
     planFromChat,
     sendMessage,
-  } = useReplyChat()
+  } = useFitnessChat()
 
   useEffect(() => {
     if (planFromChat !== undefined) {
@@ -53,38 +52,12 @@ const ReplyPage = () => {
     setInput('')
   }
 
-  const submitPlan = async () => {
-    if (!currentPlan?.trim() || submittingPlan) return
-
-    setSubmittingPlan(true)
-    try {
-      const response = await fetch('/reply_submit_plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: currentPlan }),
-      })
-
-      if (!response.ok) {
-        throw new Error('プランの保存に失敗しました。')
-      }
-
-      window.location.assign('/complete')
-    } catch (error) {
-      console.error('Reply submit failed:', error)
-      alert('プランの保存に失敗しました。')
-    } finally {
-      setSubmittingPlan(false)
-    }
-  }
-
-  const isLoading = chatLoading || submittingPlan
-
   return (
     <div className="app">
       <Header
-        subtitle="返信作成アシスタント"
-        linkHref="/fitness"
-        linkLabel="筋トレ・フィットネスへ"
+        subtitle="筋トレ・フィットネスアシスタント"
+        linkHref="/"
+        linkLabel="旅行計画チャットへ"
       />
 
       <div className="chat-container">
@@ -94,7 +67,7 @@ const ReplyPage = () => {
             autoScroll={autoScroll}
             onScroll={handleScroll}
             onYesNo={sendMessage}
-            disabled={isLoading}
+            disabled={chatLoading}
           />
 
           <div className="card-footer">
@@ -110,21 +83,20 @@ const ReplyPage = () => {
               onKeyDown={handleKeyDown}
               onSubmit={handleSubmit}
               onToggleInfo={() => setInfoOpen((prev) => !prev)}
-              disabled={isLoading}
+              disabled={chatLoading}
             />
           </div>
         </div>
 
         <PlanViewer
           plan={currentPlan}
-          isSubmitting={submittingPlan}
-          onSubmit={submitPlan}
+          showSubmit={false}
         />
       </div>
 
-      <LoadingSpinner visible={submittingPlan} />
+      <LoadingSpinner visible={chatLoading} />
     </div>
   )
 }
 
-export default ReplyPage
+export default FitnessPage

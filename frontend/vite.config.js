@@ -15,6 +15,7 @@ export default defineConfig({
       '/api/reset': backendTarget,
       '/reply_send_message': backendTarget,
       '/reply_submit_plan': backendTarget,
+      '/fitness_send_message': backendTarget,
     },
   },
 })
