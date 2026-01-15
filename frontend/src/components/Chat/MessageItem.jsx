@@ -1,9 +1,15 @@
 import { useState, useEffect, useRef, memo } from 'react'
 import './Chat.css'
 
-const MessageItem = memo(({ message, onYesNo, disabled }) => {
+const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }) => {
   const [displayedText, setDisplayedText] = useState('')
   const dateRef = useRef(null)
+
+  useEffect(() => {
+    if (isLast && scrollToBottom && displayedText === message.text) {
+      scrollToBottom()
+    }
+  }, [displayedText, message.text, isLast, scrollToBottom])
 
   useEffect(() => {
     if (message.sender === 'user' || !message.text) {
@@ -47,39 +53,45 @@ const MessageItem = memo(({ message, onYesNo, disabled }) => {
       {/* 完了後にボタンを表示するために、テキスト表示完了を待つロジックを入れることもできるが
           今回はシンプルに常時表示（テキストと同時に出る形でも違和感は少ない） */}
       {message.type === 'yesno' && (
-        <div className="button-container">
-          <button
-            type="button"
-            className="btn btn-yes"
-            onClick={() => onYesNo('はい')}
-            disabled={disabled}
-          >
-            はい　<i className="bi bi-hand-thumbs-up-fill" aria-hidden />
-          </button>
-          <button
-            type="button"
-            className="btn btn-no"
-            onClick={() => onYesNo('いいえ')}
-            disabled={disabled}
-          >
-            いいえ <i className="bi bi-hand-thumbs-down-fill" aria-hidden />
-          </button>
-        </div>
-      )}
-      {message.type === 'selection' && (
-        <div className="button-container selection-container">
-          {message.choices.map((choice, index) => (
+        <>
+          <div className="button-container">
             <button
-              key={index}
               type="button"
-              className="btn btn-option"
-              onClick={() => onYesNo(choice)}
+              className="btn btn-yes"
+              onClick={() => onYesNo('はい')}
               disabled={disabled}
             >
-              {choice}
+              はい<i className="bi bi-hand-thumbs-up-fill" aria-hidden />
             </button>
-          ))}
-        </div>
+            <button
+              type="button"
+              className="btn btn-no"
+              onClick={() => onYesNo('いいえ')}
+              disabled={disabled}
+            >
+              いいえ <i className="bi bi-hand-thumbs-down-fill" aria-hidden />
+            </button>
+          </div>
+          <small className="selection-note">※他に要望があれば通常のチャットに入力できます</small>
+        </>
+      )}
+      {message.type === 'selection' && (
+        <>
+          <div className="button-container selection-container">
+            {message.choices.map((choice, index) => (
+              <button
+                key={index}
+                type="button"
+                className="btn btn-option"
+                onClick={() => onYesNo(choice)}
+                disabled={disabled}
+              >
+                {choice}
+              </button>
+            ))}
+          </div>
+          <small className="selection-note">※他に要望があれば通常のチャットに入力できます</small>
+        </>
       )}
       {message.type === 'date_selection' && (
         <div className="button-container date-input-container">

@@ -281,3 +281,11 @@ textarea:focus {
   }
 
 }
+
+.selection-note {
+  display: block;
+  font-size: 0.8rem;
+  color: #64748b; /* text-muted equivalent */
+  margin-top: 8px;
+  opacity: 0.9;
+}
