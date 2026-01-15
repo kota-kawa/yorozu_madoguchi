@@ -1,9 +1,41 @@
+import { useState, useEffect, memo } from 'react'
 import './Chat.css'
 
-const MessageItem = ({ message, onYesNo, disabled }) => {
+const MessageItem = memo(({ message, onYesNo, disabled }) => {
+  const [displayedText, setDisplayedText] = useState('')
+
+  useEffect(() => {
+    if (message.sender === 'user' || !message.text) {
+      setDisplayedText(message.text)
+      return
+    }
+
+    // すでに表示済みならアニメーションしない（簡易判定: テキストが同じなら即時セットもありだが、
+    // memo化されているのでマウント時のみ走ることを期待）
+    setDisplayedText('')
+    
+    let currentIndex = 0
+    const text = message.text
+    const intervalId = setInterval(() => {
+      setDisplayedText((prev) => {
+        if (currentIndex >= text.length) {
+          clearInterval(intervalId)
+          return text
+        }
+        const nextChar = text[currentIndex]
+        currentIndex++
+        return prev + nextChar
+      })
+    }, 20)
+
+    return () => clearInterval(intervalId)
+  }, [message.text, message.sender])
+
   return (
     <div className={`chat-message ${message.sender}`}>
-      <p>{message.text}</p>
+      <p>{displayedText}</p>
+      {/* 完了後にボタンを表示するために、テキスト表示完了を待つロジックを入れることもできるが
+          今回はシンプルに常時表示（テキストと同時に出る形でも違和感は少ない） */}
       {message.type === 'yesno' && (
         <div className="button-container">
           <button
@@ -41,6 +73,6 @@ const MessageItem = ({ message, onYesNo, disabled }) => {
       )}
     </div>
   )
-}
+})
 
 export default MessageItem
