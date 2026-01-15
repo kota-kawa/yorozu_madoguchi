@@ -2,6 +2,7 @@ import logging
 import os
 import guard
 import redis_client
+from datetime import datetime
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from langchain_core.output_parsers import StrOutputParser
@@ -79,10 +80,16 @@ PROMPTS = {
     }
 }
 
+def current_datetime_jp_line():
+    weekday_map = ["月", "火", "水", "木", "金", "土", "日"]
+    now = datetime.now()
+    weekday = weekday_map[now.weekday()]
+    return f"現在日時: {now.year}年{now.month}月{now.day}日（{weekday}） {now.hour:02d}:{now.minute:02d}"
+
 def run_qa_chain(message, chat_history, mode="travel"):
     groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama-3.3-70b-versatile")
     
-    system_prompt = PROMPTS.get(mode, PROMPTS["travel"])["system"]
+    system_prompt = PROMPTS.get(mode, PROMPTS["travel"])["system"] + "\n" + current_datetime_jp_line()
     
     prompt_messages = [("system", system_prompt)] + chat_history + [("human", "{input}")]
     prompt = ChatPromptTemplate.from_messages(prompt_messages)
@@ -115,7 +122,7 @@ def write_decision(session_id, chat_history, mode="travel"):
         content = redis_client.get_decision(session_id) or default_message
         groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama-3.1-8b-instant")
         
-        system_prompt = PROMPTS.get(mode, PROMPTS["travel"])["decision_system"] + f"\n以前の決定事項:\n{content}\n"
+        system_prompt = PROMPTS.get(mode, PROMPTS["travel"])["decision_system"] + "\n" + current_datetime_jp_line() + f"\n以前の決定事項:\n{content}\n"
         
         prompt_messages = [("system", system_prompt)] + chat_history + [("human", "{input}")]
         prompt = ChatPromptTemplate.from_messages(prompt_messages)

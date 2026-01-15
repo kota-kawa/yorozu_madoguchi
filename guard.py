@@ -23,7 +23,7 @@ def content_checker(prompt):
                 "content": prompt,
             }
         ],
-        model="llama-guard-3-8b",
+        model="meta-llama/llama-guard-4-12b",
     )
     result = chat_completion.choices[0].message.content
     print(result)
