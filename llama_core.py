@@ -43,6 +43,7 @@ PROMPTS = {
         - 質問: 一度のメッセージで一つの質問。
         - Yes/No形式: ユーザーに決めてほしい場合は「Yes/No:〇〇にしますか？」という形式を使用。
         - 選択肢形式: ユーザーに複数の選択肢から選んでほしい場合は「Select: [選択肢1, 選択肢2, ...]」という形式を使用（最大5つ）。
+        - 日付選択形式: ユーザーに日付を選択してほしい場合は「DateSelect: true」という形式を使用。
         """,
         "decision_system": "あなたは渡されたチャット履歴から、現在決定されている旅行項目（目的地、出発地、日程など）を抽出するアシスタントです。日本語で回答してください。"
     },
@@ -53,6 +54,7 @@ PROMPTS = {
         - 親しみやすさが大切です。
         - ユーザーに対して「はい/いいえ」で回答してもらいたい場合には、「Yes/No:〇〇にしますか？」と出力してください。
         - ユーザーに複数の選択肢から選んでほしい場合は「Select: [選択肢1, 選択肢2, ...]」という形式を使用（最大5つ）。
+        - ユーザーに日付を選択してほしい場合は「DateSelect: true」という形式を使用。
         """,
         "decision_system": "あなたは渡された文章から決定されている項目（返信内容の方針など）を抽出するアシスタントです。日本語で回答してください。"
     },
@@ -79,6 +81,7 @@ PROMPTS = {
         - 質問: 一度のメッセージで一つの質問。
         - Yes/No形式: ユーザーに決めてほしい場合は「Yes/No:〇〇にしますか？」という形式を使用。
         - 選択肢形式: ユーザーに複数の選択肢から選んでほしい場合は「Select: [選択肢1, 選択肢2, ...]」という形式を使用（最大5つ）。
+        - 日付選択形式: ユーザーに日付を選択してほしい場合は「DateSelect: true」という形式を使用。
         """,
         "decision_system": "あなたは渡されたチャット履歴から、現在決定されている筋トレ・健康の項目（目標、頻度、制約、食事方針など）を抽出するアシスタントです。日本語で回答してください。"
     }
@@ -104,6 +107,7 @@ def run_qa_chain(message, chat_history, mode="travel"):
     # Yes/No形式の抽出ロジック
     yes_no_phrase = None
     choices = None
+    is_date_select = False
     remaining_text = response
 
     # Select: [...] 形式の抽出 (正規表現)
@@ -113,24 +117,30 @@ def run_qa_chain(message, chat_history, mode="travel"):
         # カンマ区切りでリスト化し、引用符などを除去
         choices = [c.strip().strip('"\'') for c in choices_str.split(',') if c.strip()]
         # Select部分を除去してremaining_textを更新
-        remaining_text = response.replace(select_match.group(0), "").strip()
+        remaining_text = remaining_text.replace(select_match.group(0), "").strip()
+
+    # DateSelect: true 形式の抽出
+    date_match = re.search(r'DateSelect:\s*true', remaining_text, re.IGNORECASE)
+    if date_match:
+        is_date_select = True
+        remaining_text = remaining_text.replace(date_match.group(0), "").strip()
 
     # Yes/No形式の抽出 (Selectが見つからなかった場合、または共存する場合)
-    if not choices and "Yes/No" in response:
-        start = response.find('Yes/No:')
+    if not choices and not is_date_select and "Yes/No" in remaining_text:
+        start = remaining_text.find('Yes/No:')
         if start != -1:
-            q_full = response.find('？', start)
-            q_half = response.find('?', start)
+            q_full = remaining_text.find('？', start)
+            q_half = remaining_text.find('?', start)
             q_pos = q_full if q_full != -1 else q_half
             
             if q_pos != -1:
-                yes_no_phrase = response[start + len('Yes/No:'):q_pos + 1]
-                remaining_text = response[:start] + response[q_pos + 1:]
+                yes_no_phrase = remaining_text[start + len('Yes/No:'):q_pos + 1]
+                remaining_text = remaining_text[:start] + remaining_text[q_pos + 1:]
                 
     if not remaining_text.strip():
         remaining_text = "Empty"
 
-    return response, yes_no_phrase, choices, remaining_text
+    return response, yes_no_phrase, choices, is_date_select, remaining_text
 
 def write_decision(session_id, chat_history, mode="travel"):
     default_message = "決定している項目がありません。"
@@ -157,15 +167,15 @@ def write_decision(session_id, chat_history, mode="travel"):
 def chat_with_llama(session_id, prompt, mode="travel"):
     result = guard.content_checker(prompt)
     if 'unsafe' in result:
-        return None, redis_client.get_decision(session_id) or "安全性の問題で表示できません", None, None, "それには答えられません"
+        return None, redis_client.get_decision(session_id) or "安全性の問題で表示できません", None, None, False, "それには答えられません"
     
     chat_history = redis_client.get_chat_history(session_id)
     chat_history.append(("human", prompt))
     
-    response, yes_no_phrase, choices, remaining_text = run_qa_chain(prompt, chat_history, mode=mode)
+    response, yes_no_phrase, choices, is_date_select, remaining_text = run_qa_chain(prompt, chat_history, mode=mode)
     
     chat_history.append(("assistant", response))
     redis_client.save_chat_history(session_id, chat_history)
     current_plan = write_decision(session_id, chat_history, mode=mode)
     
-    return response, current_plan, yes_no_phrase, choices, remaining_text
+    return response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text

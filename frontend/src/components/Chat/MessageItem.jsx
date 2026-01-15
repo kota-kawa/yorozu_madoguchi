@@ -1,8 +1,9 @@
-import { useState, useEffect, memo } from 'react'
+import { useState, useEffect, useRef, memo } from 'react'
 import './Chat.css'
 
 const MessageItem = memo(({ message, onYesNo, disabled }) => {
   const [displayedText, setDisplayedText] = useState('')
+  const dateRef = useRef(null)
 
   useEffect(() => {
     if (message.sender === 'user' || !message.text) {
@@ -30,6 +31,15 @@ const MessageItem = memo(({ message, onYesNo, disabled }) => {
 
     return () => clearInterval(intervalId)
   }, [message.text, message.sender])
+
+  const handleDateSubmit = () => {
+    if (dateRef.current && dateRef.current.value) {
+      const date = dateRef.current.value
+      const [year, month, day] = date.split('-')
+      const formattedDate = `${year}年${parseInt(month)}月${parseInt(day)}日`
+      onYesNo(formattedDate)
+    }
+  }
 
   return (
     <div className={`chat-message ${message.sender}`}>
@@ -69,6 +79,19 @@ const MessageItem = memo(({ message, onYesNo, disabled }) => {
               {choice}
             </button>
           ))}
+        </div>
+      )}
+      {message.type === 'date_selection' && (
+        <div className="button-container date-input-container">
+           <input type="date" ref={dateRef} className="date-input" disabled={disabled} />
+           <button 
+             type="button" 
+             className="btn btn-option" 
+             onClick={handleDateSubmit}
+             disabled={disabled}
+           >
+             決定 <i className="bi bi-send-fill" aria-hidden />
+           </button>
         </div>
       )}
     </div>

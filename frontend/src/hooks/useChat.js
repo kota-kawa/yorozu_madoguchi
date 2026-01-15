@@ -81,13 +81,21 @@ export const useChat = () => {
           type: 'selection',
         })
       }
+      if (data?.is_date_select) {
+        updates.push({
+          id: `date-selection-${Date.now()}`,
+          sender: 'bot',
+          type: 'date_selection',
+        })
+      }
 
       setMessages((prev) => {
         const withoutPending = prev.filter(
           (message) => 
             message.id !== loadingMessage.id && 
             message.type !== 'yesno' && 
-            message.type !== 'selection',
+            message.type !== 'selection' &&
+            message.type !== 'date_selection',
         )
         return [...withoutPending, ...updates]
       })

@@ -207,12 +207,13 @@ def send_message():
         if len(prompt) > 3000:
             return error_response("入力された文字数が3000文字を超えています。短くして再度お試しください。", status=400)
 
-        response, current_plan, yes_no_phrase, choices, remaining_text = llama_core.chat_with_llama(session_id, prompt)
+        response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text = llama_core.chat_with_llama(session_id, prompt)
         return jsonify({
             'response': response,
             'current_plan': current_plan,
             'yes_no_phrase': yes_no_phrase,
             'choices': choices,
+            'is_date_select': is_date_select,
             'remaining_text': remaining_text
         })
 
@@ -264,7 +265,7 @@ def fitness_send_message():
         if len(prompt) > 3000:
             return error_response("入力された文字数が3000文字を超えています。短くして再度お試しください。", status=400)
 
-        response, current_plan, yes_no_phrase, choices, remaining_text = llama_core.chat_with_llama(
+        response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text = llama_core.chat_with_llama(
             session_id,
             prompt,
             mode="fitness",
@@ -274,6 +275,7 @@ def fitness_send_message():
             'current_plan': current_plan,
             'yes_no_phrase': yes_no_phrase,
             'choices': choices,
+            'is_date_select': is_date_select,
             'remaining_text': remaining_text
         })
     except Exception as e:

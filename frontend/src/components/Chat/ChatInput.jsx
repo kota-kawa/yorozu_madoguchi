@@ -11,7 +11,6 @@ const ChatInput = ({
 }) => {
   const [isListening, setIsListening] = useState(false)
   const recognitionRef = useRef(null)
-  const dateInputRef = useRef(null)
 
   useEffect(() => {
     // ブラウザの音声認識APIの互換性チェック
@@ -59,32 +58,6 @@ const ChatInput = ({
     }
   }
 
-  const handleCalendarClick = () => {
-    if (dateInputRef.current) {
-      // showPicker() がサポートされているか確認
-      if (dateInputRef.current.showPicker) {
-        dateInputRef.current.showPicker()
-      } else {
-        // フォールバック: focusしてクリック（一部ブラウザ用）
-        dateInputRef.current.focus()
-        dateInputRef.current.click()
-      }
-    }
-  }
-
-  const handleDateChange = (e) => {
-    const date = e.target.value
-    if (date) {
-      // YYYY-MM-DD を YYYY年MM月DD日 に変換
-      const [year, month, day] = date.split('-')
-      const formattedDate = `${year}年${parseInt(month)}月${parseInt(day)}日`
-      const newValue = input ? `${input} ${formattedDate}` : formattedDate
-      onInputChange({ target: { value: newValue } })
-      // リセットして再選択可能にする
-      e.target.value = ''
-    }
-  }
-
   return (
     <div className="chat-input">
       <button
@@ -98,25 +71,6 @@ const ChatInput = ({
       </button>
 
       <form className="chat-form" onSubmit={onSubmit}>
-        {/* 隠し日付入力 */}
-        <input
-          type="date"
-          ref={dateInputRef}
-          onChange={handleDateChange}
-          style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
-          tabIndex={-1}
-        />
-
-        <button
-          type="button"
-          className="btn-icon original-btn"
-          onClick={handleCalendarClick}
-          aria-label="日付を選択"
-          disabled={disabled}
-        >
-          <i className="bi bi-calendar-event-fill" aria-hidden />
-        </button>
-
         <button
           type="button"
           className={`btn-icon original-btn ${isListening ? 'listening' : ''}`}

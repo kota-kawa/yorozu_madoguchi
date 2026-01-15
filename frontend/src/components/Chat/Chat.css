@@ -218,9 +218,66 @@ textarea:focus {
   box-shadow: none;
 }
 
+/* Date Selection */
+
+.date-input-container {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+
+  margin-top: 12px;
+
+  flex-wrap: wrap;
+
+}
+
+
+
+.date-input {
+
+  padding: 10px 16px;
+
+  border-radius: 12px;
+
+  border: 1px solid #cbd5e1;
+
+  font-size: 1rem;
+
+  color: var(--text-main);
+
+  background: white;
+
+  transition: all 0.2s ease;
+
+  min-height: 44px; /* タッチターゲット確保 */
+
+}
+
+
+
+.date-input:focus {
+
+  outline: none;
+
+  border-color: var(--primary-color);
+
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+
+}
+
+
+
 @media (max-width: 480px) {
+
   .chat-message {
+
     max-width: 90%;
+
     font-size: 0.9rem;
+
   }
+
 }
