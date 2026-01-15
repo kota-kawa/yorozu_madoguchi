@@ -1,22 +1,50 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import MessageItem from './MessageItem'
 import './Chat.css'
 
 const MessageList = ({ messages, autoScroll, onScroll, onYesNo, disabled }) => {
   const messagesEndRef = useRef(null)
+  const listRef = useRef(null)
 
-  const scrollToBottom = () => {
-    if (autoScroll) {
+  const scrollToBottom = (behavior = 'auto') => {
+    if (!autoScroll || !listRef.current) return
+
+    const target = listRef.current
+    if (behavior === 'smooth') {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+      return
     }
+
+    target.scrollTop = target.scrollHeight
   }
 
-  useEffect(() => {
-    scrollToBottom()
+  useLayoutEffect(() => {
+    scrollToBottom('auto')
   }, [messages, autoScroll])
 
+  useEffect(() => {
+    const target = listRef.current
+    if (!target || typeof ResizeObserver === 'undefined') return
+
+    let rafId = null
+    const observer = new ResizeObserver(() => {
+      if (!autoScroll) return
+      if (rafId) cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => {
+        scrollToBottom('auto')
+      })
+    })
+
+    observer.observe(target)
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId)
+      observer.disconnect()
+    }
+  }, [autoScroll])
+
   return (
-    <div className="card-body chat-messages" onScroll={onScroll}>
+    <div ref={listRef} className="card-body chat-messages" onScroll={onScroll}>
       {messages.map((message, index) => (
         <MessageItem
           key={message.id}

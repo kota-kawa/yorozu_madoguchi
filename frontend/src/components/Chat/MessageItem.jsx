@@ -5,11 +5,26 @@ const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }
   const [displayedText, setDisplayedText] = useState('')
   const dateRef = useRef(null)
 
+  const scrollRafRef = useRef(null)
+
   useEffect(() => {
-    if (isLast && scrollToBottom && displayedText === message.text) {
-      scrollToBottom()
+    if (!isLast || !scrollToBottom) return
+
+    if (scrollRafRef.current) {
+      cancelAnimationFrame(scrollRafRef.current)
     }
-  }, [displayedText, message.text, isLast, scrollToBottom])
+
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollToBottom('auto')
+    })
+
+    return () => {
+      if (scrollRafRef.current) {
+        cancelAnimationFrame(scrollRafRef.current)
+        scrollRafRef.current = null
+      }
+    }
+  }, [displayedText, isLast, scrollToBottom])
 
   useEffect(() => {
     if (message.sender === 'user' || !message.text) {
