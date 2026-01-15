@@ -1,25 +1,50 @@
 import datetime
 import logging
-from redis_client import redis_client
+from redis_client import redis_client, get_user_type
 
 logger = logging.getLogger(__name__)
 
-MAX_DAILY_LIMIT = 10
 EXPIRATION_SECONDS = 86400 * 2  # 48 hours
 
-def check_and_increment_limit():
+USER_TYPE_LIMITS = {
+    "normal": 10,
+    "premium": 100,
+}
+
+def normalize_user_type(user_type):
+    if not user_type:
+        return ""
+    normalized = str(user_type).strip().lower()
+    return normalized if normalized in USER_TYPE_LIMITS else ""
+
+def resolve_user_type(session_id, user_type=None):
+    normalized = normalize_user_type(user_type)
+    if normalized:
+        return normalized
+    if not session_id:
+        return ""
+    stored = get_user_type(session_id)
+    return normalize_user_type(stored)
+
+def check_and_increment_limit(session_id, user_type=None):
     """
     Check total usage count in Redis using Lua script for atomicity.
-    Returns (True, current_count) if within limit,
-    (False, current_count) if limit exceeded.
+    Returns (True, current_count, limit, user_type) if within limit,
+    (False, current_count, limit, user_type) if limit exceeded or user_type missing.
     """
     if not redis_client:
         logger.error("Redis client is not available. Bypassing limit check.")
         # Fail open: allow access if Redis is down
-        return True, 0
+        resolved_type = normalize_user_type(user_type) or "normal"
+        return True, 0, USER_TYPE_LIMITS.get(resolved_type, 10), resolved_type
+
+    resolved_type = resolve_user_type(session_id, user_type)
+    if not resolved_type:
+        return False, 0, 0, ""
 
     today_str = datetime.date.today().isoformat()
-    key = f"daily_usage:{today_str}"
+    limit = USER_TYPE_LIMITS[resolved_type]
+    key = f"daily_usage:{today_str}:{session_id}:{resolved_type}"
 
     # Lua script to check and increment atomically
     # KEYS[1]: usage key
@@ -45,18 +70,18 @@ def check_and_increment_limit():
     """
 
     try:
-        result = redis_client.eval(lua_script, 1, key, MAX_DAILY_LIMIT, EXPIRATION_SECONDS)
+        result = redis_client.eval(lua_script, 1, key, limit, EXPIRATION_SECONDS)
         
         if result == -1:
             # Limit exceeded. 
             # Ideally get the current count (which is limit or limit+1 depending on timing),
             # but usually just returning limit is enough for display.
             # Or fetch actual value if strictly needed.
-            return False, MAX_DAILY_LIMIT
+            return False, limit, limit, resolved_type
             
-        return True, result
+        return True, result, limit, resolved_type
 
     except Exception as e:
         logger.error(f"Error accessing Redis limit: {e}")
         # Fail open: allow access if Redis fails
-        return True, 0
+        return True, 0, limit, resolved_type

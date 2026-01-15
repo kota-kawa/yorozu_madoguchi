@@ -4,6 +4,7 @@ import TravelPage from './pages/TravelPage'
 import ReplyPage from './pages/ReplyPage'
 import FitnessPage from './pages/FitnessPage'
 import CompletePage from './pages/CompletePage'
+import UserTypeGate from './components/UserTypeGate/UserTypeGate'
 
 const App = () => {
   const [path, setPath] = useState(() => window.location.pathname)
@@ -14,19 +15,17 @@ const App = () => {
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
+  let content = <TravelPage />
+
   if (path.startsWith('/reply')) {
-    return <ReplyPage />
+    content = <ReplyPage />
+  } else if (path.startsWith('/fitness')) {
+    content = <FitnessPage />
+  } else if (path.startsWith('/complete')) {
+    content = <CompletePage />
   }
 
-  if (path.startsWith('/fitness')) {
-    return <FitnessPage />
-  }
-
-  if (path.startsWith('/complete')) {
-    return <CompletePage />
-  }
-
-  return <TravelPage />
+  return <UserTypeGate>{content}</UserTypeGate>
 }
 
 export default App

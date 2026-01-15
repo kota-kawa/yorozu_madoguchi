@@ -45,7 +45,7 @@ def reset_session_data(session_id):
 
 def error_response(message, status=400):
     """エラーレスポンスを返すヘルパー関数"""
-    return jsonify({"error": message}), status
+    return jsonify({"error": message, "response": message}), status
 
 def load_reservation_data():
     """データベースから最新の予約プランを読み込む"""
@@ -115,6 +115,30 @@ def reset():
         logger.error(f"Reset endpoint failed: {e}")
         return jsonify({"error": "Reset failed"}), 500
 
+@app.route('/api/user_type', methods=['POST'])
+def set_user_type():
+    try:
+        data = request.get_json(silent=True) or {}
+        user_type = data.get('user_type', '').strip().lower()
+
+        if user_type not in ['normal', 'premium']:
+            return error_response("ユーザー種別が正しくありません。", status=400)
+
+        session_id = request.cookies.get('session_id')
+        if not session_id:
+            session_id = str(uuid.uuid4())
+            reset_session_data(session_id)
+
+        redis_client.save_user_type(session_id, user_type)
+
+        response = make_response(jsonify({"user_type": user_type}))
+        if not request.cookies.get('session_id'):
+            response.set_cookie('session_id', session_id, httponly=True, samesite='Lax')
+        return response
+    except Exception as e:
+        logger.error(f"User type endpoint failed: {e}")
+        return jsonify({"error": "ユーザー種別の登録に失敗しました。"}), 500
+
 
 # 予約完了画面
 @app.route('/complete')
@@ -159,10 +183,12 @@ def send_message():
             return error_response("セッションが無効です。ページをリロードしてください。", status=400)
 
         # 利用制限のチェック
-        is_allowed, count = limit_manager.check_and_increment_limit()
+        is_allowed, count, limit, user_type = limit_manager.check_and_increment_limit(session_id)
+        if not user_type:
+            return error_response("ユーザー種別を選択してください。", status=400)
         if not is_allowed:
             return error_response(
-                f"本日の利用制限（{limit_manager.MAX_DAILY_LIMIT}回）に達しました。明日またご利用ください。",
+                f"本日の利用制限（{limit}回）に達しました。明日またご利用ください。",
                 status=429
             )
 
@@ -208,10 +234,12 @@ def fitness_send_message():
         if not session_id:
             return error_response("セッションが無効です。ページをリロードしてください。", status=400)
 
-        is_allowed, count = limit_manager.check_and_increment_limit()
+        is_allowed, count, limit, user_type = limit_manager.check_and_increment_limit(session_id)
+        if not user_type:
+            return error_response("ユーザー種別を選択してください。", status=400)
         if not is_allowed:
             return error_response(
-                f"本日の利用制限（{limit_manager.MAX_DAILY_LIMIT}回）に達しました。明日またご利用ください。",
+                f"本日の利用制限（{limit}回）に達しました。明日またご利用ください。",
                 status=429
             )
 

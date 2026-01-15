@@ -88,3 +88,29 @@ def reset_session(session_id):
         redis_client.delete(*keys)
     except Exception as e:
         logger.error(f"Error resetting session for {session_id}: {e}")
+
+def get_user_type(session_id):
+    """指定されたセッションIDのユーザー種別を取得する"""
+    if not redis_client:
+        logger.warning("Redis client is not available.")
+        return ""
+
+    key = get_session_key(session_id, "user_type")
+    try:
+        data = redis_client.get(key)
+        return data if data else ""
+    except Exception as e:
+        logger.error(f"Error getting user_type for {session_id}: {e}")
+        return ""
+
+def save_user_type(session_id, user_type):
+    """指定されたセッションIDのユーザー種別を保存する"""
+    if not redis_client:
+        logger.warning("Redis client is not available.")
+        return
+
+    key = get_session_key(session_id, "user_type")
+    try:
+        redis_client.set(key, user_type)
+    except Exception as e:
+        logger.error(f"Error saving user_type for {session_id}: {e}")
