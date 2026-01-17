@@ -202,6 +202,19 @@ def build_groq_chat(model_name: Optional[str] = None, tool_choice: Optional[str]
         kwargs["model_kwargs"] = {"tool_choice": tool_choice}
     return ChatGroq(**kwargs)
 
+def _is_tool_use_failed(err: Exception) -> bool:
+    text = f"{err}"
+    if "tool_use_failed" in text or "Tool choice is none" in text or "called a tool" in text:
+        return True
+    body = getattr(err, "body", None)
+    if isinstance(body, dict):
+        error = body.get("error") or {}
+        if error.get("code") == "tool_use_failed":
+            return True
+        if "tool" in str(error.get("message", "")):
+            return True
+    return False
+
 def run_qa_chain(
     message: str,
     chat_history: List[Tuple[str, str]],
@@ -236,8 +249,7 @@ def run_qa_chain(
     try:
         response = chain.invoke({"input": message})
     except Exception as e:
-        err_text = str(e)
-        if "tool_use_failed" in err_text or "Tool choice is none" in err_text:
+        if _is_tool_use_failed(e):
             if GROQ_FALLBACK_MODEL_NAME:
                 logger.warning(
                     "Groq tool_use_failed; retrying with fallback model: %s",
@@ -248,7 +260,16 @@ def run_qa_chain(
                 logger.warning("Groq tool_use_failed; retrying with tool_choice=auto")
                 groq_chat = build_groq_chat(tool_choice="auto")
             chain = prompt | groq_chat | StrOutputParser()
-            response = chain.invoke({"input": message})
+            try:
+                response = chain.invoke({"input": message})
+            except Exception as retry_err:
+                if GROQ_FALLBACK_MODEL_NAME and _is_tool_use_failed(retry_err):
+                    logger.warning("Groq tool_use_failed on fallback; retrying with tool_choice=auto")
+                    groq_chat = build_groq_chat(model_name=GROQ_FALLBACK_MODEL_NAME, tool_choice="auto")
+                    chain = prompt | groq_chat | StrOutputParser()
+                    response = chain.invoke({"input": message})
+                else:
+                    raise
         else:
             raise
     response = sanitize_llm_text(response)
@@ -323,8 +344,7 @@ def write_decision(
         try:
             response = chain.invoke({"input": message})
         except Exception as e:
-            err_text = str(e)
-            if "tool_use_failed" in err_text or "Tool choice is none" in err_text:
+            if _is_tool_use_failed(e):
                 if GROQ_FALLBACK_MODEL_NAME:
                     logger.warning(
                         "Groq tool_use_failed; retrying with fallback model: %s",
@@ -335,7 +355,16 @@ def write_decision(
                     logger.warning("Groq tool_use_failed; retrying with tool_choice=auto")
                     groq_chat = build_groq_chat(tool_choice="auto")
                 chain = prompt | groq_chat | StrOutputParser()
-                response = chain.invoke({"input": message})
+                try:
+                    response = chain.invoke({"input": message})
+                except Exception as retry_err:
+                    if GROQ_FALLBACK_MODEL_NAME and _is_tool_use_failed(retry_err):
+                        logger.warning("Groq tool_use_failed on fallback; retrying with tool_choice=auto")
+                        groq_chat = build_groq_chat(model_name=GROQ_FALLBACK_MODEL_NAME, tool_choice="auto")
+                        chain = prompt | groq_chat | StrOutputParser()
+                        response = chain.invoke({"input": message})
+                    else:
+                        raise
             else:
                 raise
         response = sanitize_llm_text(response, max_length=int(os.getenv("MAX_DECISION_CHARS", "2000")))
