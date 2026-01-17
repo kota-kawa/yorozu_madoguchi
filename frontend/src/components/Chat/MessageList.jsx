@@ -5,11 +5,32 @@ import './Chat.css'
 const MessageList = ({ messages, autoScroll, onScroll, onYesNo, disabled }) => {
   const messagesEndRef = useRef(null)
   const listRef = useRef(null)
+  const autoScrollingRef = useRef(false)
+  const autoScrollTimeoutRef = useRef(null)
+
+  useEffect(() => {
+    return () => {
+      if (autoScrollTimeoutRef.current) {
+        clearTimeout(autoScrollTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const markAutoScrolling = () => {
+    autoScrollingRef.current = true
+    if (autoScrollTimeoutRef.current) {
+      clearTimeout(autoScrollTimeoutRef.current)
+    }
+    autoScrollTimeoutRef.current = setTimeout(() => {
+      autoScrollingRef.current = false
+    }, 120)
+  }
 
   const scrollToBottom = (behavior = 'auto') => {
     if (!autoScroll || !listRef.current) return
 
     const target = listRef.current
+    markAutoScrolling()
     if (behavior === 'smooth') {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
       return
@@ -43,8 +64,13 @@ const MessageList = ({ messages, autoScroll, onScroll, onYesNo, disabled }) => {
     }
   }, [autoScroll])
 
+  const handleScroll = (event) => {
+    if (autoScrollingRef.current && event.isTrusted === false) return
+    if (onScroll) onScroll(event)
+  }
+
   return (
-    <div ref={listRef} className="card-body chat-messages" onScroll={onScroll}>
+    <div ref={listRef} className="card-body chat-messages" onScroll={handleScroll}>
       {messages.map((message, index) => (
         <MessageItem
           key={message.id}
