@@ -32,6 +32,14 @@ docker-compose up --build
 *   AI sometimes makes mistakes. Please be gentle. 🤖
 *   This app is for demo purposes. There is no actual booking function.
 
+## 🧪 Tests
+
+Run unit tests and API E2E tests with:
+
+```bash
+python -m unittest
+```
+
 ## 📜 License
 
 This project is released under the **MIT License**.
