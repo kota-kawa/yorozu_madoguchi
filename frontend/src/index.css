@@ -64,6 +64,24 @@
   --app-bg-gradient: linear-gradient(135deg, #ecfdf5 0%, #a7f3d0 100%); /* Emerald 50 to 200 */
 }
 
+.theme-job {
+  --primary-color: #0f766e; /* Teal 700 */
+  --primary-hover: #115e59; /* Teal 800 */
+  --secondary-color: #2dd4bf; /* Teal 400 */
+  --accent-color: #14b8a6; /* Teal 500 */
+  --chat-user-bg: #0f766e;
+  --app-bg-gradient: linear-gradient(135deg, #f0fdfa 0%, #99f6e4 100%); /* Teal 50 to 200 */
+}
+
+.theme-study {
+  --primary-color: #2563eb; /* Blue 600 */
+  --primary-hover: #1d4ed8; /* Blue 700 */
+  --secondary-color: #38bdf8; /* Sky 400 */
+  --accent-color: #22c55e; /* Green 500 */
+  --chat-user-bg: #2563eb;
+  --app-bg-gradient: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); /* Blue 50 to 100 */
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
 }

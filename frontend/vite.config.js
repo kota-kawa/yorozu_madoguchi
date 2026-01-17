@@ -16,6 +16,8 @@ export default defineConfig({
       '/reply_send_message': backendTarget,
       '/reply_submit_plan': backendTarget,
       '/fitness_send_message': backendTarget,
+      '/job_send_message': backendTarget,
+      '/study_send_message': backendTarget,
       '/api/user_type': backendTarget,
     },
   },

@@ -6,11 +6,15 @@ const AGENT_OPTIONS = [
   { value: '/', label: '旅行計画チャット' },
   { value: '/reply', label: '返信作成アシスタント' },
   { value: '/fitness', label: '筋トレ・フィットネス' },
+  { value: '/job', label: '就活アシスタント' },
+  { value: '/study', label: '学習アシスタント' },
 ]
 
 const resolveCurrentAgent = (path) => {
   if (path.startsWith('/reply')) return '/reply'
   if (path.startsWith('/fitness')) return '/fitness'
+  if (path.startsWith('/job')) return '/job'
+  if (path.startsWith('/study')) return '/study'
   return '/'
 }
 

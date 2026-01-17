@@ -84,6 +84,8 @@ class ApiE2ETests(unittest.TestCase):
         import reply.reply_main as reply_main
         import travel.travel_main as travel_main
         import fitness.fitness_main as fitness_main
+        import job.job_main as job_main
+        import study.study_main as study_main
         import limit_manager
 
         self._modules = {
@@ -91,6 +93,8 @@ class ApiE2ETests(unittest.TestCase):
             "reply_main": reply_main,
             "travel_main": travel_main,
             "fitness_main": fitness_main,
+            "job_main": job_main,
+            "study_main": study_main,
         }
 
         self._originals = {}
@@ -181,6 +185,30 @@ class ApiE2ETests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.get_json()
         self.assertEqual(payload["response"], "fitness-ok")
+
+    def test_job_send_message_success(self):
+        headers = {"Origin": "http://localhost:5173"}
+        self.client.set_cookie("localhost", "session_id", "session-777")
+        response = self.client.post(
+            "/job_send_message",
+            json={"message": "hi", "user_type": "normal"},
+            headers=headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload["response"], "job-ok")
+
+    def test_study_send_message_success(self):
+        headers = {"Origin": "http://localhost:5173"}
+        self.client.set_cookie("localhost", "session_id", "session-888")
+        response = self.client.post(
+            "/study_send_message",
+            json={"message": "hi", "user_type": "normal"},
+            headers=headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload["response"], "study-ok")
 
 
 if __name__ == "__main__":

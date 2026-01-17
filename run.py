@@ -12,6 +12,8 @@ from werkzeug.exceptions import RequestEntityTooLarge
 from reply.reply_main import reply_bp
 from travel.travel_main import travel_bp
 from fitness.fitness_main import fitness_bp
+from job.job_main import job_bp
+from study.study_main import study_bp
 
 # 環境変数の読み込み
 load_dotenv()
@@ -44,6 +46,8 @@ CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS}}, supports_credentials=
 app.register_blueprint(reply_bp)
 app.register_blueprint(travel_bp)
 app.register_blueprint(fitness_bp)
+app.register_blueprint(job_bp)
+app.register_blueprint(study_bp)
 
 def reset_session_data(session_id: str) -> None:
     """
