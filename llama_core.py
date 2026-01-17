@@ -206,6 +206,7 @@ def run_qa_chain(
     message: str,
     chat_history: List[Tuple[str, str]],
     mode: str = "travel",
+    decision_text: Optional[str] = None,
 ) -> Tuple[str, Optional[str], Optional[List[str]], bool, str]:
     """
     ユーザーのメッセージに対してLLMで応答を生成する
@@ -218,6 +219,15 @@ def run_qa_chain(
     groq_chat = build_groq_chat()
     
     system_prompt = PROMPTS.get(mode, PROMPTS["travel"])["system"] + "\n" + current_datetime_jp_line()
+    decision_text = (decision_text or "").strip()
+    if decision_text in ("決定している項目がありません。", "決定事項の更新中にエラーが発生しました。"):
+        decision_text = ""
+    if decision_text:
+        system_prompt += (
+            "\n\n## 既に決定している情報\n"
+            f"{decision_text}\n"
+            "- 既に決定している内容は繰り返し質問せず、次に必要な情報を確認してください。"
+        )
     
     prompt_messages = [("system", system_prompt)] + chat_history + [("human", "{input}")]
     prompt = ChatPromptTemplate.from_messages(prompt_messages)
@@ -354,12 +364,15 @@ def chat_with_llama(
         return None, redis_client.get_decision(session_id) or "安全性の問題で表示できません", None, None, False, "それには答えられません"
     
     chat_history = redis_client.get_chat_history(session_id)
-    chat_history.append(("human", prompt))
-    
-    response, yes_no_phrase, choices, is_date_select, remaining_text = run_qa_chain(prompt, chat_history, mode=mode)
+    decision_text = redis_client.get_decision(session_id)
+
+    response, yes_no_phrase, choices, is_date_select, remaining_text = run_qa_chain(
+        prompt, chat_history, mode=mode, decision_text=decision_text
+    )
     response = sanitize_llm_text(response)
     remaining_text = sanitize_llm_text(remaining_text)
     
+    chat_history.append(("human", prompt))
     chat_history.append(("assistant", response))
     redis_client.save_chat_history(session_id, chat_history)
     current_plan = write_decision(session_id, chat_history, mode=mode)
