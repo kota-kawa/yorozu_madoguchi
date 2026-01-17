@@ -6,6 +6,11 @@ DEFAULT_ALLOWED_ORIGINS = ("https://chat.project-kk.com", "http://localhost:5173
 
 
 def get_allowed_origins():
+    """
+    許可されたオリジンのリストを取得する
+    
+    環境変数 `ALLOWED_ORIGINS` とデフォルト値をマージして返します。
+    """
     frontend_origin = os.getenv("FRONTEND_ORIGIN", DEFAULT_ALLOWED_ORIGINS[0])
     raw_origins = os.getenv("ALLOWED_ORIGINS", frontend_origin).split(",")
     allowed = [origin.strip() for origin in raw_origins if origin.strip()]
@@ -16,6 +21,9 @@ def get_allowed_origins():
 
 
 def _origin_from_referer(referer):
+    """
+    Refererヘッダーからオリジン（スキーム + ホスト）を抽出する
+    """
     try:
         parsed = urlparse(referer)
         if parsed.scheme and parsed.netloc:
@@ -26,6 +34,13 @@ def _origin_from_referer(referer):
 
 
 def is_csrf_valid(request):
+    """
+    CSRF（クロスサイトリクエストフォージェリ）検証を行う
+    
+    1. リクエストメソッドが安全な場合（GET, HEAD, OPTIONS）はスルー
+    2. Originヘッダーが許可リストにあるか確認
+    3. Originがない場合、Refererヘッダーを確認
+    """
     if request.method not in ("POST", "PUT", "PATCH", "DELETE"):
         return True
 
@@ -44,6 +59,11 @@ def is_csrf_valid(request):
 
 
 def should_set_secure_cookie(request):
+    """
+    CookieにSecure属性を付与すべきか判定する
+    
+    本番環境やHTTPS接続時にはTrueを返します。ローカル開発環境ではFalseになる場合があります。
+    """
     env_value = os.getenv("COOKIE_SECURE", "").strip().lower()
     if env_value:
         return env_value in ("1", "true", "yes")
@@ -59,6 +79,11 @@ def should_set_secure_cookie(request):
 
 
 def cookie_settings(request):
+    """
+    一貫したCookie設定パラメータを生成する
+    
+    HttpOnly, SameSite, Secure などのセキュリティ属性を設定します。
+    """
     samesite = os.getenv("COOKIE_SAMESITE", "Lax")
     try:
         max_age = int(os.getenv("SESSION_COOKIE_MAX_AGE", "604800"))
@@ -75,6 +100,11 @@ def cookie_settings(request):
 
 
 def build_csp():
+    """
+    Content Security Policy (CSP) ヘッダー文字列を構築する
+    
+    XSS攻撃などのリスクを軽減するため、許可するリソースのソースを制限します。
+    """
     allowed = get_allowed_origins()
     connect_sources = ["'self'"] + allowed
     style_sources = [
@@ -100,6 +130,9 @@ def build_csp():
 
 
 def apply_security_headers(response):
+    """
+    レスポンスに各種セキュリティヘッダーを付与する
+    """
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")

@@ -13,10 +13,16 @@ import security
 
 logger = logging.getLogger(__name__)
 
+# Blueprintの定義: 旅行計画機能（travel）のルートを管理
 travel_bp = Blueprint('travel', __name__)
 
 
 def resolve_frontend_url(path=""):
+    """
+    フロントエンドのURLを動的に解決する
+    
+    環境に応じて適切なベースURLを返します。
+    """
     host = request.headers.get('Host', '')
     if 'chat.project-kk.com' in host:
         base_url = "https://chat.project-kk.com"
@@ -41,7 +47,11 @@ def error_response(message, status=400):
 
 
 def load_reservation_data(session_id):
-    """セッション単位で最新の予約プランを読み込む"""
+    """
+    セッション単位で最新の予約プランを読み込む
+    
+    データベースから該当セッションの最新の旅行計画を取得し、辞書のリストとして返します。
+    """
     if not session_id:
         return []
 
@@ -73,6 +83,12 @@ def load_reservation_data(session_id):
 
 @travel_bp.route('/')
 def home():
+    """
+    旅行計画機能の初期化エンドポイント
+    
+    （ルートパス '/' に割り当てられているため、デフォルトのエントリーポイントとなります）
+    新規セッション発行後、フロントエンドへリダイレクトします。
+    """
     session_id = str(uuid.uuid4())
     reset_session_data(session_id)
 
@@ -84,6 +100,11 @@ def home():
 
 @travel_bp.route('/complete')
 def complete():
+    """
+    完了画面表示用エンドポイント
+    
+    予約プランデータを取得して返します。
+    """
     try:
         session_id = request.cookies.get('session_id')
         if not session_id:
@@ -92,6 +113,7 @@ def complete():
         reservation_data = load_reservation_data(session_id)
         accepts_json = request.accept_mimetypes.get('application/json', 0)
         accepts_html = request.accept_mimetypes.get('text/html', 0)
+        # JSON要求の場合はデータを返す
         if accepts_json >= accepts_html:
             return jsonify({"reservation_data": reservation_data})
 
@@ -105,6 +127,11 @@ def complete():
 
 @travel_bp.route('/travel_send_message', methods=['POST'])
 def send_message():
+    """
+    メッセージ送信処理エンドポイント
+    
+    ユーザーからのメッセージを受け取り、旅行コンシェルジュとしての応答を生成します。
+    """
     try:
         if not security.is_csrf_valid(request):
             return error_response("不正なリクエストです。", status=403)
@@ -117,6 +144,7 @@ def send_message():
         if data is None:
             return error_response("リクエストの形式が正しくありません（JSONを送信してください）。", status=400)
 
+        # 利用制限のチェック
         is_allowed, count, limit, user_type, total_exceeded, error_code = (
             limit_manager.check_and_increment_limit(session_id, user_type=data.get("user_type"))
         )
@@ -140,6 +168,7 @@ def send_message():
         if len(prompt) > 3000:
             return error_response("入力された文字数が3000文字を超えています。短くして再度お試しください。", status=400)
 
+        # LLMとの対話実行（デフォルトモード=travel）
         response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text = llama_core.chat_with_llama(session_id, prompt)
         return jsonify({
             'response': response,
@@ -157,6 +186,11 @@ def send_message():
 
 @travel_bp.route('/travel_submit_plan', methods=['POST'])
 def submit_plan():
+    """
+    プラン確定処理エンドポイント
+    
+    現在のセッションでの旅行計画を解析し、データベースに保存します。
+    """
     try:
         if not security.is_csrf_valid(request):
             return error_response("不正なリクエストです。", status=403)

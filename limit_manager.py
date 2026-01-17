@@ -4,21 +4,34 @@ from redis_client import redis_client, get_user_type
 
 logger = logging.getLogger(__name__)
 
-EXPIRATION_SECONDS = 86400 * 2  # 48 hours
-TOTAL_DAILY_LIMIT = 500
+# 定数定義
+EXPIRATION_SECONDS = 86400 * 2  # 48時間（Redisキーの有効期限）
+TOTAL_DAILY_LIMIT = 500  # システム全体での1日の最大リクエスト数
 
+# ユーザー種別ごとの1日のリクエスト制限
 USER_TYPE_LIMITS = {
     "normal": 10,
     "premium": 100,
 }
 
 def normalize_user_type(user_type):
+    """
+    ユーザー種別の文字列を正規化する
+    
+    空白除去、小文字化を行い、有効な種別（normal/premium）のみを返します。
+    無効な場合は空文字を返します。
+    """
     if not user_type:
         return ""
     normalized = str(user_type).strip().lower()
     return normalized if normalized in USER_TYPE_LIMITS else ""
 
 def resolve_user_type(session_id, user_type=None):
+    """
+    ユーザー種別を解決する
+    
+    引数で渡された user_type を優先し、なければ Redis から session_id に紐づく情報を取得します。
+    """
     normalized = normalize_user_type(user_type)
     if not session_id:
         return normalized if normalized else ""
@@ -32,12 +45,21 @@ def resolve_user_type(session_id, user_type=None):
 
 def check_and_increment_limit(session_id, user_type=None):
     """
-    Check total usage count in Redis using Lua script for atomicity.
-    Returns (allowed, current_count, limit, user_type, total_exceeded, error_code).
+    利用制限を確認し、カウントをインクリメントする
+    
+    Luaスクリプトを使用してアトミックに実行します。
+    
+    戻り値:
+    - allowed: 許可されるかどうか (True/False)
+    - current_count: 現在のカウント
+    - limit: 制限値
+    - user_type: ユーザー種別
+    - total_exceeded: システム全体の制限を超過したか (True/False)
+    - error_code: エラーコード (Redis利用不可など)
     """
     if not redis_client:
         logger.error("Redis client is not available. Rejecting limit check.")
-        # Fail closed: block when Redis is unavailable
+        # Fail closed: Redisが利用できない場合は安全のためブロック
         return False, 0, 0, "", False, "redis_unavailable"
 
     resolved_type = resolve_user_type(session_id, user_type)
@@ -49,12 +71,12 @@ def check_and_increment_limit(session_id, user_type=None):
     user_key = f"daily_usage:{today_str}:{session_id}:{resolved_type}"
     total_key = f"daily_usage_total:{today_str}"
 
-    # Lua script to check and increment atomically
-    # KEYS[1]: user usage key
-    # KEYS[2]: total usage key
-    # ARGV[1]: user max limit
-    # ARGV[2]: total max limit
-    # ARGV[3]: expiration in seconds
+    # Luaスクリプト: ユーザーごとと全体のカウントをアトミックにチェック・更新
+    # KEYS[1]: ユーザー利用数のキー
+    # KEYS[2]: 全体利用数のキー
+    # ARGV[1]: ユーザー上限
+    # ARGV[2]: 全体上限
+    # ARGV[3]: 有効期限（秒）
     lua_script = """
     local user_key = KEYS[1]
     local total_key = KEYS[2]
@@ -76,9 +98,9 @@ def check_and_increment_limit(session_id, user_type=None):
         redis.call("decr", user_key)
         redis.call("decr", total_key)
         if total_val > total_limit then
-            return -2
+            return -2  -- 全体制限超過
         end
-        return -1
+        return -1  -- ユーザー制限超過
     end
 
     return user_val
@@ -96,17 +118,15 @@ def check_and_increment_limit(session_id, user_type=None):
         )
         
         if result == -1:
-            # Limit exceeded. 
-            # Ideally get the current count (which is limit or limit+1 depending on timing),
-            # but usually just returning limit is enough for display.
-            # Or fetch actual value if strictly needed.
+            # ユーザー制限超過
             return False, limit, limit, resolved_type, False, None
         if result == -2:
+            # 全体制限超過
             return False, limit, limit, resolved_type, True, None
             
         return True, result, limit, resolved_type, False, None
 
     except Exception as e:
         logger.error(f"Error accessing Redis limit: {e}")
-        # Fail closed: block when Redis fails
+        # Fail closed: Redisエラー時はブロック
         return False, 0, limit, resolved_type, False, "redis_unavailable"

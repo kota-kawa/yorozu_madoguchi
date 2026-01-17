@@ -11,6 +11,7 @@ from models import ReservationPlan
 import re
 
 import warnings
+# 不要な警告を抑制
 warnings.filterwarnings("ignore", message=".*clean_up_tokenization_spaces.*")
 
 # .envファイルの読み込み
@@ -20,12 +21,18 @@ load_dotenv()
 groq_api_key = os.getenv("GROQ_API_KEY")
 
 def current_datetime_jp_line():
+    """現在日時を日本語フォーマットで返すヘルパー関数"""
     weekday_map = ["月", "火", "水", "木", "金", "土", "日"]
     now = datetime.now()
     weekday = weekday_map[now.weekday()]
     return f"現在日時: {now.year}年{now.month}月{now.day}日（{weekday}） {now.hour:02d}:{now.minute:02d}"
 
 class ReservationData(BaseModel):
+    """
+    LLMからの構造化出力のためのPydanticモデル
+    
+    旅行計画の各要素を定義します。
+    """
     destinations: Optional[str] = Field(description="目的地", default=None)
     departure: Optional[str] = Field(description="出発地", default=None)
     hotel: Optional[str] = Field(description="ホテル", default=None)
@@ -40,6 +47,11 @@ MAX_DATE_LENGTH = 32
 
 
 def sanitize_field(value, max_length=MAX_FIELD_LENGTH):
+    """
+    入力フィールドのサニタイズを行う
+    
+    制御文字の除去、空白の正規化、最大長の制限を行います。
+    """
     if value is None:
         return None
     text = str(value)
@@ -54,6 +66,9 @@ def sanitize_field(value, max_length=MAX_FIELD_LENGTH):
 
 
 def normalize_date(value):
+    """
+    日付文字列を正規化する（YYYY-MM-DD形式）
+    """
     text = sanitize_field(value, max_length=MAX_DATE_LENGTH)
     if not text:
         return None
@@ -75,6 +90,9 @@ def normalize_date(value):
 
 
 def write_reservation_plan(session_id, destinations, departure, hotel, airlines, railway, taxi, start, end):
+    """
+    予約プラン情報をデータベースに保存（作成または更新）する
+    """
     if not session_id:
         raise ValueError("session_id is required")
 
@@ -98,7 +116,7 @@ def write_reservation_plan(session_id, destinations, departure, hotel, airlines,
         )
         
         if plan:
-            # 更新
+            # 更新処理
             plan.destinations = destinations
             plan.departure = departure
             plan.hotel = hotel
@@ -108,7 +126,7 @@ def write_reservation_plan(session_id, destinations, departure, hotel, airlines,
             plan.start_date = start
             plan.end_date = end
         else:
-            # 新規作成
+            # 新規作成処理
             plan = ReservationPlan(
                 session_id=session_id,
                 destinations=destinations,
@@ -132,6 +150,13 @@ def write_reservation_plan(session_id, destinations, departure, hotel, airlines,
     return 'finish!'
 
 def complete_plan(session_id):
+    """
+    Redis上の決定事項テキストから構造化データを抽出し、DBへ保存する
+    
+    1. Redisから非構造化テキスト（決定事項）を取得
+    2. Groq (LLM) を使用して ReservationData モデルに構造化
+    3. write_reservation_plan を呼び出してDBに保存
+    """
     # Redisから読み込む
     text = redis_client.get_decision(session_id)
     

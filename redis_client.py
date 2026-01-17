@@ -12,7 +12,8 @@ except ValueError:
     REDIS_SESSION_TTL_SECONDS = 172800
 
 # Redisクライアントの初期化
-# decode_responses=True により、bytes ではなく str が返される
+# decode_responses=True により、bytes ではなく str が返されるため、
+# Pythonコード内でエンコード/デコードを意識する必要が減ります。
 try:
     redis_client = redis.from_url(REDIS_URL, decode_responses=True)
 except Exception as e:
@@ -20,10 +21,17 @@ except Exception as e:
     redis_client = None
 
 def get_session_key(session_id, key_type):
-    """セッションごとのRedisキーを生成する"""
+    """
+    セッションIDに基づいたRedisキーを生成する
+    
+    例: session:abc-123:chat_history
+    """
     return f"session:{session_id}:{key_type}"
 
 def _set_with_ttl(key, value):
+    """
+    TTL（有効期限）付きで値を設定するヘルパー関数
+    """
     if not redis_client:
         return
     if REDIS_SESSION_TTL_SECONDS > 0:
@@ -32,7 +40,12 @@ def _set_with_ttl(key, value):
         redis_client.set(key, value)
 
 def get_chat_history(session_id):
-    """指定されたセッションIDのチャット履歴を取得する"""
+    """
+    指定されたセッションIDのチャット履歴を取得する
+    
+    履歴はJSONリスト形式で保存されており、取得時にタプルのリストへ変換します。
+    戻り値: [(role, text), ...]
+    """
     if not redis_client:
         logger.warning("Redis client is not available.")
         return []
@@ -49,7 +62,11 @@ def get_chat_history(session_id):
     return []
 
 def save_chat_history(session_id, chat_history):
-    """指定されたセッションIDのチャット履歴を保存する"""
+    """
+    指定されたセッションIDのチャット履歴を保存する
+    
+    リスト形式の履歴をJSON文字列にシリアライズしてRedisに保存します。
+    """
     if not redis_client:
         logger.warning("Redis client is not available.")
         return
@@ -61,7 +78,9 @@ def save_chat_history(session_id, chat_history):
         logger.error(f"Error saving chat history for {session_id}: {e}")
 
 def get_decision(session_id):
-    """指定されたセッションIDの決定事項を取得する"""
+    """
+    指定されたセッションIDの決定事項（構造化前のテキスト）を取得する
+    """
     if not redis_client:
         logger.warning("Redis client is not available.")
         return ""
@@ -75,7 +94,9 @@ def get_decision(session_id):
         return ""
 
 def save_decision(session_id, decision_text):
-    """指定されたセッションIDの決定事項を保存する"""
+    """
+    指定されたセッションIDの決定事項を保存する
+    """
     if not redis_client:
         logger.warning("Redis client is not available.")
         return
@@ -87,7 +108,11 @@ def save_decision(session_id, decision_text):
         logger.error(f"Error saving decision for {session_id}: {e}")
 
 def reset_session(session_id):
-    """指定されたセッションIDのデータをリセットする"""
+    """
+    指定されたセッションIDに関連する全データを削除する
+    
+    チャット履歴や決定事項など、セッションに関連するキーをまとめて削除します。
+    """
     if not redis_client:
         logger.warning("Redis client is not available.")
         return

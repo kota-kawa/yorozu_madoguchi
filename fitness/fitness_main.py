@@ -10,10 +10,17 @@ import security
 
 logger = logging.getLogger(__name__)
 
+# Blueprintの定義：フィットネス機能に関連するルートをまとめる
 fitness_bp = Blueprint('fitness', __name__)
 
 
 def resolve_frontend_url(path=""):
+    """
+    フロントエンドのURLを動的に解決する
+    
+    リクエストのHostヘッダーを確認し、本番環境、ローカル環境、または環境変数に基づいて
+    適切なフロントエンドのベースURLを返します。
+    """
     host = request.headers.get('Host', '')
     if 'chat.project-kk.com' in host:
         base_url = "https://chat.project-kk.com"
@@ -39,6 +46,12 @@ def error_response(message, status=400):
 
 @fitness_bp.route('/fitness')
 def fitness_home():
+    """
+    フィットネス機能の初期化エンドポイント
+    
+    新しいセッションIDを発行し、セッションデータをリセットした後、
+    フロントエンドのフィットネス画面へリダイレクトします。
+    """
     session_id = str(uuid.uuid4())
     reset_session_data(session_id)
 
@@ -50,7 +63,16 @@ def fitness_home():
 
 @fitness_bp.route('/fitness_send_message', methods=['POST'])
 def fitness_send_message():
+    """
+    フィットネスチャットのメッセージ処理エンドポイント
+    
+    1. CSRFチェックとセッション検証
+    2. 利用制限（レートリミット）の確認とカウント更新
+    3. 入力メッセージの検証（空文字、文字数制限）
+    4. LLM（llama_core）への問い合わせと応答の生成
+    """
     try:
+        # CSRFトークンの検証
         if not security.is_csrf_valid(request):
             return error_response("不正なリクエストです。", status=403)
 
@@ -62,6 +84,7 @@ def fitness_send_message():
         if data is None:
             return error_response("リクエストの形式が正しくありません（JSONを送信してください）。", status=400)
 
+        # 利用制限のチェック
         is_allowed, count, limit, user_type, total_exceeded, error_code = (
             limit_manager.check_and_increment_limit(session_id, user_type=data.get("user_type"))
         )
@@ -81,9 +104,11 @@ def fitness_send_message():
         if not prompt:
             return error_response("メッセージを入力してください。", status=400)
 
+        # 文字数制限チェック
         if len(prompt) > 3000:
             return error_response("入力された文字数が3000文字を超えています。短くして再度お試しください。", status=400)
 
+        # LLMとの対話実行 (mode="fitness")
         response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text = llama_core.chat_with_llama(
             session_id,
             prompt,

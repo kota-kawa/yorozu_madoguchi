@@ -18,6 +18,11 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 def get_db():
+    """
+    データベースセッションを取得する依存関係関数
+    
+    リクエストごとに新しいセッションを作成し、処理終了後に必ずクローズします。
+    """
     db = SessionLocal()
     try:
         yield db
@@ -25,12 +30,20 @@ def get_db():
         db.close()
 
 def init_db():
+    """
+    データベースの初期化を行う関数
+    
+    コンテナ起動直後など、DBが準備できていない場合を考慮し、リトライロジックを実装しています。
+    テーブルの作成と、必要なスキーマ変更（マイグレーション的処理）を実行します。
+    """
     max_retries = 30
     retry_interval = 2
     
     for i in range(max_retries):
         try:
+            # テーブル作成（存在しない場合）
             Base.metadata.create_all(bind=engine)
+            # スキーマの確認と更新
             _ensure_reservation_schema()
             logger.info("Database initialized successfully.")
             return
@@ -44,6 +57,12 @@ def init_db():
 
 
 def _ensure_reservation_schema():
+    """
+    reservation_plansテーブルのスキーマを確認し、必要なカラムを追加する
+    
+    既存のテーブルに対して、session_idカラムやインデックスが不足している場合に追加します。
+    簡易的なマイグレーション機能として動作します。
+    """
     inspector = inspect(engine)
     if "reservation_plans" not in inspector.get_table_names():
         return

@@ -11,17 +11,21 @@ import warnings
 
 # ロギング設定
 logger = logging.getLogger(__name__)
+# 特定の警告を抑制
 warnings.filterwarnings("ignore", message=".*clean_up_tokenization_spaces.*")
 
+# APIキーと設定の読み込み
 groq_api_key = os.getenv("GROQ_API_KEY")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 MAX_OUTPUT_CHARS = int(os.getenv("MAX_OUTPUT_CHARS", "2000"))
+# 出力ガードレールの有効化設定
 OUTPUT_GUARD_ENABLED = os.getenv("OUTPUT_GUARD_ENABLED", "true").lower() in ("1", "true", "yes")
 
 if not groq_api_key:
     raise RuntimeError("GROQ_API_KEY が設定されていないか、無効です。")
 
 # プロンプトの定義
+# 各モード（travel, reply, fitness）ごとのシステムプロンプトと決定事項抽出プロンプトを定義
 PROMPTS = {
     "travel": {
         "system": """
@@ -112,6 +116,7 @@ PROMPTS = {
 }
 
 def current_datetime_jp_line():
+    """現在日時を日本語フォーマットで返すヘルパー関数"""
     weekday_map = ["月", "火", "水", "木", "金", "土", "日"]
     now = datetime.now()
     weekday = weekday_map[now.weekday()]
@@ -119,6 +124,9 @@ def current_datetime_jp_line():
 
 
 def sanitize_llm_text(text, max_length=MAX_OUTPUT_CHARS):
+    """
+    LLMからの出力テキストをサニタイズ（制御文字除去、長さ制限）する
+    """
     if text is None:
         return ""
     cleaned = re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]", "", str(text))
@@ -129,6 +137,9 @@ def sanitize_llm_text(text, max_length=MAX_OUTPUT_CHARS):
 
 
 def output_is_safe(text):
+    """
+    出力テキストの安全性をチェックする（Guard使用）
+    """
     if not OUTPUT_GUARD_ENABLED or not text:
         return True
     try:
@@ -139,6 +150,14 @@ def output_is_safe(text):
         return False
 
 def run_qa_chain(message, chat_history, mode="travel"):
+    """
+    ユーザーのメッセージに対してLLMで応答を生成する
+    
+    1. プロンプトの構築（システムプロンプト + 履歴 + ユーザー入力）
+    2. LLMの呼び出し
+    3. レスポンスのサニタイズと安全性チェック
+    4. 特殊形式（Select, Yes/No, DateSelect）の抽出と解析
+    """
     groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="openai/gpt-oss-20b")
     
     system_prompt = PROMPTS.get(mode, PROMPTS["travel"])["system"] + "\n" + current_datetime_jp_line()
@@ -194,6 +213,11 @@ def run_qa_chain(message, chat_history, mode="travel"):
     return response, yes_no_phrase, choices, is_date_select, remaining_text
 
 def write_decision(session_id, chat_history, mode="travel"):
+    """
+    チャット履歴から決定事項を抽出し、Redisに保存する
+    
+    LLMを使用して、会話の内容から「目的地」や「日程」などの確定事項を要約させます。
+    """
     default_message = "決定している項目がありません。"
     message = "決定している項目のみを抽出してください、説明などは一切必要ありません"
     
@@ -217,6 +241,14 @@ def write_decision(session_id, chat_history, mode="travel"):
         return "決定事項の更新中にエラーが発生しました。"
 
 def chat_with_llama(session_id, prompt, mode="travel"):
+    """
+    LLMとの対話を行うメイン関数
+    
+    1. 入力の安全性チェック
+    2. チャット履歴の取得
+    3. LLM応答の生成（run_qa_chain）
+    4. 履歴と決定事項の保存
+    """
     result = guard.content_checker(prompt)
     if 'unsafe' in result:
         return None, redis_client.get_decision(session_id) or "安全性の問題で表示できません", None, None, False, "それには答えられません"

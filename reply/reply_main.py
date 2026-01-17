@@ -8,13 +8,20 @@ import redis_client
 import logging
 import os
 import security
+import limit_manager
 
 logger = logging.getLogger(__name__)
 
-# Blueprintの定義
+# Blueprintの定義: メッセージ返信機能（reply）のルートを管理
 reply_bp = Blueprint('reply', __name__)
 
 def resolve_frontend_url(path=""):
+    """
+    フロントエンドのURLを動的に解決する
+    
+    環境（本番、ローカル、Dockerなど）に応じて適切なベースURLを決定し、
+    リダイレクト先やリンク生成に使用します。
+    """
     host = request.headers.get('Host', '')
     if 'chat.project-kk.com' in host:
         base_url = "https://chat.project-kk.com"
@@ -30,6 +37,12 @@ def resolve_frontend_url(path=""):
 # ホームのチャット画面
 @reply_bp.route('/reply')
 def reply_home():
+    """
+    返信機能の初期化エンドポイント
+    
+    新規セッションを作成し、Redis上のデータをクリアしてから
+    フロントエンドのチャット画面へリダイレクトします。
+    """
     session_id = str(uuid.uuid4())
     try:
         redis_client.reset_session(session_id)
@@ -43,6 +56,12 @@ def reply_home():
 # 予約完了画面
 @reply_bp.route('/reply_complete')
 def reply_complete():
+    """
+    完了画面表示用エンドポイント
+    
+    データベースから最新の予約プラン情報を取得し、
+    JSONデータとして返すか、フロントエンドの完了画面へリダイレクトします。
+    """
     reservation_data = []
     session_id = request.cookies.get('session_id')
     if not session_id:
@@ -50,6 +69,7 @@ def reply_complete():
 
     db = SessionLocal()
     try:
+        # DBから最新の計画を取得
         plan = (
             db.query(ReservationPlan)
             .filter(ReservationPlan.session_id == session_id)
@@ -77,6 +97,7 @@ def reply_complete():
 
     accepts_json = request.accept_mimetypes.get('application/json', 0)
     accepts_html = request.accept_mimetypes.get('text/html', 0)
+    # JSONを要求されている場合はデータを返す
     if accepts_json >= accepts_html:
         return jsonify({"reservation_data": reservation_data})
 
@@ -85,11 +106,16 @@ def reply_complete():
         logger.info(f"Reservation Data: {item}")
     return redirect(resolve_frontend_url('/complete'))
 
-import limit_manager
 
 # メッセージを受け取り、レスポンスを返すエンドポイント
 @reply_bp.route('/reply_send_message', methods=['POST'])
 def reply_send_message():
+    """
+    メッセージ送信処理エンドポイント
+    
+    ユーザーからのメッセージを受け取り、LLMを使用して応答を生成します。
+    CSRFチェック、セッション検証、利用制限チェックを含みます。
+    """
     if not security.is_csrf_valid(request):
         return jsonify({'error': '不正なリクエストです。', 'response': '不正なリクエストです。'}), 403
 
@@ -160,6 +186,7 @@ def reply_send_message():
             'remaining_text': ""
         }), 400
 
+    # LLMとの対話実行 (mode="reply")
     response, current_plan, yes_no_phrase, _choices, _is_date_select, remaining_text = (
         llama_core.chat_with_llama(session_id, prompt, mode="reply")
     )
@@ -167,6 +194,11 @@ def reply_send_message():
 
 @reply_bp.route('/reply_submit_plan', methods=['POST'])
 def reply_submit_plan():
+    """
+    プラン確定処理エンドポイント
+    
+    現在のセッションでの決定事項を解析し、データベースに保存します。
+    """
     if not security.is_csrf_valid(request):
         return jsonify({'error': '不正なリクエストです。'}), 403
 
