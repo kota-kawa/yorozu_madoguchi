@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, memo } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import './Chat.css'
 
 const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }) => {
@@ -78,7 +80,11 @@ const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }
 
   return (
     <div className={`chat-message ${message.sender}`}>
-      <p>{displayedText}</p>
+      <div className="markdown-content">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          {displayedText}
+        </ReactMarkdown>
+      </div>
       {/* 完了後にボタンを表示するために、テキスト表示完了を待つロジックを入れることもできるが
           今回はシンプルに常時表示（テキストと同時に出る形でも違和感は少ない） */}
       {message.type === 'yesno' && (
