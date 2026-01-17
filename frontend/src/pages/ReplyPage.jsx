@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Header from '../components/Header/Header'
 import MessageList from '../components/Chat/MessageList'
 import ChatInput from '../components/Chat/ChatInput'
@@ -20,6 +21,7 @@ const ReplyPage = () => {
   const [autoScroll, setAutoScroll] = useState(true)
   const [currentPlan, setCurrentPlan] = useState('')
   const [submittingPlan, setSubmittingPlan] = useState(false)
+  const navigate = useNavigate()
 
   const {
     messages,
@@ -68,7 +70,7 @@ const ReplyPage = () => {
         throw new Error('プランの保存に失敗しました。')
       }
 
-      window.location.assign('/complete')
+      navigate('/complete')
     } catch (error) {
       console.error('Reply submit failed:', error)
       alert('プランの保存に失敗しました。')

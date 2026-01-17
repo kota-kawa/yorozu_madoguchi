@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import './Header.css'
 
 const AGENT_OPTIONS = [
@@ -19,7 +20,9 @@ const Header = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef(null)
-  const currentAgent = resolveCurrentAgent(window.location.pathname)
+  const location = useLocation()
+  const navigate = useNavigate()
+  const currentAgent = resolveCurrentAgent(location.pathname)
   const currentLabel =
     AGENT_OPTIONS.find((option) => option.value === currentAgent)?.label ||
     AGENT_OPTIONS[0].label
@@ -36,7 +39,7 @@ const Header = ({
 
   const handleSelect = (nextPath) => {
     if (nextPath && nextPath !== currentAgent) {
-      window.location.assign(nextPath)
+      navigate(nextPath)
     }
     setIsOpen(false)
   }
