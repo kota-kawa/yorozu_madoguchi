@@ -2,6 +2,7 @@ import os
 import json
 import redis
 import logging
+from typing import List, Optional, Sequence, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -15,12 +16,12 @@ except ValueError:
 # decode_responses=True により、bytes ではなく str が返されるため、
 # Pythonコード内でエンコード/デコードを意識する必要が減ります。
 try:
-    redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+    redis_client: Optional[redis.Redis] = redis.from_url(REDIS_URL, decode_responses=True)
 except Exception as e:
     logger.error(f"Failed to connect to Redis: {e}")
     redis_client = None
 
-def get_session_key(session_id, key_type):
+def get_session_key(session_id: str, key_type: str) -> str:
     """
     セッションIDに基づいたRedisキーを生成する
     
@@ -28,7 +29,7 @@ def get_session_key(session_id, key_type):
     """
     return f"session:{session_id}:{key_type}"
 
-def _set_with_ttl(key, value):
+def _set_with_ttl(key: str, value: str) -> None:
     """
     TTL（有効期限）付きで値を設定するヘルパー関数
     """
@@ -39,7 +40,7 @@ def _set_with_ttl(key, value):
     else:
         redis_client.set(key, value)
 
-def get_chat_history(session_id):
+def get_chat_history(session_id: str) -> List[Tuple[str, str]]:
     """
     指定されたセッションIDのチャット履歴を取得する
     
@@ -61,7 +62,7 @@ def get_chat_history(session_id):
     
     return []
 
-def save_chat_history(session_id, chat_history):
+def save_chat_history(session_id: str, chat_history: Sequence[Tuple[str, str]]) -> None:
     """
     指定されたセッションIDのチャット履歴を保存する
     
@@ -77,7 +78,7 @@ def save_chat_history(session_id, chat_history):
     except Exception as e:
         logger.error(f"Error saving chat history for {session_id}: {e}")
 
-def get_decision(session_id):
+def get_decision(session_id: str) -> str:
     """
     指定されたセッションIDの決定事項（構造化前のテキスト）を取得する
     """
@@ -93,7 +94,7 @@ def get_decision(session_id):
         logger.error(f"Error getting decision for {session_id}: {e}")
         return ""
 
-def save_decision(session_id, decision_text):
+def save_decision(session_id: str, decision_text: str) -> None:
     """
     指定されたセッションIDの決定事項を保存する
     """
@@ -107,7 +108,7 @@ def save_decision(session_id, decision_text):
     except Exception as e:
         logger.error(f"Error saving decision for {session_id}: {e}")
 
-def reset_session(session_id):
+def reset_session(session_id: str) -> None:
     """
     指定されたセッションIDに関連する全データを削除する
     
@@ -126,7 +127,7 @@ def reset_session(session_id):
     except Exception as e:
         logger.error(f"Error resetting session for {session_id}: {e}")
 
-def get_user_type(session_id):
+def get_user_type(session_id: str) -> str:
     """指定されたセッションIDのユーザー種別を取得する"""
     if not redis_client:
         logger.warning("Redis client is not available.")
@@ -140,7 +141,7 @@ def get_user_type(session_id):
         logger.error(f"Error getting user_type for {session_id}: {e}")
         return ""
 
-def save_user_type(session_id, user_type):
+def save_user_type(session_id: str, user_type: str) -> None:
     """指定されたセッションIDのユーザー種別を保存する"""
     if not redis_client:
         logger.warning("Redis client is not available.")

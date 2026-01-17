@@ -1,7 +1,8 @@
-from flask import Blueprint, request, jsonify, redirect, make_response
+from flask import Blueprint, request, jsonify, redirect, make_response, Response
 import logging
 import os
 import uuid
+from typing import List, Tuple, Union
 
 import llama_core
 import reservation
@@ -16,8 +17,10 @@ logger = logging.getLogger(__name__)
 # Blueprintの定義: 旅行計画機能（travel）のルートを管理
 travel_bp = Blueprint('travel', __name__)
 
+ResponseOrTuple = Union[Response, Tuple[Response, int]]
 
-def resolve_frontend_url(path=""):
+
+def resolve_frontend_url(path: str = "") -> str:
     """
     フロントエンドのURLを動的に解決する
     
@@ -36,17 +39,17 @@ def resolve_frontend_url(path=""):
     return f"{base_url}{path}"
 
 
-def reset_session_data(session_id):
+def reset_session_data(session_id: str) -> None:
     """Redisのセッションデータをリセットする"""
     redis_client.reset_session(session_id)
 
 
-def error_response(message, status=400):
+def error_response(message: str, status: int = 400) -> ResponseOrTuple:
     """エラーレスポンスを返すヘルパー関数"""
     return jsonify({"error": message, "response": message}), status
 
 
-def load_reservation_data(session_id):
+def load_reservation_data(session_id: str) -> List[dict]:
     """
     セッション単位で最新の予約プランを読み込む
     
@@ -82,7 +85,7 @@ def load_reservation_data(session_id):
 
 
 @travel_bp.route('/')
-def home():
+def home() -> Response:
     """
     旅行計画機能の初期化エンドポイント
     
@@ -99,7 +102,7 @@ def home():
 
 
 @travel_bp.route('/complete')
-def complete():
+def complete() -> ResponseOrTuple:
     """
     完了画面表示用エンドポイント
     
@@ -126,7 +129,7 @@ def complete():
 
 
 @travel_bp.route('/travel_send_message', methods=['POST'])
-def send_message():
+def send_message() -> ResponseOrTuple:
     """
     メッセージ送信処理エンドポイント
     
@@ -185,7 +188,7 @@ def send_message():
 
 
 @travel_bp.route('/travel_submit_plan', methods=['POST'])
-def submit_plan():
+def submit_plan() -> ResponseOrTuple:
     """
     プラン確定処理エンドポイント
     

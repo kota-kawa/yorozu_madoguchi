@@ -1,7 +1,8 @@
-from flask import Blueprint, request, jsonify, redirect, make_response
+from flask import Blueprint, request, jsonify, redirect, make_response, Response
 import logging
 import os
 import uuid
+from typing import Tuple, Union
 
 import llama_core
 import limit_manager
@@ -13,8 +14,10 @@ logger = logging.getLogger(__name__)
 # Blueprintの定義：フィットネス機能に関連するルートをまとめる
 fitness_bp = Blueprint('fitness', __name__)
 
+ResponseOrTuple = Union[Response, Tuple[Response, int]]
 
-def resolve_frontend_url(path=""):
+
+def resolve_frontend_url(path: str = "") -> str:
     """
     フロントエンドのURLを動的に解決する
     
@@ -34,18 +37,18 @@ def resolve_frontend_url(path=""):
     return f"{base_url}{path}"
 
 
-def reset_session_data(session_id):
+def reset_session_data(session_id: str) -> None:
     """Redisのセッションデータをリセットする"""
     redis_client.reset_session(session_id)
 
 
-def error_response(message, status=400):
+def error_response(message: str, status: int = 400) -> ResponseOrTuple:
     """エラーレスポンスを返すヘルパー関数"""
     return jsonify({"error": message, "response": message}), status
 
 
 @fitness_bp.route('/fitness')
-def fitness_home():
+def fitness_home() -> Response:
     """
     フィットネス機能の初期化エンドポイント
     
@@ -62,7 +65,7 @@ def fitness_home():
 
 
 @fitness_bp.route('/fitness_send_message', methods=['POST'])
-def fitness_send_message():
+def fitness_send_message() -> ResponseOrTuple:
     """
     フィットネスチャットのメッセージ処理エンドポイント
     

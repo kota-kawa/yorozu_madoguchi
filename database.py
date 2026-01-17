@@ -1,9 +1,10 @@
 from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from sqlalchemy.exc import OperationalError
 import os
 import time
 import logging
+from typing import Generator
 
 # ロギング設定
 logger = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
-def get_db():
+def get_db() -> Generator[Session, None, None]:
     """
     データベースセッションを取得する依存関係関数
     
@@ -29,7 +30,7 @@ def get_db():
     finally:
         db.close()
 
-def init_db():
+def init_db() -> None:
     """
     データベースの初期化を行う関数
     
@@ -56,7 +57,7 @@ def init_db():
                 raise e
 
 
-def _ensure_reservation_schema():
+def _ensure_reservation_schema() -> None:
     """
     reservation_plansテーブルのスキーマを確認し、必要なカラムを追加する
     

@@ -1,5 +1,6 @@
 import datetime
 import logging
+from typing import Any, Optional, Tuple
 from redis_client import redis_client, get_user_type
 
 logger = logging.getLogger(__name__)
@@ -14,7 +15,7 @@ USER_TYPE_LIMITS = {
     "premium": 100,
 }
 
-def normalize_user_type(user_type):
+def normalize_user_type(user_type: Any) -> str:
     """
     ユーザー種別の文字列を正規化する
     
@@ -26,7 +27,7 @@ def normalize_user_type(user_type):
     normalized = str(user_type).strip().lower()
     return normalized if normalized in USER_TYPE_LIMITS else ""
 
-def resolve_user_type(session_id, user_type=None):
+def resolve_user_type(session_id: str, user_type: Optional[str] = None) -> str:
     """
     ユーザー種別を解決する
     
@@ -43,7 +44,7 @@ def resolve_user_type(session_id, user_type=None):
 
     return normalized if normalized else ""
 
-def check_and_increment_limit(session_id, user_type=None):
+def check_and_increment_limit(session_id: str, user_type: Optional[str] = None) -> Tuple[bool, int, int, str, bool, Optional[str]]:
     """
     利用制限を確認し、カウントをインクリメントする
     

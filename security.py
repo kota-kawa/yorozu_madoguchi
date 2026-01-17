@@ -1,11 +1,13 @@
 import os
+from typing import Any, Dict, List
 from urllib.parse import urlparse
+from flask import Request, Response
 
 
 DEFAULT_ALLOWED_ORIGINS = ("https://chat.project-kk.com", "http://localhost:5173")
 
 
-def get_allowed_origins():
+def get_allowed_origins() -> List[str]:
     """
     許可されたオリジンのリストを取得する
     
@@ -20,7 +22,7 @@ def get_allowed_origins():
     return allowed
 
 
-def _origin_from_referer(referer):
+def _origin_from_referer(referer: str) -> str:
     """
     Refererヘッダーからオリジン（スキーム + ホスト）を抽出する
     """
@@ -33,7 +35,7 @@ def _origin_from_referer(referer):
     return ""
 
 
-def is_csrf_valid(request):
+def is_csrf_valid(request: Request) -> bool:
     """
     CSRF（クロスサイトリクエストフォージェリ）検証を行う
     
@@ -58,7 +60,7 @@ def is_csrf_valid(request):
     return allow_missing
 
 
-def should_set_secure_cookie(request):
+def should_set_secure_cookie(request: Request) -> bool:
     """
     CookieにSecure属性を付与すべきか判定する
     
@@ -78,7 +80,7 @@ def should_set_secure_cookie(request):
     return True
 
 
-def cookie_settings(request):
+def cookie_settings(request: Request) -> Dict[str, Any]:
     """
     一貫したCookie設定パラメータを生成する
     
@@ -99,7 +101,7 @@ def cookie_settings(request):
     }
 
 
-def build_csp():
+def build_csp() -> str:
     """
     Content Security Policy (CSP) ヘッダー文字列を構築する
     
@@ -129,7 +131,7 @@ def build_csp():
     )
 
 
-def apply_security_headers(response):
+def apply_security_headers(response: Response) -> Response:
     """
     レスポンスに各種セキュリティヘッダーを付与する
     """

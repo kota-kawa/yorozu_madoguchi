@@ -20,7 +20,7 @@ load_dotenv()
 # 環境変数の値を取得
 groq_api_key = os.getenv("GROQ_API_KEY")
 
-def current_datetime_jp_line():
+def current_datetime_jp_line() -> str:
     """現在日時を日本語フォーマットで返すヘルパー関数"""
     weekday_map = ["月", "火", "水", "木", "金", "土", "日"]
     now = datetime.now()
@@ -46,7 +46,7 @@ MAX_FIELD_LENGTH = 200
 MAX_DATE_LENGTH = 32
 
 
-def sanitize_field(value, max_length=MAX_FIELD_LENGTH):
+def sanitize_field(value: Optional[str], max_length: int = MAX_FIELD_LENGTH) -> Optional[str]:
     """
     入力フィールドのサニタイズを行う
     
@@ -65,7 +65,7 @@ def sanitize_field(value, max_length=MAX_FIELD_LENGTH):
     return text
 
 
-def normalize_date(value):
+def normalize_date(value: Optional[str]) -> Optional[str]:
     """
     日付文字列を正規化する（YYYY-MM-DD形式）
     """
@@ -89,7 +89,17 @@ def normalize_date(value):
     return text
 
 
-def write_reservation_plan(session_id, destinations, departure, hotel, airlines, railway, taxi, start, end):
+def write_reservation_plan(
+    session_id: str,
+    destinations: Optional[str],
+    departure: Optional[str],
+    hotel: Optional[str],
+    airlines: Optional[str],
+    railway: Optional[str],
+    taxi: Optional[str],
+    start: Optional[str],
+    end: Optional[str],
+) -> str:
     """
     予約プラン情報をデータベースに保存（作成または更新）する
     """
@@ -149,7 +159,7 @@ def write_reservation_plan(session_id, destinations, departure, hotel, airlines,
 
     return 'finish!'
 
-def complete_plan(session_id):
+def complete_plan(session_id: str) -> str:
     """
     Redis上の決定事項テキストから構造化データを抽出し、DBへ保存する
     

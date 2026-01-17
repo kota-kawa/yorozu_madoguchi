@@ -15,7 +15,7 @@ client = Groq(
     api_key = groq_api_key,
 )
 
-def content_checker(prompt):
+def content_checker(prompt: str) -> str:
     """
     入力または出力テキストの安全性をチェックする
     

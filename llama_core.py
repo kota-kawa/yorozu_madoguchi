@@ -8,6 +8,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from langchain_core.output_parsers import StrOutputParser
 import warnings
+from typing import List, Optional, Tuple
 
 # ロギング設定
 logger = logging.getLogger(__name__)
@@ -115,7 +116,7 @@ PROMPTS = {
     }
 }
 
-def current_datetime_jp_line():
+def current_datetime_jp_line() -> str:
     """現在日時を日本語フォーマットで返すヘルパー関数"""
     weekday_map = ["月", "火", "水", "木", "金", "土", "日"]
     now = datetime.now()
@@ -123,7 +124,7 @@ def current_datetime_jp_line():
     return f"現在日時: {now.year}年{now.month}月{now.day}日（{weekday}） {now.hour:02d}:{now.minute:02d}"
 
 
-def sanitize_llm_text(text, max_length=MAX_OUTPUT_CHARS):
+def sanitize_llm_text(text: Optional[str], max_length: int = MAX_OUTPUT_CHARS) -> str:
     """
     LLMからの出力テキストをサニタイズ（制御文字除去、長さ制限）する
     """
@@ -136,7 +137,7 @@ def sanitize_llm_text(text, max_length=MAX_OUTPUT_CHARS):
     return cleaned
 
 
-def output_is_safe(text):
+def output_is_safe(text: str) -> bool:
     """
     出力テキストの安全性をチェックする（Guard使用）
     """
@@ -149,7 +150,11 @@ def output_is_safe(text):
         logger.error(f"Output safety check failed: {e}")
         return False
 
-def run_qa_chain(message, chat_history, mode="travel"):
+def run_qa_chain(
+    message: str,
+    chat_history: List[Tuple[str, str]],
+    mode: str = "travel",
+) -> Tuple[str, Optional[str], Optional[List[str]], bool, str]:
     """
     ユーザーのメッセージに対してLLMで応答を生成する
     
@@ -212,7 +217,11 @@ def run_qa_chain(message, chat_history, mode="travel"):
 
     return response, yes_no_phrase, choices, is_date_select, remaining_text
 
-def write_decision(session_id, chat_history, mode="travel"):
+def write_decision(
+    session_id: str,
+    chat_history: List[Tuple[str, str]],
+    mode: str = "travel",
+) -> str:
     """
     チャット履歴から決定事項を抽出し、Redisに保存する
     
@@ -240,7 +249,11 @@ def write_decision(session_id, chat_history, mode="travel"):
         logger.error(f"Error in write_decision: {e}")
         return "決定事項の更新中にエラーが発生しました。"
 
-def chat_with_llama(session_id, prompt, mode="travel"):
+def chat_with_llama(
+    session_id: str,
+    prompt: str,
+    mode: str = "travel",
+) -> Tuple[Optional[str], str, Optional[str], Optional[List[str]], bool, str]:
     """
     LLMとの対話を行うメイン関数
     

@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, redirect, make_response
+from flask import Blueprint, request, jsonify, redirect, make_response, Response
 import llama_core
 import reservation
 from database import SessionLocal
@@ -8,6 +8,9 @@ import redis_client
 import logging
 import os
 import security
+from typing import Tuple, Union
+
+ResponseOrTuple = Union[Response, Tuple[Response, int]]
 import limit_manager
 
 logger = logging.getLogger(__name__)
@@ -15,7 +18,7 @@ logger = logging.getLogger(__name__)
 # Blueprintの定義: メッセージ返信機能（reply）のルートを管理
 reply_bp = Blueprint('reply', __name__)
 
-def resolve_frontend_url(path=""):
+def resolve_frontend_url(path: str = "") -> str:
     """
     フロントエンドのURLを動的に解決する
     
@@ -36,7 +39,7 @@ def resolve_frontend_url(path=""):
 
 # ホームのチャット画面
 @reply_bp.route('/reply')
-def reply_home():
+def reply_home() -> Response:
     """
     返信機能の初期化エンドポイント
     
@@ -55,7 +58,7 @@ def reply_home():
 
 # 予約完了画面
 @reply_bp.route('/reply_complete')
-def reply_complete():
+def reply_complete() -> ResponseOrTuple:
     """
     完了画面表示用エンドポイント
     
@@ -109,7 +112,7 @@ def reply_complete():
 
 # メッセージを受け取り、レスポンスを返すエンドポイント
 @reply_bp.route('/reply_send_message', methods=['POST'])
-def reply_send_message():
+def reply_send_message() -> ResponseOrTuple:
     """
     メッセージ送信処理エンドポイント
     
@@ -193,7 +196,7 @@ def reply_send_message():
     return jsonify({'response': response, 'current_plan': current_plan,'yes_no_phrase': yes_no_phrase,'remaining_text': remaining_text})
 
 @reply_bp.route('/reply_submit_plan', methods=['POST'])
-def reply_submit_plan():
+def reply_submit_plan() -> ResponseOrTuple:
     """
     プラン確定処理エンドポイント
     

@@ -9,16 +9,16 @@ class ReservationPlan(Base):
     """
     __tablename__ = "reservation_plans"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id: Column = Column(Integer, primary_key=True, index=True)
     # セッションID: ユーザーを一意に識別するためのID（CookieやRedisと連携）
-    session_id = Column(String(64), index=True, nullable=False)
+    session_id: Column = Column(String(64), index=True, nullable=False)
     
     # 以下、旅行プランの構成要素
-    destinations = Column(String, nullable=True)  # 目的地
-    departure = Column(String, nullable=True)     # 出発地
-    hotel = Column(String, nullable=True)         # 宿泊施設
-    airlines = Column(String, nullable=True)      # 航空会社
-    railway = Column(String, nullable=True)       # 鉄道
-    taxi = Column(String, nullable=True)          # タクシー・送迎
-    start_date = Column(String, nullable=True)    # 旅行開始日
-    end_date = Column(String, nullable=True)      # 旅行終了日
+    destinations: Column = Column(String, nullable=True)  # 目的地
+    departure: Column = Column(String, nullable=True)     # 出発地
+    hotel: Column = Column(String, nullable=True)         # 宿泊施設
+    airlines: Column = Column(String, nullable=True)      # 航空会社
+    railway: Column = Column(String, nullable=True)       # 鉄道
+    taxi: Column = Column(String, nullable=True)          # タクシー・送迎
+    start_date: Column = Column(String, nullable=True)    # 旅行開始日
+    end_date: Column = Column(String, nullable=True)      # 旅行終了日

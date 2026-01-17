@@ -1,8 +1,9 @@
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify, make_response, Response
 from flask_cors import CORS
 from dotenv import load_dotenv 
 import os 
 import logging
+from typing import Tuple, Union
 from database import init_db
 import uuid
 import redis_client
@@ -27,6 +28,8 @@ init_db()
 ALLOWED_ORIGINS = security.get_allowed_origins()
 
 app = Flask(__name__)
+
+ResponseOrTuple = Union[Response, Tuple[Response, int]]
 # 最大リクエストサイズを制限
 # デフォルトで256KBに制限し、巨大なペイロードによるDoS攻撃を防ぎます
 try:
@@ -42,7 +45,7 @@ app.register_blueprint(reply_bp)
 app.register_blueprint(travel_bp)
 app.register_blueprint(fitness_bp)
 
-def reset_session_data(session_id):
+def reset_session_data(session_id: str) -> None:
     """
     Redisのセッションデータをリセットする
     
@@ -50,7 +53,7 @@ def reset_session_data(session_id):
     """
     redis_client.reset_session(session_id)
 
-def error_response(message, status=400):
+def error_response(message: str, status: int = 400) -> Tuple[Response, int]:
     """
     エラーレスポンスを返すヘルパー関数
     
@@ -59,7 +62,7 @@ def error_response(message, status=400):
     return jsonify({"error": message, "response": message}), status
 
 @app.after_request
-def apply_security_headers(response):
+def apply_security_headers(response: Response) -> Response:
     """
     すべてのレスポンスにセキュリティヘッダーを付与する
     
@@ -69,14 +72,14 @@ def apply_security_headers(response):
     return security.apply_security_headers(response)
 
 @app.errorhandler(RequestEntityTooLarge)
-def handle_request_too_large(error):
+def handle_request_too_large(error: RequestEntityTooLarge) -> Tuple[Response, int]:
     """
     リクエストサイズ超過エラーのハンドリング
     """
     return error_response("リクエストサイズが大きすぎます。", status=413)
 
 @app.route('/api/reset', methods=['POST'])
-def reset():
+def reset() -> ResponseOrTuple:
     """
     セッションリセットエンドポイント
     
@@ -106,7 +109,7 @@ def reset():
         return jsonify({"error": "Reset failed"}), 500
 
 @app.route('/api/user_type', methods=['POST'])
-def set_user_type():
+def set_user_type() -> ResponseOrTuple:
     """
     ユーザー種別設定エンドポイント
     
