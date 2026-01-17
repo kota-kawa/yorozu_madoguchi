@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import Header from '../components/Header/Header'
-import LoadingSpinner from '../components/UI/LoadingSpinner'
 import InfoPanel from '../components/UI/InfoPanel'
 import PlanViewer from '../components/Plan/PlanViewer'
 import MessageList from '../components/Chat/MessageList'
@@ -67,7 +66,6 @@ const FitnessPage = () => {
             onYesNo={sendMessage}
             disabled={chatLoading}
           />
-          <LoadingSpinner visible={chatLoading} variant="inline" />
 
           <div className="card-footer">
             <InfoPanel

@@ -49,6 +49,19 @@ PROMPTS = {
         - Yes/No形式: ユーザーに決めてほしい場合は「Yes/No:〇〇にしますか？」という形式を使用。
         - 選択肢形式: ユーザーに複数の選択肢から選んでほしい場合は「Select: [選択肢1, 選択肢2, ..., その他]」という形式を使用（※必ず半角括弧 [] と半角カンマを使用、最大6つ、最後に「その他」を含める）。
         - 日付選択形式: ユーザーに日付を選択してほしい場合は「DateSelect: true」という形式を使用。
+        - 重要: 特殊形式は厳密に一致させること。必ず半角の「Select:」「Yes/No:」「DateSelect: true」を使い、他の文と混ぜずに**独立した行**で出力する。
+        - 重要: 特殊形式を使わない場合は、これらの文字列や括弧表記を一切出力しない。
+        - 重要: 特殊形式は同時に複数使わない（Yes/No or Select or DateSelectのどれか1つ）。
+
+        ## 出力例（厳密）
+        ユーザー: 目的は筋肥大です
+        アシスタント: ありがとうございます。頻度は週に何回が理想ですか？
+        ユーザー: 目的を選びたい
+        アシスタント: 目的を選んでください。
+        Select: [筋肥大, 減量, 姿勢改善, 体力向上, その他]
+        ユーザー: 日付を選びたい
+        アシスタント: 日付を選択してください。
+        DateSelect: true
         """,
         "decision_system": """
         あなたは渡されたチャット履歴から、現在決定されている旅行項目（目的地、出発地、日程など）を抽出し、簡潔な箇条書きリストを作成するアシスタントです。
@@ -77,6 +90,17 @@ PROMPTS = {
         - Yes/No形式: ユーザーに決めてほしい場合は「Yes/No:〇〇にしますか？」という形式を使用。
         - 選択肢形式: ユーザーに複数の選択肢から選んでほしい場合は「Select: [選択肢1, 選択肢2, ..., その他]」という形式を使用（※必ず半角括弧 [] と半角カンマを使用、最大6つ、最後に「その他」を含める）。
         - 日付選択形式: ユーザーに日付を選択してほしい場合は「DateSelect: true」という形式を使用。
+        - 重要: 特殊形式は厳密に一致させること。必ず半角の「Select:」「Yes/No:」「DateSelect: true」を使い、他の文と混ぜずに**独立した行**で出力する。
+        - 重要: 特殊形式を使わない場合は、これらの文字列や括弧表記を一切出力しない。
+        - 重要: 特殊形式は同時に複数使わない（Yes/No or Select or DateSelectのどれか1つ）。
+
+        ## 出力例（厳密）
+        ユーザー: どんな返事が良い？
+        アシスタント: 返信のトーンは丁寧めが良いですか？
+        Yes/No: 丁寧めで返しますか？
+        ユーザー: 選択肢で選びたい
+        アシスタント: 返事の方向性を選んでください。
+        Select: [短く返す, 丁寧に返す, 断りたい, 距離を置きたい, その他]
         """,
         "decision_system": """
         あなたは渡されたチャット履歴から、現在決定されている項目（返信内容の方針など）を抽出し、簡潔な箇条書きリストを作成するアシスタントです。
@@ -109,6 +133,17 @@ PROMPTS = {
         - Yes/No形式: ユーザーに決めてほしい場合は「Yes/No:〇〇にしますか？」という形式を使用。
         - 選択肢形式: ユーザーに複数の選択肢から選んでほしい場合は「Select: [選択肢1, 選択肢2, ..., その他]」という形式を使用（※必ず半角括弧 [] と半角カンマを使用、最大6つ、最後に「その他」を含める）。
         - 日付選択形式: ユーザーに日付を選択してほしい場合は「DateSelect: true」という形式を使用。
+        - 重要: 特殊形式は厳密に一致させること。必ず半角の「Select:」「Yes/No:」「DateSelect: true」を使い、他の文と混ぜずに**独立した行**で出力する。
+        - 重要: 特殊形式を使わない場合は、これらの文字列や括弧表記を一切出力しない。
+        - 重要: 特殊形式は同時に複数使わない（Yes/No or Select or DateSelectのどれか1つ）。
+
+        ## 出力例（厳密）
+        ユーザー: 目的を選べる？
+        アシスタント: 目的を選んでください。
+        Select: [筋肥大, 減量, 姿勢改善, 体力向上, その他]
+        ユーザー: 日付で区切ってほしい
+        アシスタント: 日付を選択してください。
+        DateSelect: true
         """,
         "decision_system": """
         あなたは渡されたチャット履歴から、現在決定されている筋トレ・健康の項目（目標、頻度、制約、食事方針など）を抽出し、簡潔な箇条書きリストを作成するアシスタントです。
@@ -219,16 +254,17 @@ def run_qa_chain(
     remaining_text = response
 
     # Select: [...] 形式の抽出 (正規表現)
-    select_match = re.search(r'Select:\s*\[(.*?)\]', response, re.DOTALL)
+    select_match = re.search(r'Select\s*[:：]\s*[\[\［](.*?)[\]\］]', response, re.DOTALL)
     if select_match:
         choices_str = select_match.group(1)
-        # カンマ区切りでリスト化し、引用符などを除去
-        choices = [c.strip().strip('"\'') for c in choices_str.split(',') if c.strip()]
+        # カンマ区切り（全角・半角）でリスト化し、引用符などを除去
+        parts = re.split(r'[,、，]', choices_str)
+        choices = [c.strip().strip('"\'') for c in parts if c.strip()]
         # Select部分を除去してremaining_textを更新
         remaining_text = remaining_text.replace(select_match.group(0), "").strip()
 
     # DateSelect: true 形式の抽出
-    date_match = re.search(r'DateSelect:\s*true', remaining_text, re.IGNORECASE)
+    date_match = re.search(r'DateSelect\s*[:：]\s*true', remaining_text, re.IGNORECASE)
     if date_match:
         is_date_select = True
         remaining_text = remaining_text.replace(date_match.group(0), "").strip()

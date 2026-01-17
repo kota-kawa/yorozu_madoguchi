@@ -27,7 +27,7 @@ const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }
   }, [displayedText, isLast, scrollToBottom])
 
   useEffect(() => {
-    if (message.sender === 'user' || !message.text) {
+    if (message.sender === 'user' || !message.text || message.type === 'loading') {
       setDisplayedText(message.text)
       return
     }
@@ -60,6 +60,20 @@ const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }
       const formattedDate = `${year}年${parseInt(month)}月${parseInt(day)}日`
       onYesNo(formattedDate)
     }
+  }
+
+  if (message.type === 'loading') {
+    return (
+      <div className={`chat-message ${message.sender} loading-message`} aria-live="polite">
+        <div className="loading-content">
+          <span className="loading-stars" aria-hidden="true">
+            <span className="loading-star star-main" />
+            <span className="loading-star star-secondary" />
+          </span>
+          <span className="loading-text">{message.text}</span>
+        </div>
+      </div>
+    )
   }
 
   return (

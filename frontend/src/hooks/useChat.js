@@ -32,7 +32,8 @@ export const useChat = () => {
     const loadingMessage = {
       id: `loading-${Date.now()}`,
       sender: 'bot',
-      text: '回答を考えています...',
+      text: '考えています',
+      type: 'loading',
       pending: true,
     }
 

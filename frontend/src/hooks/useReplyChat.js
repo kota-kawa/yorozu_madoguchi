@@ -49,6 +49,12 @@ export const useReplyChat = () => {
     )
   }
 
+  const updateMessageMeta = (id, updates) => {
+    setMessages((prev) =>
+      prev.map((message) => (message.id === id ? { ...message, ...updates } : message)),
+    )
+  }
+
   const sendMessage = async (text) => {
     const trimmed = text.trim()
     if (!trimmed) return
@@ -66,7 +72,8 @@ export const useReplyChat = () => {
     const botMessage = {
       id: botMessageId,
       sender: 'bot',
-      text: '回答を考えています...',
+      text: '考えています',
+      type: 'loading',
       pending: true,
     }
 
@@ -100,7 +107,7 @@ export const useReplyChat = () => {
       }
 
       if (hasRemainingText) {
-        updateMessageText(botMessageId, '')
+        updateMessageMeta(botMessageId, { text: '', type: undefined, pending: false })
 
         if (typeof Worker !== 'undefined') {
           const worker = new Worker(
@@ -132,7 +139,7 @@ export const useReplyChat = () => {
             },
           )
         } else {
-          updateMessageText(botMessageId, remainingText)
+          updateMessageMeta(botMessageId, { text: remainingText, type: undefined, pending: false })
           setLoading(false)
           if (yesNoPhrase) {
             setMessages((prev) => [
