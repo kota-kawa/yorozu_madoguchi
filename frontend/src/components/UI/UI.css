@@ -70,3 +70,16 @@
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
+
+.spinner-inline {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px 0;
+}
+
+.spinner-inline .spinner-border {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-width: 3px;
+}

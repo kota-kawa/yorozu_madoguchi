@@ -19,6 +19,9 @@ warnings.filterwarnings("ignore", message=".*clean_up_tokenization_spaces.*")
 groq_api_key = os.getenv("GROQ_API_KEY")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 MAX_OUTPUT_CHARS = int(os.getenv("MAX_OUTPUT_CHARS", "2000"))
+# Groqモデル設定
+GROQ_MODEL_NAME = os.getenv("GROQ_MODEL_NAME", "openai/gpt-oss-20b")
+GROQ_FALLBACK_MODEL_NAME = os.getenv("GROQ_FALLBACK_MODEL_NAME")
 # 出力ガードレールの有効化設定
 OUTPUT_GUARD_ENABLED = os.getenv("OUTPUT_GUARD_ENABLED", "true").lower() in ("1", "true", "yes")
 
@@ -150,6 +153,20 @@ def output_is_safe(text: str) -> bool:
         logger.error(f"Output safety check failed: {e}")
         return False
 
+
+def build_groq_chat(model_name: Optional[str] = None, tool_choice: Optional[str] = None) -> ChatGroq:
+    """
+    Groqチャットモデルを初期化する
+    tool_choice を指定したい場合は model_kwargs に設定する
+    """
+    kwargs = {
+        "groq_api_key": groq_api_key,
+        "model_name": model_name or GROQ_MODEL_NAME,
+    }
+    if tool_choice:
+        kwargs["model_kwargs"] = {"tool_choice": tool_choice}
+    return ChatGroq(**kwargs)
+
 def run_qa_chain(
     message: str,
     chat_history: List[Tuple[str, str]],
@@ -163,7 +180,7 @@ def run_qa_chain(
     3. レスポンスのサニタイズと安全性チェック
     4. 特殊形式（Select, Yes/No, DateSelect）の抽出と解析
     """
-    groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="openai/gpt-oss-20b")
+    groq_chat = build_groq_chat()
     
     system_prompt = PROMPTS.get(mode, PROMPTS["travel"])["system"] + "\n" + current_datetime_jp_line()
     
@@ -171,7 +188,24 @@ def run_qa_chain(
     prompt = ChatPromptTemplate.from_messages(prompt_messages)
     
     chain = prompt | groq_chat | StrOutputParser()
-    response = chain.invoke({"input": message})
+    try:
+        response = chain.invoke({"input": message})
+    except Exception as e:
+        err_text = str(e)
+        if "tool_use_failed" in err_text or "Tool choice is none" in err_text:
+            if GROQ_FALLBACK_MODEL_NAME:
+                logger.warning(
+                    "Groq tool_use_failed; retrying with fallback model: %s",
+                    GROQ_FALLBACK_MODEL_NAME,
+                )
+                groq_chat = build_groq_chat(model_name=GROQ_FALLBACK_MODEL_NAME)
+            else:
+                logger.warning("Groq tool_use_failed; retrying with tool_choice=auto")
+                groq_chat = build_groq_chat(tool_choice="auto")
+            chain = prompt | groq_chat | StrOutputParser()
+            response = chain.invoke({"input": message})
+        else:
+            raise
     response = sanitize_llm_text(response)
 
     if not output_is_safe(response):
@@ -232,7 +266,7 @@ def write_decision(
     
     try:
         content = redis_client.get_decision(session_id) or default_message
-        groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="openai/gpt-oss-20b")
+        groq_chat = build_groq_chat()
         
         system_prompt = PROMPTS.get(mode, PROMPTS["travel"])["decision_system"] + "\n" + current_datetime_jp_line() + f"\n以前の決定事項:\n{content}\n"
         
@@ -240,7 +274,24 @@ def write_decision(
         prompt = ChatPromptTemplate.from_messages(prompt_messages)
         
         chain = prompt | groq_chat | StrOutputParser()
-        response = chain.invoke({"input": message})
+        try:
+            response = chain.invoke({"input": message})
+        except Exception as e:
+            err_text = str(e)
+            if "tool_use_failed" in err_text or "Tool choice is none" in err_text:
+                if GROQ_FALLBACK_MODEL_NAME:
+                    logger.warning(
+                        "Groq tool_use_failed; retrying with fallback model: %s",
+                        GROQ_FALLBACK_MODEL_NAME,
+                    )
+                    groq_chat = build_groq_chat(model_name=GROQ_FALLBACK_MODEL_NAME)
+                else:
+                    logger.warning("Groq tool_use_failed; retrying with tool_choice=auto")
+                    groq_chat = build_groq_chat(tool_choice="auto")
+                chain = prompt | groq_chat | StrOutputParser()
+                response = chain.invoke({"input": message})
+            else:
+                raise
         response = sanitize_llm_text(response, max_length=int(os.getenv("MAX_DECISION_CHARS", "2000")))
 
         redis_client.save_decision(session_id, response)

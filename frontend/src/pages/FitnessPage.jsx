@@ -67,6 +67,7 @@ const FitnessPage = () => {
             onYesNo={sendMessage}
             disabled={chatLoading}
           />
+          <LoadingSpinner visible={chatLoading} variant="inline" />
 
           <div className="card-footer">
             <InfoPanel
@@ -91,8 +92,6 @@ const FitnessPage = () => {
           showSubmit={false}
         />
       </div>
-
-      <LoadingSpinner visible={chatLoading} />
     </div>
   )
 }

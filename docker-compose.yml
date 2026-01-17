@@ -25,7 +25,9 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_BACKEND_ORIGIN=http://web:5003
+      - VITE_BACKEND_ORIGIN=http://host.docker.internal:5003
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - web
 
