@@ -5,6 +5,7 @@ import redis_client
 import re
 from datetime import datetime
 import warnings
+import json
 from typing import Any, Dict, List, Optional, Tuple
 
 from groq_openai_client import get_groq_client
@@ -207,6 +208,7 @@ def _invoke_chat_completion(
     messages: List[Dict[str, str]],
     model_name: Optional[str] = None,
     tool_choice: Optional[str] = None,
+    tools: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     client = get_groq_client()
     payload: Dict[str, Any] = {
@@ -215,8 +217,59 @@ def _invoke_chat_completion(
     }
     if tool_choice:
         payload["tool_choice"] = tool_choice
+    if tools is not None:
+        payload["tools"] = tools
     completion = client.chat.completions.create(**payload)
-    return completion.choices[0].message.content or ""
+    return _extract_message_content(completion.choices[0].message)
+
+
+PASS_THROUGH_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "assistant",
+            "description": "Return assistant message content when the model tries to call a tool.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "role": {"type": "string"},
+                    "content": {"type": "string"},
+                },
+                "required": ["content"],
+            },
+        },
+    }
+]
+
+
+def _extract_message_content(message: Any) -> str:
+    content = getattr(message, "content", None) or ""
+    if content:
+        return content
+    tool_calls = getattr(message, "tool_calls", None) or []
+    for call in tool_calls:
+        function = getattr(call, "function", None)
+        if not function:
+            continue
+        name = getattr(function, "name", "")
+        if name != "assistant":
+            continue
+        args = getattr(function, "arguments", None)
+        parsed = None
+        if isinstance(args, str):
+            try:
+                parsed = json.loads(args)
+            except json.JSONDecodeError:
+                parsed = None
+        elif isinstance(args, dict):
+            parsed = args
+        if isinstance(parsed, dict):
+            content_value = parsed.get("content")
+            if content_value:
+                return str(content_value)
+        if isinstance(args, str) and args:
+            return args
+    return ""
 
 
 def _invoke_with_tool_retries(
@@ -235,7 +288,7 @@ def _invoke_with_tool_retries(
             GROQ_FALLBACK_MODEL_NAME,
         )
         try:
-            return _invoke_chat_completion(messages, model_name=GROQ_FALLBACK_MODEL_NAME)
+                return _invoke_chat_completion(messages, model_name=GROQ_FALLBACK_MODEL_NAME)
         except Exception as retry_err:
             if _is_tool_use_failed(retry_err):
                 logger.warning("Groq tool_use_failed on fallback; retrying with tool_choice=auto")
@@ -243,11 +296,17 @@ def _invoke_with_tool_retries(
                     messages,
                     model_name=GROQ_FALLBACK_MODEL_NAME,
                     tool_choice="auto",
+                    tools=PASS_THROUGH_TOOLS,
                 )
             raise
 
     logger.warning("Groq tool_use_failed; retrying with tool_choice=auto")
-    return _invoke_chat_completion(messages, model_name=model_name, tool_choice="auto")
+    return _invoke_chat_completion(
+        messages,
+        model_name=model_name,
+        tool_choice="auto",
+        tools=PASS_THROUGH_TOOLS,
+    )
 
 def _is_tool_use_failed(err: Exception) -> bool:
     text = f"{err}"
