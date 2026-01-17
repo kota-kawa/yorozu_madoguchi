@@ -53,7 +53,7 @@ const FitnessPage = () => {
   }
 
   return (
-    <div className="app">
+    <div className="app theme-fitness">
       <Header
         subtitle="筋トレ・フィットネスアシスタント"
       />

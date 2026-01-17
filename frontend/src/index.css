@@ -36,6 +36,34 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Themes */
+.theme-travel {
+  --primary-color: #0ea5e9; /* Sky 500 */
+  --primary-hover: #0284c7; /* Sky 600 */
+  --secondary-color: #38bdf8; /* Sky 400 */
+  --accent-color: #06b6d4; /* Cyan 500 */
+  --chat-user-bg: #0ea5e9;
+  --app-bg-gradient: linear-gradient(135deg, #f0f9ff 0%, #bae6fd 100%); /* Sky 50 to 200 */
+}
+
+.theme-fitness {
+  --primary-color: #f97316; /* Orange 500 */
+  --primary-hover: #ea580c; /* Orange 600 */
+  --secondary-color: #fb923c; /* Orange 400 */
+  --accent-color: #ef4444; /* Red 500 */
+  --chat-user-bg: #f97316;
+  --app-bg-gradient: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%); /* Orange 50 to 200 */
+}
+
+.theme-reply {
+  --primary-color: #10b981; /* Emerald 500 */
+  --primary-hover: #059669; /* Emerald 600 */
+  --secondary-color: #34d399; /* Emerald 400 */
+  --accent-color: #0d9488; /* Teal 600 */
+  --chat-user-bg: #10b981;
+  --app-bg-gradient: linear-gradient(135deg, #ecfdf5 0%, #a7f3d0 100%); /* Emerald 50 to 200 */
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
 }

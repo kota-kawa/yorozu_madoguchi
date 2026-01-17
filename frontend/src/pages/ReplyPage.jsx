@@ -82,7 +82,7 @@ const ReplyPage = () => {
   const isLoading = chatLoading || submittingPlan
 
   return (
-    <div className="app">
+    <div className="app theme-reply">
       <Header
         subtitle="返信作成アシスタント"
       />

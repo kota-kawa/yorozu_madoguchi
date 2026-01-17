@@ -68,7 +68,7 @@ const TravelPage = () => {
   const isLoading = chatLoading || submittingPlan
 
   return (
-    <div className="app">
+    <div className="app theme-travel">
       <Header />
 
       <div className="mobile-tab-nav">

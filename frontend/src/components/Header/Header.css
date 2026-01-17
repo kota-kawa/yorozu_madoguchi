@@ -61,7 +61,7 @@
   min-width: 240px;
   border-radius: 999px;
   padding: 2px;
-  background: linear-gradient(135deg, rgba(100, 108, 255, 0.45), rgba(76, 207, 255, 0.45));
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
   box-shadow: 0 10px 24px rgba(26, 32, 44, 0.12);
 }
 
@@ -103,8 +103,8 @@
 
 .agent-select:focus {
   outline: none;
-  border-color: rgba(100, 108, 255, 0.8);
-  box-shadow: 0 0 0 3px rgba(100, 108, 255, 0.18);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--secondary-color);
 }
 
 .agent-menu {
@@ -144,10 +144,10 @@
 }
 
 .agent-option.is-active {
-  background: linear-gradient(135deg, rgba(100, 108, 255, 0.9), rgba(76, 207, 255, 0.85));
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
   border-color: rgba(255, 255, 255, 0.5);
-  color: #0a0f1a;
-  box-shadow: 0 8px 18px rgba(76, 207, 255, 0.35);
+  color: #ffffff;
+  box-shadow: 0 8px 18px var(--secondary-color);
 }
 
 @keyframes menuFade {
