@@ -11,8 +11,8 @@ TOTAL_DAILY_LIMIT = 500  # システム全体での1日の最大リクエスト�
 
 # ユーザー種別ごとの1日のリクエスト制限
 USER_TYPE_LIMITS = {
-    "normal": 10,
-    "premium": 100,
+    "normal": 50,
+    "premium": 150,
 }
 
 def normalize_user_type(user_type: Any) -> str:

@@ -63,12 +63,12 @@ const UserTypeGate = ({ children }) => {
               <div className="user-type-options">
                 <button type="button" className="user-type-option" onClick={() => handleSelect('normal')}>
                   <span className="option-title">通常ユーザー</span>
-                  <span className="option-meta">1日10回まで</span>
+                  <span className="option-meta">1日50回まで</span>
                   <span className="option-desc">お試しやライトな利用におすすめ</span>
                 </button>
                 <button type="button" className="user-type-option premium" onClick={() => handleSelect('premium')}>
                   <span className="option-title">プレミアムユーザー</span>
-                  <span className="option-meta">1日100回まで</span>
+                  <span className="option-meta">1日150回まで</span>
                   <span className="option-desc">本格的に使いたい方はこちら</span>
                 </button>
               </div>

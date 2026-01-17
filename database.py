@@ -73,7 +73,8 @@ def _ensure_reservation_schema() -> None:
         return
 
     with engine.begin() as connection:
-        connection.execute(text("ALTER TABLE reservation_plans ADD COLUMN session_id VARCHAR(64)"))
+        # 複数ワーカー起動時の競合でDuplicateColumnが発生しないようにガード
+        connection.execute(text("ALTER TABLE reservation_plans ADD COLUMN IF NOT EXISTS session_id VARCHAR(64)"))
         connection.execute(
             text("CREATE INDEX IF NOT EXISTS ix_reservation_plans_session_id ON reservation_plans (session_id)")
         )
