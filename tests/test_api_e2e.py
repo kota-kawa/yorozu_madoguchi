@@ -67,7 +67,7 @@ class ApiE2ETests(unittest.TestCase):
         cls._orig_init_db = database.init_db
         database.init_db = lambda: None
 
-        cls.run = importlib.import_module("run")
+        cls.run_module = importlib.import_module("run")
 
         database.init_db = cls._orig_init_db
 
@@ -84,9 +84,10 @@ class ApiE2ETests(unittest.TestCase):
         import reply.reply_main as reply_main
         import travel.travel_main as travel_main
         import fitness.fitness_main as fitness_main
+        import limit_manager
 
         self._modules = {
-            "run": self.run,
+            "run": self.run_module,
             "reply_main": reply_main,
             "travel_main": travel_main,
             "fitness_main": fitness_main,
@@ -97,29 +98,28 @@ class ApiE2ETests(unittest.TestCase):
             self._originals[(key, "redis_client")] = module.redis_client
             module.redis_client = self.redis_stub
 
-        for key, module in self._modules.items():
-            if hasattr(module, "limit_manager"):
-                self._originals[(key, "limit_manager")] = module.limit_manager.check_and_increment_limit
-                module.limit_manager.check_and_increment_limit = lambda *_args, **_kwargs: (
-                    True,
-                    1,
-                    10,
-                    "normal",
-                    False,
-                    None,
-                )
+        self._orig_limit_check = limit_manager.check_and_increment_limit
+        limit_manager.check_and_increment_limit = lambda *_args, **_kwargs: (
+            True,
+            1,
+            10,
+            "normal",
+            False,
+            None,
+        )
 
-        self.app = self.run.app
+        self.app = self.run_module.app
         self.app.config["TESTING"] = True
         self.client = self.app.test_client()
 
     def tearDown(self):
+        import limit_manager
+        limit_manager.check_and_increment_limit = self._orig_limit_check
+
         for (key, attr), value in self._originals.items():
             module = self._modules[key]
             if attr == "redis_client":
                 module.redis_client = value
-            elif attr == "limit_manager":
-                module.limit_manager.check_and_increment_limit = value
 
         os.environ.clear()
         os.environ.update(self._env_backup)

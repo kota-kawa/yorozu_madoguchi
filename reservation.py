@@ -1,14 +1,16 @@
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 import os
 from datetime import datetime
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Any, Dict, Optional
 import redis_client
 from database import SessionLocal
 from models import ReservationPlan
 import re
+import json
+import logging
+
+from groq_openai_client import get_groq_client
 
 import warnings
 # 不要な警告を抑制
@@ -17,8 +19,7 @@ warnings.filterwarnings("ignore", message=".*clean_up_tokenization_spaces.*")
 # .envファイルの読み込み
 load_dotenv()
 
-# 環境変数の値を取得
-groq_api_key = os.getenv("GROQ_API_KEY")
+logger = logging.getLogger(__name__)
 
 def current_datetime_jp_line() -> str:
     """現在日時を日本語フォーマットで返すヘルパー関数"""
@@ -170,26 +171,26 @@ def complete_plan(session_id: str) -> str:
     # Redisから読み込む
     text = redis_client.get_decision(session_id)
     
-    # Groqのチャットモデルを初期化する
-    groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="openai/gpt-oss-20b")
-    
-    # 構造化出力用にモデルを設定
-    structured_llm = groq_chat.with_structured_output(ReservationData)
-
     # プロンプトメッセージを作成する
     system_prompt = (
         "あなたは旅行計画のアシスタントです。提供されたテキストから予約に関する情報を抽出してください。"
-        "値がない場合はNoneとしてください。"
+        "値がない場合はnullとしてください。"
+        "出力は次のキーを持つJSONのみで返してください: "
+        "destinations, departure, hotel, airlines, railway, taxi, start_date, end_date."
     ) + "\n" + current_datetime_jp_line()
-    
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("human", "{text}")
-    ])
-    
-    # チェーンを実行
-    chain = prompt | structured_llm
-    result = chain.invoke({"text": text})
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": text or ""},
+    ]
+
+    client = get_groq_client()
+    completion = client.chat.completions.create(
+        model=os.getenv("GROQ_RESERVATION_MODEL_NAME", "openai/gpt-oss-20b"),
+        messages=messages,
+    )
+    content = completion.choices[0].message.content or "{}"
+    result = _parse_reservation_json(content)
 
     # 抽出されたデータでDB保存処理を実行
     write_reservation_plan(
@@ -205,3 +206,30 @@ def complete_plan(session_id: str) -> str:
     )
 
     return 'Complete!'
+
+
+def _parse_reservation_json(content: str) -> ReservationData:
+    try:
+        data = json.loads(content)
+        if not isinstance(data, dict):
+            raise ValueError("JSON object is required")
+    except Exception:
+        data = _extract_json_object(content)
+    try:
+        return ReservationData(**data)
+    except Exception as err:
+        logger.warning("Reservation JSON parse failed: %s", err)
+        return ReservationData()
+
+
+def _extract_json_object(content: str) -> Dict[str, Any]:
+    start = content.find("{")
+    end = content.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        return {}
+    snippet = content[start : end + 1]
+    try:
+        data = json.loads(snippet)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}

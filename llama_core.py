@@ -4,11 +4,10 @@ import guard
 import redis_client
 import re
 from datetime import datetime
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_groq import ChatGroq
-from langchain_core.output_parsers import StrOutputParser
 import warnings
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
+from groq_openai_client import get_groq_client
 
 # ロギング設定
 logger = logging.getLogger(__name__)
@@ -189,18 +188,66 @@ def output_is_safe(text: str) -> bool:
         return False
 
 
-def build_groq_chat(model_name: Optional[str] = None, tool_choice: Optional[str] = None) -> ChatGroq:
-    """
-    Groqチャットモデルを初期化する
-    tool_choice を指定したい場合は model_kwargs に設定する
-    """
-    kwargs = {
-        "groq_api_key": groq_api_key,
-        "model_name": model_name or GROQ_MODEL_NAME,
+def _build_messages(
+    system_prompt: str,
+    chat_history: List[Tuple[str, str]],
+    user_input: str,
+) -> List[Dict[str, str]]:
+    messages: List[Dict[str, str]] = [{"role": "system", "content": system_prompt}]
+    for role, content in chat_history:
+        if role == "assistant":
+            messages.append({"role": "assistant", "content": content})
+        else:
+            messages.append({"role": "user", "content": content})
+    messages.append({"role": "user", "content": user_input})
+    return messages
+
+
+def _invoke_chat_completion(
+    messages: List[Dict[str, str]],
+    model_name: Optional[str] = None,
+    tool_choice: Optional[str] = None,
+) -> str:
+    client = get_groq_client()
+    payload: Dict[str, Any] = {
+        "model": model_name or GROQ_MODEL_NAME,
+        "messages": messages,
     }
     if tool_choice:
-        kwargs["model_kwargs"] = {"tool_choice": tool_choice}
-    return ChatGroq(**kwargs)
+        payload["tool_choice"] = tool_choice
+    completion = client.chat.completions.create(**payload)
+    return completion.choices[0].message.content or ""
+
+
+def _invoke_with_tool_retries(
+    messages: List[Dict[str, str]],
+    model_name: Optional[str] = None,
+) -> str:
+    try:
+        return _invoke_chat_completion(messages, model_name=model_name)
+    except Exception as e:
+        if not _is_tool_use_failed(e):
+            raise
+
+    if GROQ_FALLBACK_MODEL_NAME:
+        logger.warning(
+            "Groq tool_use_failed; retrying with fallback model: %s",
+            GROQ_FALLBACK_MODEL_NAME,
+        )
+        try:
+            return _invoke_chat_completion(messages, model_name=GROQ_FALLBACK_MODEL_NAME)
+        except Exception as retry_err:
+            if _is_tool_use_failed(retry_err):
+                logger.warning("Groq tool_use_failed on fallback; retrying with tool_choice=auto")
+                return _invoke_chat_completion(
+                    messages,
+                    model_name=GROQ_FALLBACK_MODEL_NAME,
+                    tool_choice="auto",
+                )
+            raise
+
+    logger.warning("Groq tool_use_failed; retrying with tool_choice=auto")
+    return _invoke_chat_completion(messages, model_name=model_name, tool_choice="auto")
 
 def _is_tool_use_failed(err: Exception) -> bool:
     text = f"{err}"
@@ -229,8 +276,6 @@ def run_qa_chain(
     3. レスポンスのサニタイズと安全性チェック
     4. 特殊形式（Select, Yes/No, DateSelect）の抽出と解析
     """
-    groq_chat = build_groq_chat()
-    
     system_prompt = PROMPTS.get(mode, PROMPTS["travel"])["system"] + "\n" + current_datetime_jp_line()
     decision_text = (decision_text or "").strip()
     if decision_text in ("決定している項目がありません。", "決定事項の更新中にエラーが発生しました。"):
@@ -242,36 +287,8 @@ def run_qa_chain(
             "- 既に決定している内容は繰り返し質問せず、次に必要な情報を確認してください。"
         )
     
-    prompt_messages = [("system", system_prompt)] + chat_history + [("human", "{input}")]
-    prompt = ChatPromptTemplate.from_messages(prompt_messages)
-    
-    chain = prompt | groq_chat | StrOutputParser()
-    try:
-        response = chain.invoke({"input": message})
-    except Exception as e:
-        if _is_tool_use_failed(e):
-            if GROQ_FALLBACK_MODEL_NAME:
-                logger.warning(
-                    "Groq tool_use_failed; retrying with fallback model: %s",
-                    GROQ_FALLBACK_MODEL_NAME,
-                )
-                groq_chat = build_groq_chat(model_name=GROQ_FALLBACK_MODEL_NAME)
-            else:
-                logger.warning("Groq tool_use_failed; retrying with tool_choice=auto")
-                groq_chat = build_groq_chat(tool_choice="auto")
-            chain = prompt | groq_chat | StrOutputParser()
-            try:
-                response = chain.invoke({"input": message})
-            except Exception as retry_err:
-                if GROQ_FALLBACK_MODEL_NAME and _is_tool_use_failed(retry_err):
-                    logger.warning("Groq tool_use_failed on fallback; retrying with tool_choice=auto")
-                    groq_chat = build_groq_chat(model_name=GROQ_FALLBACK_MODEL_NAME, tool_choice="auto")
-                    chain = prompt | groq_chat | StrOutputParser()
-                    response = chain.invoke({"input": message})
-                else:
-                    raise
-        else:
-            raise
+    messages = _build_messages(system_prompt, chat_history, message)
+    response = _invoke_with_tool_retries(messages)
     response = sanitize_llm_text(response)
 
     if not output_is_safe(response):
@@ -333,40 +350,14 @@ def write_decision(
     
     try:
         content = redis_client.get_decision(session_id) or default_message
-        groq_chat = build_groq_chat()
-        
-        system_prompt = PROMPTS.get(mode, PROMPTS["travel"])["decision_system"] + "\n" + current_datetime_jp_line() + f"\n以前の決定事項:\n{content}\n"
-        
-        prompt_messages = [("system", system_prompt)] + chat_history + [("human", "{input}")]
-        prompt = ChatPromptTemplate.from_messages(prompt_messages)
-        
-        chain = prompt | groq_chat | StrOutputParser()
-        try:
-            response = chain.invoke({"input": message})
-        except Exception as e:
-            if _is_tool_use_failed(e):
-                if GROQ_FALLBACK_MODEL_NAME:
-                    logger.warning(
-                        "Groq tool_use_failed; retrying with fallback model: %s",
-                        GROQ_FALLBACK_MODEL_NAME,
-                    )
-                    groq_chat = build_groq_chat(model_name=GROQ_FALLBACK_MODEL_NAME)
-                else:
-                    logger.warning("Groq tool_use_failed; retrying with tool_choice=auto")
-                    groq_chat = build_groq_chat(tool_choice="auto")
-                chain = prompt | groq_chat | StrOutputParser()
-                try:
-                    response = chain.invoke({"input": message})
-                except Exception as retry_err:
-                    if GROQ_FALLBACK_MODEL_NAME and _is_tool_use_failed(retry_err):
-                        logger.warning("Groq tool_use_failed on fallback; retrying with tool_choice=auto")
-                        groq_chat = build_groq_chat(model_name=GROQ_FALLBACK_MODEL_NAME, tool_choice="auto")
-                        chain = prompt | groq_chat | StrOutputParser()
-                        response = chain.invoke({"input": message})
-                    else:
-                        raise
-            else:
-                raise
+        system_prompt = (
+            PROMPTS.get(mode, PROMPTS["travel"])["decision_system"]
+            + "\n"
+            + current_datetime_jp_line()
+            + f"\n以前の決定事項:\n{content}\n"
+        )
+        messages = _build_messages(system_prompt, chat_history, message)
+        response = _invoke_with_tool_retries(messages)
         response = sanitize_llm_text(response, max_length=int(os.getenv("MAX_DECISION_CHARS", "2000")))
 
         redis_client.save_decision(session_id, response)

@@ -1,19 +1,12 @@
-from groq import Groq
 from dotenv import load_dotenv
-import os
 import logging
+
+from groq_openai_client import get_groq_client
 
 # .envファイルの読み込み
 load_dotenv()
 
-# 環境変数の値を取得
-groq_api_key = os.getenv("GROQ_API_KEY")
-
-# Groqクライアントの初期化
-client = Groq(
-    # This is the default and can be omitted
-    api_key = groq_api_key,
-)
+client = get_groq_client()
 
 def content_checker(prompt: str) -> str:
     """
