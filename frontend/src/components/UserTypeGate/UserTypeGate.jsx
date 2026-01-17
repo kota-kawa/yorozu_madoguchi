@@ -1,29 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import './UserTypeGate.css'
-
-const USER_TYPE_KEY = 'yorozu_user_type'
-
-const normalizeUserType = (value) => {
-  if (!value) return ''
-  const normalized = String(value).trim().toLowerCase()
-  return normalized === 'normal' || normalized === 'premium' ? normalized : ''
-}
-
-const getStoredUserType = () => {
-  try {
-    return normalizeUserType(window.localStorage.getItem(USER_TYPE_KEY))
-  } catch {
-    return ''
-  }
-}
-
-const setStoredUserType = (value) => {
-  try {
-    window.localStorage.setItem(USER_TYPE_KEY, value)
-  } catch {
-    // LocalStorage unavailable; rely on in-memory state.
-  }
-}
+import { getStoredUserType, setStoredUserType } from '../../utils/userType'
 
 const UserTypeGate = ({ children }) => {
   const [userType, setUserType] = useState(getStoredUserType)

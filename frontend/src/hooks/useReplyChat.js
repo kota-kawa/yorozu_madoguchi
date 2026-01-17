@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { getStoredUserType } from '../utils/userType'
 
 const initialMessage = {
   id: 'welcome',
@@ -79,7 +80,7 @@ export const useReplyChat = () => {
       const response = await fetch('/reply_send_message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: trimmed }),
+        body: JSON.stringify({ message: trimmed, user_type: getStoredUserType() }),
         signal: controller.signal,
       })
 

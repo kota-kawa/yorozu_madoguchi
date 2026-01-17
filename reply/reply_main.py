@@ -7,6 +7,7 @@ import uuid
 import redis_client
 import logging
 import os
+import security
 
 logger = logging.getLogger(__name__)
 
@@ -36,16 +37,25 @@ def reply_home():
         logger.error(f"Failed to reset session for {session_id}: {e}")
         
     response = make_response(redirect(resolve_frontend_url('/reply')))
-    response.set_cookie('session_id', session_id, httponly=True, samesite='Lax')
+    response.set_cookie('session_id', session_id, **security.cookie_settings(request))
     return response
 
 # 予約完了画面
 @reply_bp.route('/reply_complete')
 def reply_complete():
     reservation_data = []
+    session_id = request.cookies.get('session_id')
+    if not session_id:
+        return jsonify({'error': 'セッションが無効です。ページをリロードしてください。'}), 400
+
     db = SessionLocal()
     try:
-        plan = db.query(ReservationPlan).first()
+        plan = (
+            db.query(ReservationPlan)
+            .filter(ReservationPlan.session_id == session_id)
+            .order_by(ReservationPlan.id.desc())
+            .first()
+        )
         if plan:
             fields = [
                 ('目的地', plan.destinations),
@@ -80,12 +90,35 @@ import limit_manager
 # メッセージを受け取り、レスポンスを返すエンドポイント
 @reply_bp.route('/reply_send_message', methods=['POST'])
 def reply_send_message():
+    if not security.is_csrf_valid(request):
+        return jsonify({'error': '不正なリクエストです。', 'response': '不正なリクエストです。'}), 403
+
     session_id = request.cookies.get('session_id')
     if not session_id:
         return jsonify({'error': 'セッションが無効です。ページをリロードしてください。'}), 400
 
+    data = request.get_json(silent=True)
+    if data is None:
+        return jsonify({
+            'error': 'リクエストの形式が正しくありません（JSONを送信してください）。',
+            'response': 'リクエストの形式が正しくありません（JSONを送信してください）。',
+            'current_plan': "",
+            'yes_no_phrase': "",
+            'remaining_text': ""
+        }), 400
+
     # 利用制限のチェック
-    is_allowed, count, limit, user_type, total_exceeded = limit_manager.check_and_increment_limit(session_id)
+    is_allowed, count, limit, user_type, total_exceeded, error_code = (
+        limit_manager.check_and_increment_limit(session_id, user_type=data.get("user_type"))
+    )
+    if error_code == "redis_unavailable":
+        return jsonify({
+            'error': "利用状況を確認できません。しばらく待ってから再試行してください。",
+            'response': "利用状況を確認できません。しばらく待ってから再試行してください。",
+            'current_plan': "",
+            'yes_no_phrase': "",
+            'remaining_text': ""
+        }), 503
     if not user_type:
         return jsonify({
             'error': "ユーザー種別を選択してください。",
@@ -109,22 +142,34 @@ def reply_send_message():
             'remaining_text': ""
         }), 429
 
-    prompt = request.json.get('message')
+    prompt = data.get('message')
 
     # 文字数制限のチェック
+    if not prompt:
+        return jsonify({
+            'response': "メッセージを入力してください。",
+            'current_plan': "",
+            'yes_no_phrase': "",
+            'remaining_text': ""
+        }), 400
     if len(prompt) > 3000:
         return jsonify({
             'response': "入力された文字数が3000文字を超えています。短くして再度お試しください。",
             'current_plan': "",
             'yes_no_phrase': "",
             'remaining_text': ""
-        })
+        }), 400
 
-    response, current_plan, yes_no_phrase, remaining_text = llama_core.chat_with_llama(session_id, prompt, mode="reply")
+    response, current_plan, yes_no_phrase, _choices, _is_date_select, remaining_text = (
+        llama_core.chat_with_llama(session_id, prompt, mode="reply")
+    )
     return jsonify({'response': response, 'current_plan': current_plan,'yes_no_phrase': yes_no_phrase,'remaining_text': remaining_text})
 
 @reply_bp.route('/reply_submit_plan', methods=['POST'])
 def reply_submit_plan():
+    if not security.is_csrf_valid(request):
+        return jsonify({'error': '不正なリクエストです。'}), 403
+
     session_id = request.cookies.get('session_id')
     if not session_id:
         return jsonify({'error': 'セッションが無効です。'}), 400

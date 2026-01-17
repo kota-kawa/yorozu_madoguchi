@@ -1,6 +1,7 @@
 from groq import Groq
 from dotenv import load_dotenv
 import os
+import logging
 
 # .envファイルの読み込み
 load_dotenv()
@@ -26,5 +27,5 @@ def content_checker(prompt):
         model="meta-llama/llama-guard-4-12b",
     )
     result = chat_completion.choices[0].message.content
-    print(result)
+    logging.getLogger(__name__).info("Content check result: %s", result)
     return result

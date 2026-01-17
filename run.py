@@ -6,6 +6,8 @@ import logging
 from database import init_db
 import uuid
 import redis_client
+import security
+from werkzeug.exceptions import RequestEntityTooLarge
 from reply.reply_main import reply_bp
 from travel.travel_main import travel_bp
 from fitness.fitness_main import fitness_bp
@@ -19,18 +21,14 @@ logger = logging.getLogger(__name__)
 # データベース初期化
 init_db()
 
-FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "https://chat.project-kk.com")
-
-# 環境変数からオリジンを取得し、Flask-CORS用にリスト化
-# 本番ドメインとローカル開発環境の両方を許可リストに含める
-raw_origins = os.getenv("ALLOWED_ORIGINS", FRONTEND_ORIGIN).split(",")
-ALLOWED_ORIGINS = [origin.strip() for origin in raw_origins if origin.strip()]
-if "https://chat.project-kk.com" not in ALLOWED_ORIGINS:
-    ALLOWED_ORIGINS.append("https://chat.project-kk.com")
-if "http://localhost:5173" not in ALLOWED_ORIGINS:
-    ALLOWED_ORIGINS.append("http://localhost:5173")
+ALLOWED_ORIGINS = security.get_allowed_origins()
 
 app = Flask(__name__)
+# 最大リクエストサイズを制限
+try:
+    app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("MAX_CONTENT_LENGTH", "262144"))
+except ValueError:
+    app.config["MAX_CONTENT_LENGTH"] = 262144
 # CORSの設定
 CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS}}, supports_credentials=True)
 app.register_blueprint(reply_bp)
@@ -45,9 +43,20 @@ def error_response(message, status=400):
     """エラーレスポンスを返すヘルパー関数"""
     return jsonify({"error": message, "response": message}), status
 
+@app.after_request
+def apply_security_headers(response):
+    return security.apply_security_headers(response)
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_request_too_large(error):
+    return error_response("リクエストサイズが大きすぎます。", status=413)
+
 @app.route('/api/reset', methods=['POST'])
 def reset():
     try:
+        if not security.is_csrf_valid(request):
+            return error_response("不正なリクエストです。", status=403)
+
         session_id = request.cookies.get('session_id')
         if not session_id:
             # セッションIDがない場合は新規作成して返す（実質リセットと同じ）
@@ -57,7 +66,7 @@ def reset():
         
         response = make_response(jsonify({"status": "reset"}))
         if not request.cookies.get('session_id'):
-             response.set_cookie('session_id', session_id, httponly=True, samesite='Lax')
+             response.set_cookie('session_id', session_id, **security.cookie_settings(request))
              
         return response
     except Exception as e:
@@ -67,6 +76,9 @@ def reset():
 @app.route('/api/user_type', methods=['POST'])
 def set_user_type():
     try:
+        if not security.is_csrf_valid(request):
+            return error_response("不正なリクエストです。", status=403)
+
         data = request.get_json(silent=True) or {}
         user_type = data.get('user_type', '').strip().lower()
 
@@ -82,7 +94,7 @@ def set_user_type():
 
         response = make_response(jsonify({"user_type": user_type}))
         if not request.cookies.get('session_id'):
-            response.set_cookie('session_id', session_id, httponly=True, samesite='Lax')
+            response.set_cookie('session_id', session_id, **security.cookie_settings(request))
         return response
     except Exception as e:
         logger.error(f"User type endpoint failed: {e}")

@@ -5,6 +5,7 @@ class ReservationPlan(Base):
     __tablename__ = "reservation_plans"
 
     id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String(64), index=True, nullable=False)
     destinations = Column(String, nullable=True)
     departure = Column(String, nullable=True)
     hotel = Column(String, nullable=True)

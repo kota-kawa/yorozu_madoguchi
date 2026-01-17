@@ -60,7 +60,7 @@ class LimitManagerTests(unittest.TestCase):
         self.redis_module.redis_client = self.original_redis_module_client
 
     def test_user_limit_enforced(self):
-        allowed, count, limit, user_type, total_exceeded = limit_manager.check_and_increment_limit(
+        allowed, count, limit, user_type, total_exceeded, error_code = limit_manager.check_and_increment_limit(
             "session-a",
             user_type="normal",
         )
@@ -69,46 +69,52 @@ class LimitManagerTests(unittest.TestCase):
         self.assertEqual(limit, 2)
         self.assertEqual(user_type, "normal")
         self.assertFalse(total_exceeded)
+        self.assertIsNone(error_code)
 
-        allowed, count, limit, user_type, total_exceeded = limit_manager.check_and_increment_limit(
+        allowed, count, limit, user_type, total_exceeded, error_code = limit_manager.check_and_increment_limit(
             "session-a",
             user_type="normal",
         )
         self.assertTrue(allowed)
         self.assertEqual(count, 2)
         self.assertFalse(total_exceeded)
+        self.assertIsNone(error_code)
 
-        allowed, count, limit, user_type, total_exceeded = limit_manager.check_and_increment_limit(
+        allowed, count, limit, user_type, total_exceeded, error_code = limit_manager.check_and_increment_limit(
             "session-a",
             user_type="normal",
         )
         self.assertFalse(allowed)
         self.assertEqual(limit, 2)
         self.assertFalse(total_exceeded)
+        self.assertIsNone(error_code)
 
     def test_total_limit_enforced(self):
         for index in range(3):
-            allowed, count, limit, user_type, total_exceeded = limit_manager.check_and_increment_limit(
+            allowed, count, limit, user_type, total_exceeded, error_code = limit_manager.check_and_increment_limit(
                 f"session-{index}",
                 user_type="normal",
             )
             self.assertTrue(allowed)
             self.assertFalse(total_exceeded)
+            self.assertIsNone(error_code)
 
-        allowed, count, limit, user_type, total_exceeded = limit_manager.check_and_increment_limit(
+        allowed, count, limit, user_type, total_exceeded, error_code = limit_manager.check_and_increment_limit(
             "session-extra",
             user_type="normal",
         )
         self.assertFalse(allowed)
         self.assertTrue(total_exceeded)
+        self.assertIsNone(error_code)
 
     def test_user_type_required(self):
-        allowed, count, limit, user_type, total_exceeded = limit_manager.check_and_increment_limit(
+        allowed, count, limit, user_type, total_exceeded, error_code = limit_manager.check_and_increment_limit(
             "session-missing"
         )
         self.assertFalse(allowed)
         self.assertEqual(user_type, "")
         self.assertFalse(total_exceeded)
+        self.assertIsNone(error_code)
 
 
 if __name__ == "__main__":

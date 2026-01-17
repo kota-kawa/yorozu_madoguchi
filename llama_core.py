@@ -15,6 +15,8 @@ warnings.filterwarnings("ignore", message=".*clean_up_tokenization_spaces.*")
 
 groq_api_key = os.getenv("GROQ_API_KEY")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+MAX_OUTPUT_CHARS = int(os.getenv("MAX_OUTPUT_CHARS", "2000"))
+OUTPUT_GUARD_ENABLED = os.getenv("OUTPUT_GUARD_ENABLED", "true").lower() in ("1", "true", "yes")
 
 if not groq_api_key:
     raise RuntimeError("GROQ_API_KEY が設定されていないか、無効です。")
@@ -115,8 +117,29 @@ def current_datetime_jp_line():
     weekday = weekday_map[now.weekday()]
     return f"現在日時: {now.year}年{now.month}月{now.day}日（{weekday}） {now.hour:02d}:{now.minute:02d}"
 
+
+def sanitize_llm_text(text, max_length=MAX_OUTPUT_CHARS):
+    if text is None:
+        return ""
+    cleaned = re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]", "", str(text))
+    cleaned = cleaned.strip()
+    if max_length and len(cleaned) > max_length:
+        cleaned = f"{cleaned[:max_length]}..."
+    return cleaned
+
+
+def output_is_safe(text):
+    if not OUTPUT_GUARD_ENABLED or not text:
+        return True
+    try:
+        result = guard.content_checker(text)
+        return "unsafe" not in result
+    except Exception as e:
+        logger.error(f"Output safety check failed: {e}")
+        return False
+
 def run_qa_chain(message, chat_history, mode="travel"):
-    groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama-3.3-70b-versatile")
+    groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="openai/gpt-oss-20b")
     
     system_prompt = PROMPTS.get(mode, PROMPTS["travel"])["system"] + "\n" + current_datetime_jp_line()
     
@@ -125,6 +148,11 @@ def run_qa_chain(message, chat_history, mode="travel"):
     
     chain = prompt | groq_chat | StrOutputParser()
     response = chain.invoke({"input": message})
+    response = sanitize_llm_text(response)
+
+    if not output_is_safe(response):
+        safe_message = "安全性の理由で表示できません。"
+        return safe_message, None, None, False, safe_message
 
     # Yes/No形式の抽出ロジック
     yes_no_phrase = None
@@ -159,6 +187,7 @@ def run_qa_chain(message, chat_history, mode="travel"):
                 yes_no_phrase = remaining_text[start + len('Yes/No:'):q_pos + 1]
                 remaining_text = remaining_text[:start] + remaining_text[q_pos + 1:]
                 
+    remaining_text = sanitize_llm_text(remaining_text)
     if not remaining_text.strip():
         remaining_text = "Empty"
 
@@ -170,7 +199,7 @@ def write_decision(session_id, chat_history, mode="travel"):
     
     try:
         content = redis_client.get_decision(session_id) or default_message
-        groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="llama-3.1-8b-instant")
+        groq_chat = ChatGroq(groq_api_key=groq_api_key, model_name="openai/gpt-oss-20b")
         
         system_prompt = PROMPTS.get(mode, PROMPTS["travel"])["decision_system"] + "\n" + current_datetime_jp_line() + f"\n以前の決定事項:\n{content}\n"
         
@@ -179,7 +208,8 @@ def write_decision(session_id, chat_history, mode="travel"):
         
         chain = prompt | groq_chat | StrOutputParser()
         response = chain.invoke({"input": message})
-        
+        response = sanitize_llm_text(response, max_length=int(os.getenv("MAX_DECISION_CHARS", "2000")))
+
         redis_client.save_decision(session_id, response)
         return response
     except Exception as e:
@@ -195,6 +225,8 @@ def chat_with_llama(session_id, prompt, mode="travel"):
     chat_history.append(("human", prompt))
     
     response, yes_no_phrase, choices, is_date_select, remaining_text = run_qa_chain(prompt, chat_history, mode=mode)
+    response = sanitize_llm_text(response)
+    remaining_text = sanitize_llm_text(remaining_text)
     
     chat_history.append(("assistant", response))
     redis_client.save_chat_history(session_id, chat_history)

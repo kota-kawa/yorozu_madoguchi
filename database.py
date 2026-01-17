@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.exc import OperationalError
 import os
@@ -31,6 +31,7 @@ def init_db():
     for i in range(max_retries):
         try:
             Base.metadata.create_all(bind=engine)
+            _ensure_reservation_schema()
             logger.info("Database initialized successfully.")
             return
         except OperationalError as e:
@@ -40,3 +41,19 @@ def init_db():
             else:
                 logger.error("Could not connect to database after multiple attempts.")
                 raise e
+
+
+def _ensure_reservation_schema():
+    inspector = inspect(engine)
+    if "reservation_plans" not in inspector.get_table_names():
+        return
+
+    columns = {column["name"] for column in inspector.get_columns("reservation_plans")}
+    if "session_id" in columns:
+        return
+
+    with engine.begin() as connection:
+        connection.execute(text("ALTER TABLE reservation_plans ADD COLUMN session_id VARCHAR(64)"))
+        connection.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_reservation_plans_session_id ON reservation_plans (session_id)")
+        )

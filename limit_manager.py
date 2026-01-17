@@ -20,28 +20,29 @@ def normalize_user_type(user_type):
 
 def resolve_user_type(session_id, user_type=None):
     normalized = normalize_user_type(user_type)
-    if normalized:
-        return normalized
     if not session_id:
-        return ""
+        return normalized if normalized else ""
+
     stored = get_user_type(session_id)
-    return normalize_user_type(stored)
+    stored_normalized = normalize_user_type(stored)
+    if stored_normalized:
+        return stored_normalized
+
+    return normalized if normalized else ""
 
 def check_and_increment_limit(session_id, user_type=None):
     """
     Check total usage count in Redis using Lua script for atomicity.
-    Returns (True, current_count, limit, user_type, total_exceeded) if within limit,
-    (False, current_count, limit, user_type, total_exceeded) if limit exceeded or user_type missing.
+    Returns (allowed, current_count, limit, user_type, total_exceeded, error_code).
     """
     if not redis_client:
-        logger.error("Redis client is not available. Bypassing limit check.")
-        # Fail open: allow access if Redis is down
-        resolved_type = normalize_user_type(user_type) or "normal"
-        return True, 0, USER_TYPE_LIMITS.get(resolved_type, 10), resolved_type, False
+        logger.error("Redis client is not available. Rejecting limit check.")
+        # Fail closed: block when Redis is unavailable
+        return False, 0, 0, "", False, "redis_unavailable"
 
     resolved_type = resolve_user_type(session_id, user_type)
     if not resolved_type:
-        return False, 0, 0, "", False
+        return False, 0, 0, "", False, None
 
     today_str = datetime.date.today().isoformat()
     limit = USER_TYPE_LIMITS[resolved_type]
@@ -99,13 +100,13 @@ def check_and_increment_limit(session_id, user_type=None):
             # Ideally get the current count (which is limit or limit+1 depending on timing),
             # but usually just returning limit is enough for display.
             # Or fetch actual value if strictly needed.
-            return False, limit, limit, resolved_type, False
+            return False, limit, limit, resolved_type, False, None
         if result == -2:
-            return False, limit, limit, resolved_type, True
+            return False, limit, limit, resolved_type, True, None
             
-        return True, result, limit, resolved_type, False
+        return True, result, limit, resolved_type, False, None
 
     except Exception as e:
         logger.error(f"Error accessing Redis limit: {e}")
-        # Fail open: allow access if Redis fails
-        return True, 0, limit, resolved_type, False
+        # Fail closed: block when Redis fails
+        return False, 0, limit, resolved_type, False, "redis_unavailable"

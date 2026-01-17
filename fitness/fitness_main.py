@@ -6,6 +6,7 @@ import uuid
 import llama_core
 import limit_manager
 import redis_client
+import security
 
 logger = logging.getLogger(__name__)
 
@@ -43,18 +44,29 @@ def fitness_home():
 
     redirect_url = resolve_frontend_url('/fitness')
     response = make_response(redirect(redirect_url))
-    response.set_cookie('session_id', session_id, httponly=True, samesite='Lax')
+    response.set_cookie('session_id', session_id, **security.cookie_settings(request))
     return response
 
 
 @fitness_bp.route('/fitness_send_message', methods=['POST'])
 def fitness_send_message():
     try:
+        if not security.is_csrf_valid(request):
+            return error_response("不正なリクエストです。", status=403)
+
         session_id = request.cookies.get('session_id')
         if not session_id:
             return error_response("セッションが無効です。ページをリロードしてください。", status=400)
 
-        is_allowed, count, limit, user_type, total_exceeded = limit_manager.check_and_increment_limit(session_id)
+        data = request.get_json(silent=True)
+        if data is None:
+            return error_response("リクエストの形式が正しくありません（JSONを送信してください）。", status=400)
+
+        is_allowed, count, limit, user_type, total_exceeded, error_code = (
+            limit_manager.check_and_increment_limit(session_id, user_type=data.get("user_type"))
+        )
+        if error_code == "redis_unavailable":
+            return error_response("利用状況を確認できません。しばらく待ってから再試行してください。", status=503)
         if not user_type:
             return error_response("ユーザー種別を選択してください。", status=400)
         if total_exceeded:
@@ -64,10 +76,6 @@ def fitness_send_message():
                 f"本日の利用制限（{limit}回）に達しました。明日またご利用ください。",
                 status=429
             )
-
-        data = request.get_json(silent=True)
-        if data is None:
-            return error_response("リクエストの形式が正しくありません（JSONを送信してください）。", status=400)
 
         prompt = data.get('message', '')
         if not prompt:

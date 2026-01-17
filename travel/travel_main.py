@@ -9,6 +9,7 @@ from database import SessionLocal
 from models import ReservationPlan
 import limit_manager
 import redis_client
+import security
 
 logger = logging.getLogger(__name__)
 
@@ -39,14 +40,23 @@ def error_response(message, status=400):
     return jsonify({"error": message, "response": message}), status
 
 
-def load_reservation_data():
-    """データベースから最新の予約プランを読み込む"""
+def load_reservation_data(session_id):
+    """セッション単位で最新の予約プランを読み込む"""
+    if not session_id:
+        return []
+
     db = SessionLocal()
     try:
-        plan = db.query(ReservationPlan).order_by(ReservationPlan.id.desc()).first()
+        plan = (
+            db.query(ReservationPlan)
+            .filter(ReservationPlan.session_id == session_id)
+            .order_by(ReservationPlan.id.desc())
+            .first()
+        )
         if plan:
             return [{
                 "id": plan.id,
+                "session_id": plan.session_id,
                 "destinations": plan.destinations,
                 "departure": plan.departure,
                 "hotel": plan.hotel,
@@ -68,14 +78,18 @@ def home():
 
     redirect_url = resolve_frontend_url()
     response = make_response(redirect(redirect_url))
-    response.set_cookie('session_id', session_id, httponly=True, samesite='Lax')
+    response.set_cookie('session_id', session_id, **security.cookie_settings(request))
     return response
 
 
 @travel_bp.route('/complete')
 def complete():
     try:
-        reservation_data = load_reservation_data()
+        session_id = request.cookies.get('session_id')
+        if not session_id:
+            return error_response("セッションが無効です。ページをリロードしてください。", status=400)
+
+        reservation_data = load_reservation_data(session_id)
         accepts_json = request.accept_mimetypes.get('application/json', 0)
         accepts_html = request.accept_mimetypes.get('text/html', 0)
         if accepts_json >= accepts_html:
@@ -92,11 +106,22 @@ def complete():
 @travel_bp.route('/travel_send_message', methods=['POST'])
 def send_message():
     try:
+        if not security.is_csrf_valid(request):
+            return error_response("不正なリクエストです。", status=403)
+
         session_id = request.cookies.get('session_id')
         if not session_id:
             return error_response("セッションが無効です。ページをリロードしてください。", status=400)
 
-        is_allowed, count, limit, user_type, total_exceeded = limit_manager.check_and_increment_limit(session_id)
+        data = request.get_json(silent=True)
+        if data is None:
+            return error_response("リクエストの形式が正しくありません（JSONを送信してください）。", status=400)
+
+        is_allowed, count, limit, user_type, total_exceeded, error_code = (
+            limit_manager.check_and_increment_limit(session_id, user_type=data.get("user_type"))
+        )
+        if error_code == "redis_unavailable":
+            return error_response("利用状況を確認できません。しばらく待ってから再試行してください。", status=503)
         if not user_type:
             return error_response("ユーザー種別を選択してください。", status=400)
         if total_exceeded:
@@ -106,10 +131,6 @@ def send_message():
                 f"本日の利用制限（{limit}回）に達しました。明日またご利用ください。",
                 status=429
             )
-
-        data = request.get_json(silent=True)
-        if data is None:
-            return error_response("リクエストの形式が正しくありません（JSONを送信してください）。", status=400)
 
         prompt = data.get('message', '')
 
@@ -137,6 +158,9 @@ def send_message():
 @travel_bp.route('/travel_submit_plan', methods=['POST'])
 def submit_plan():
     try:
+        if not security.is_csrf_valid(request):
+            return error_response("不正なリクエストです。", status=403)
+
         session_id = request.cookies.get('session_id')
         if not session_id:
             return jsonify({'error': 'セッションが無効です。'}), 400
