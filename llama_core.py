@@ -18,7 +18,7 @@ warnings.filterwarnings("ignore", message=".*clean_up_tokenization_spaces.*")
 # APIキーと設定の読み込み
 groq_api_key = os.getenv("GROQ_API_KEY")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-MAX_OUTPUT_CHARS = int(os.getenv("MAX_OUTPUT_CHARS", "2000"))
+MAX_OUTPUT_CHARS = int(os.getenv("MAX_OUTPUT_CHARS", "0"))
 MAX_DECISION_CHARS = int(os.getenv("MAX_DECISION_CHARS", "2000"))
 # Groqモデル設定
 GROQ_MODEL_NAME = os.getenv("GROQ_MODEL_NAME", "openai/gpt-oss-20b")
@@ -44,6 +44,34 @@ DECISION_BULLET_PREFIX_RE = re.compile(
 )
 DECISION_KV_SEPARATOR_RE = re.compile(r"\s*[:：]\s*", re.UNICODE)
 DECISION_PATCH_ALLOWED_KEYS = {"add", "update", "remove"}
+DECISION_UNKNOWN_ANSWER_RE = re.compile(
+    r"^(?:\?|？|わからない|不明|未定|まだ|さっき言った|前に言った|そのまま)$",
+    re.IGNORECASE,
+)
+DECISION_DATE_LIKE_RE = re.compile(
+    r"(\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}|\d{4}年\d{1,2}月\d{1,2}日|\d{1,2}月\d{1,2}日)"
+)
+DECISION_YES_NO_TOKENS = {
+    "はい",
+    "いいえ",
+    "うん",
+    "うーん",
+    "yes",
+    "no",
+    "y",
+    "n",
+    "ok",
+}
+DECISION_SLOT_QUESTION_PATTERNS = {
+    "出発地": re.compile(r"(出発|出発地|出発地点).*(どこ|どちら|どこから|どちらから)", re.IGNORECASE),
+    "目的地": re.compile(r"(目的地|行き先|旅行先|行きたい場所|どこに行きたい)", re.IGNORECASE),
+    "日程": re.compile(r"(日程|いつ|ご都合|何日|何泊|何月|何日から)", re.IGNORECASE),
+}
+DECISION_SLOT_VALUE_PATTERNS = {
+    "出発地": re.compile(r"(出発地|出発地点|出発は|出発)\s*(?:は|:|：)?\s*(.+)", re.IGNORECASE),
+    "目的地": re.compile(r"(目的地|行き先|旅行先|行きたい場所|行き先は)\s*(?:は|:|：)?\s*(.+)", re.IGNORECASE),
+    "日程": re.compile(r"(日程|日付|出発日|旅行日程|ご都合)\s*(?:は|:|：)?\s*(.+)", re.IGNORECASE),
+}
 
 # プロンプトの定義
 # 各モード（travel, reply, fitness）ごとのシステムプロンプトと決定事項抽出プロンプトを定義
@@ -333,6 +361,111 @@ def _parse_decision_key_value(line: str) -> Optional[Tuple[str, str]]:
     if not key or not value:
         return None
     return key, value
+
+
+def _normalize_user_value(text: Optional[str]) -> str:
+    if not text:
+        return ""
+    cleaned = re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]", "", str(text))
+    cleaned = " ".join(cleaned.split())
+    return cleaned.strip()
+
+
+def _is_date_like(text: str) -> bool:
+    if not text:
+        return False
+    if DECISION_DATE_LIKE_RE.search(text):
+        return True
+    return any(token in text for token in ("今日", "明日", "明後日", "あさって", "今週", "来週", "再来週", "来月", "週末", "平日"))
+
+
+def _extract_kv_map(decision_text: Optional[str]) -> Dict[str, str]:
+    items, _, _ = _parse_decision_items(decision_text)
+    result: Dict[str, str] = {}
+    for item in items:
+        if item["type"] == "kv":
+            result[item["key"]] = item["value"]
+    return result
+
+
+def _extract_slot_value(slot: str, text: str) -> Optional[str]:
+    if not text:
+        return None
+    pattern = DECISION_SLOT_VALUE_PATTERNS.get(slot)
+    if not pattern:
+        return None
+    match = pattern.search(text)
+    if not match:
+        return None
+    value = _normalize_user_value(match.group(2) if match.lastindex and match.lastindex >= 2 else match.group(1))
+    return value or None
+
+
+def _is_valid_slot_value(slot: str, text: str) -> bool:
+    cleaned = _normalize_user_value(text)
+    if not cleaned:
+        return False
+    lowered = cleaned.lower()
+    if lowered in DECISION_YES_NO_TOKENS:
+        return False
+    if DECISION_UNKNOWN_ANSWER_RE.search(cleaned):
+        return False
+    if slot == "日程":
+        return _is_date_like(cleaned)
+    return not _is_date_like(cleaned)
+
+
+def _derive_decision_patch_from_history(
+    chat_history: List[Tuple[str, str]],
+    previous_text: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    if not chat_history:
+        return None
+
+    existing = _extract_kv_map(previous_text)
+    decided: Dict[str, str] = dict(existing)
+
+    recent_history = chat_history[-20:]
+    pending_slot: Optional[str] = None
+    for role, content in recent_history:
+        if role == "assistant":
+            pending_slot = None
+            for slot, pattern in DECISION_SLOT_QUESTION_PATTERNS.items():
+                if pattern.search(content):
+                    pending_slot = slot
+                    break
+            continue
+
+        user_text = _normalize_user_value(content)
+        if not user_text:
+            pending_slot = None
+            continue
+
+        handled = False
+        for slot in DECISION_SLOT_VALUE_PATTERNS:
+            value = _extract_slot_value(slot, user_text)
+            if value and _is_valid_slot_value(slot, value):
+                decided[slot] = value
+                handled = True
+                pending_slot = None
+        if handled:
+            continue
+
+        if pending_slot and _is_valid_slot_value(pending_slot, user_text):
+            decided[pending_slot] = user_text
+        pending_slot = None
+
+    add: Dict[str, str] = {}
+    update: Dict[str, str] = {}
+    for key, value in decided.items():
+        if key not in existing:
+            add[key] = value
+        elif existing.get(key) != value:
+            update[key] = value
+
+    if not add and not update:
+        return None
+    return {"add": add, "update": update, "remove": []}
 
 
 def _strip_code_fences(text: str) -> str:
@@ -749,6 +882,9 @@ def write_decision(
     
     try:
         previous_text = redis_client.get_decision(session_id) or ""
+        derived_patch = _derive_decision_patch_from_history(chat_history, previous_text)
+        if derived_patch:
+            previous_text = _apply_decision_patch(previous_text, derived_patch)
         previous_lines = _split_decision_lines(previous_text)
         content = "\n".join(previous_lines) if previous_lines else default_message
         system_prompt = (
@@ -809,3 +945,4 @@ def chat_with_llama(
     current_plan = write_decision(session_id, chat_history, mode=mode)
     
     return response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text
+

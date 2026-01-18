@@ -264,36 +264,49 @@ textarea:focus {
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: all 0.2s ease;
   color: white;
   cursor: pointer;
 }
 
 .btn-yes {
-  background: linear-gradient(135deg, var(--success-color), #059669);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .btn-no {
-  background: linear-gradient(135deg, var(--danger-color), #dc2626);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+  background: #f8fafc;
+  color: var(--text-muted);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .btn-option {
-  background: linear-gradient(135deg, #6366f1, #4f46e5);
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+  background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.btn-yes:hover, .btn-no:hover, .btn-option:hover {
+.btn-yes:hover, .btn-option:hover {
   transform: translateY(-2px);
   filter: brightness(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.btn-no:hover {
+  background: #f1f5f9;
+  color: var(--text-main);
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .btn-yes:disabled, .btn-no:disabled, .btn-option:disabled {
   background: #cbd5e1;
+  color: white;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
+  border: none;
 }
 
 /* Date Selection */

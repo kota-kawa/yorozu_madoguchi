@@ -1,10 +1,9 @@
-import { useState, useEffect, useRef, memo } from 'react'
+import { useEffect, useRef, memo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import './Chat.css'
 
 const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }) => {
-  const [displayedText, setDisplayedText] = useState('')
   const dateRef = useRef(null)
 
   const scrollRafRef = useRef(null)
@@ -26,34 +25,7 @@ const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }
         scrollRafRef.current = null
       }
     }
-  }, [displayedText, isLast, scrollToBottom])
-
-  useEffect(() => {
-    if (message.sender === 'user' || !message.text || message.type === 'loading') {
-      setDisplayedText(message.text)
-      return
-    }
-
-    // すでに表示済みならアニメーションしない（簡易判定: テキストが同じなら即時セットもありだが、
-    // memo化されているのでマウント時のみ走ることを期待）
-    setDisplayedText('')
-    
-    let currentIndex = 0
-    const text = message.text
-    const intervalId = setInterval(() => {
-      setDisplayedText((prev) => {
-        if (currentIndex >= text.length) {
-          clearInterval(intervalId)
-          return text
-        }
-        const nextChar = text[currentIndex]
-        currentIndex++
-        return prev + nextChar
-      })
-    }, 20)
-
-    return () => clearInterval(intervalId)
-  }, [message.text, message.sender])
+  }, [message.text, isLast, scrollToBottom])
 
   const handleDateSubmit = () => {
     if (dateRef.current && dateRef.current.value) {
@@ -82,7 +54,7 @@ const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }
     <div className={`chat-message ${message.sender}`}>
       <div className="markdown-content">
         <ReactMarkdown remarkPlugins={[remarkGfm]}>
-          {displayedText}
+          {message.text}
         </ReactMarkdown>
       </div>
       {/* 完了後にボタンを表示するために、テキスト表示完了を待つロジックを入れることもできるが

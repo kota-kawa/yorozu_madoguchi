@@ -1,24 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { getStoredUserType } from '../utils/userType'
+import { streamWithWorker } from '../utils/streamHelper'
 
 const initialMessage = {
   id: 'welcome',
   sender: 'bot',
   text: '返信したいLINEやDMの内容と、どのようなことをしたいか・言いたいかを教えてください。\nより多くの会話履歴が示されると良い答えを考えやすいです！',
-}
-
-const streamWithWorker = (worker, text, onChunk, onDone) => {
-  worker.onmessage = (event) => {
-    if (event.data?.type === 'text') {
-      onChunk(event.data.content)
-      return
-    }
-
-    if (event.data?.type === 'done') {
-      onDone()
-    }
-  }
-  worker.postMessage({ remaining_text: text })
 }
 
 export const useReplyChat = () => {
@@ -114,13 +101,36 @@ export const useReplyChat = () => {
             new URL('../workers/textGeneratorWorker.js', import.meta.url),
             { type: 'module' },
           )
-          workerRef.current = worker
+                      workerRef.current = worker
+            
+                      const streamFlushIntervalMs = 30
+                      let bufferedText = ''
+                      let flushTimeoutId = null
+            
+                      const flushBufferedText = () => {            if (!bufferedText) return
+            const chunkToAppend = bufferedText
+            bufferedText = ''
+            updateMessageText(botMessageId, (prevText) => `${prevText}${chunkToAppend}`)
+          }
 
           streamWithWorker(
             worker,
             remainingText,
-            (chunk) => updateMessageText(botMessageId, (prevText) => `${prevText}${chunk}`),
+            (chunk) => {
+              bufferedText += chunk
+              if (!flushTimeoutId) {
+                flushTimeoutId = setTimeout(() => {
+                  flushTimeoutId = null
+                  flushBufferedText()
+                }, streamFlushIntervalMs)
+              }
+            },
             () => {
+              if (flushTimeoutId) {
+                clearTimeout(flushTimeoutId)
+                flushTimeoutId = null
+              }
+              flushBufferedText()
               setLoading(false)
               workerRef.current?.terminate()
               workerRef.current = null
