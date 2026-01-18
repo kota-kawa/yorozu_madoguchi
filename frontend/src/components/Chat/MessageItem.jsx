@@ -1,6 +1,7 @@
 import { useEffect, useRef, memo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import rehypeRaw from 'rehype-raw'
 import './Chat.css'
 
 const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }) => {
@@ -53,7 +54,7 @@ const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }
   return (
     <div className={`chat-message ${message.sender}`}>
       <div className="markdown-content">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
           {message.text}
         </ReactMarkdown>
       </div>

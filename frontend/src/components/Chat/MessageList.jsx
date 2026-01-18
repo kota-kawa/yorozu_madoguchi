@@ -76,7 +76,7 @@ const MessageList = ({ messages, autoScroll, onScroll, onYesNo, disabled }) => {
           key={message.id}
           message={message}
           onYesNo={onYesNo}
-          disabled={disabled}
+          disabled={disabled || index !== messages.length - 1}
           isLast={index === messages.length - 1}
           scrollToBottom={scrollToBottom}
         />

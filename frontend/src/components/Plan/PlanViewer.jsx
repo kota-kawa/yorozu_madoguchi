@@ -7,7 +7,12 @@ const PlanViewer = ({ plan, isSubmitting, onSubmit, showSubmit = true, className
   const [actionMessage, setActionMessage] = useState('')
   const decisionCardRef = useRef(null)
   const planLines = useMemo(
-    () => (plan ? plan.split('\n').map((line) => line.trim()).filter(Boolean) : []),
+    () => {
+      if (!plan) return []
+      // Replace <br> or <br/> tags with newlines to ensure correct splitting
+      const sanitizedPlan = plan.replace(/<br\s*\/?>/gi, '\n')
+      return sanitizedPlan.split('\n').map((line) => line.trim()).filter(Boolean)
+    },
     [plan]
   )
 
