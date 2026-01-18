@@ -19,6 +19,7 @@ warnings.filterwarnings("ignore", message=".*clean_up_tokenization_spaces.*")
 groq_api_key = os.getenv("GROQ_API_KEY")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 MAX_OUTPUT_CHARS = int(os.getenv("MAX_OUTPUT_CHARS", "2000"))
+MAX_DECISION_CHARS = int(os.getenv("MAX_DECISION_CHARS", "2000"))
 # Groqモデル設定
 GROQ_MODEL_NAME = os.getenv("GROQ_MODEL_NAME", "openai/gpt-oss-20b")
 GROQ_FALLBACK_MODEL_NAME = os.getenv("GROQ_FALLBACK_MODEL_NAME")
@@ -27,6 +28,22 @@ OUTPUT_GUARD_ENABLED = os.getenv("OUTPUT_GUARD_ENABLED", "true").lower() in ("1"
 
 if not groq_api_key:
     raise RuntimeError("GROQ_API_KEY が設定されていないか、無効です。")
+
+DECISION_DEFAULT_MESSAGE = "決定している項目がありません。"
+DECISION_IGNORED_LINES = {
+    DECISION_DEFAULT_MESSAGE,
+    "決定事項がありません。",
+    "決定している項目はありません。",
+    "決定事項の更新中にエラーが発生しました。",
+    "Empty",
+    "{}",
+    "[]",
+}
+DECISION_BULLET_PREFIX_RE = re.compile(
+    r"^\s*(?:[-*•・●○◎◯]|\d+[.)]|\d+[）)]|[①-⑳])\s*"
+)
+DECISION_KV_SEPARATOR_RE = re.compile(r"\s*[:：]\s*", re.UNICODE)
+DECISION_PATCH_ALLOWED_KEYS = {"add", "update", "remove"}
 
 # プロンプトの定義
 # 各モード（travel, reply, fitness）ごとのシステムプロンプトと決定事項抽出プロンプトを定義
@@ -69,10 +86,13 @@ PROMPTS = {
         DateSelect: true
         """,
         "decision_system": """
-        あなたは渡されたチャット履歴から、現在決定されている旅行項目（目的地、出発地、日程など）を抽出し、簡潔な箇条書きリストを作成するアシスタントです。
-        - 余計な説明や挨拶は一切不要です。
-        - 「項目名：内容」の形式で出力してください。
-        - 各項目は改行で区切ってください。
+        あなたは渡されたチャット履歴から、現在決定されている旅行項目（目的地、出発地、日程など）の差分だけを抽出するアシスタントです。
+        - 出力は**必ず**1つのJSONオブジェクトのみ（コードブロックや説明文は禁止）。
+        - 形式: {"add": {"項目名": "内容"}, "update": {"項目名": "内容"}, "remove": ["項目名", ...]}
+        - add: まだ無い決定事項の新規追加のみ
+        - update: 既存の決定事項が変更・更新された場合のみ
+        - remove: ユーザーが取り消し・不要と言った場合のみ
+        - 変更が無い場合は {} を返す
         """
     },
     "reply": {
@@ -109,10 +129,13 @@ PROMPTS = {
         Select: [短く返す, 丁寧に返す, 断りたい, 距離を置きたい, その他]
         """,
         "decision_system": """
-        あなたは渡されたチャット履歴から、現在決定されている項目（返信内容の方針など）を抽出し、簡潔な箇条書きリストを作成するアシスタントです。
-        - 余計な説明や挨拶は一切不要です。
-        - 「項目名：内容」の形式で出力してください。
-        - 各項目は改行で区切ってください。
+        あなたは渡されたチャット履歴から、現在決定されている項目（返信内容の方針など）の差分だけを抽出するアシスタントです。
+        - 出力は**必ず**1つのJSONオブジェクトのみ（コードブロックや説明文は禁止）。
+        - 形式: {"add": {"項目名": "内容"}, "update": {"項目名": "内容"}, "remove": ["項目名", ...]}
+        - add: まだ無い決定事項の新規追加のみ
+        - update: 既存の決定事項が変更・更新された場合のみ
+        - remove: ユーザーが取り消し・不要と言った場合のみ
+        - 変更が無い場合は {} を返す
         """
     },
     "fitness": {
@@ -155,10 +178,13 @@ PROMPTS = {
         DateSelect: true
         """,
         "decision_system": """
-        あなたは渡されたチャット履歴から、現在決定されている筋トレ・健康の項目（目標、頻度、制約、食事方針など）を抽出し、簡潔な箇条書きリストを作成するアシスタントです。
-        - 余計な説明や挨拶は一切不要です。
-        - 「項目名：内容」の形式で出力してください。
-        - 各項目は改行で区切ってください。
+        あなたは渡されたチャット履歴から、現在決定されている筋トレ・健康の項目（目標、頻度、制約、食事方針など）の差分だけを抽出するアシスタントです。
+        - 出力は**必ず**1つのJSONオブジェクトのみ（コードブロックや説明文は禁止）。
+        - 形式: {"add": {"項目名": "内容"}, "update": {"項目名": "内容"}, "remove": ["項目名", ...]}
+        - add: まだ無い決定事項の新規追加のみ
+        - update: 既存の決定事項が変更・更新された場合のみ
+        - remove: ユーザーが取り消し・不要と言った場合のみ
+        - 変更が無い場合は {} を返す
         """
     },
     "job": {
@@ -201,10 +227,13 @@ PROMPTS = {
         アシスタント: 対象企業・職種を教えてください。
         """,
         "decision_system": """
-        あなたは渡されたチャット履歴から、現在決定されている就活の項目（対象企業・職種、設問文、文字数、自己PR要素、ガクチカ要素、志望動機要素、面接対策方針など）を抽出し、簡潔な箇条書きリストを作成するアシスタントです。
-        - 余計な説明や挨拶は一切不要です。
-        - 「項目名：内容」の形式で出力してください。
-        - 各項目は改行で区切ってください。
+        あなたは渡されたチャット履歴から、現在決定されている就活の項目（対象企業・職種、設問文、文字数、自己PR要素、ガクチカ要素、志望動機要素、面接対策方針など）の差分だけを抽出するアシスタントです。
+        - 出力は**必ず**1つのJSONオブジェクトのみ（コードブロックや説明文は禁止）。
+        - 形式: {"add": {"項目名": "内容"}, "update": {"項目名": "内容"}, "remove": ["項目名", ...]}
+        - add: まだ無い決定事項の新規追加のみ
+        - update: 既存の決定事項が変更・更新された場合のみ
+        - remove: ユーザーが取り消し・不要と言った場合のみ
+        - 変更が無い場合は {} を返す
         """
     },
     "study": {
@@ -246,10 +275,13 @@ PROMPTS = {
         - ・・・
         """,
         "decision_system": """
-        あなたは渡されたチャット履歴から、現在決定されている学習情報（授業名・範囲・学習目標・重要ポイント・用語・確認問題・次のタスク）を抽出し、簡潔な箇条書きリストを作成するアシスタントです。
-        - 余計な説明や挨拶は一切不要です。
-        - 「項目名：内容」の形式で出力してください。
-        - 各項目は改行で区切ってください。
+        あなたは渡されたチャット履歴から、現在決定されている学習情報（授業名・範囲・学習目標・重要ポイント・用語・確認問題・次のタスク）の差分だけを抽出するアシスタントです。
+        - 出力は**必ず**1つのJSONオブジェクトのみ（コードブロックや説明文は禁止）。
+        - 形式: {"add": {"項目名": "内容"}, "update": {"項目名": "内容"}, "remove": ["項目名", ...]}
+        - add: まだ無い決定事項の新規追加のみ
+        - update: 既存の決定事項が変更・更新された場合のみ
+        - remove: ユーザーが取り消し・不要と言った場合のみ
+        - 変更が無い場合は {} を返す
         """
     }
 }
@@ -273,6 +305,211 @@ def sanitize_llm_text(text: Optional[str], max_length: int = MAX_OUTPUT_CHARS) -
     if max_length and len(cleaned) > max_length:
         cleaned = f"{cleaned[:max_length]}..."
     return cleaned
+
+
+def _normalize_decision_line(line: str) -> str:
+    cleaned = DECISION_BULLET_PREFIX_RE.sub("", line.strip())
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    return cleaned.strip()
+
+
+def _split_decision_lines(text: Optional[str]) -> List[str]:
+    if not text:
+        return []
+    lines: List[str] = []
+    for raw in str(text).splitlines():
+        cleaned = _normalize_decision_line(raw)
+        if not cleaned or cleaned in DECISION_IGNORED_LINES:
+            continue
+        lines.append(cleaned)
+    return lines
+
+
+def _parse_decision_key_value(line: str) -> Optional[Tuple[str, str]]:
+    parts = DECISION_KV_SEPARATOR_RE.split(line, maxsplit=1)
+    if len(parts) != 2:
+        return None
+    key, value = parts[0].strip(), parts[1].strip()
+    if not key or not value:
+        return None
+    return key, value
+
+
+def _strip_code_fences(text: str) -> str:
+    stripped = text.strip()
+    if not stripped.startswith("```"):
+        return stripped
+    lines = stripped.splitlines()
+    if len(lines) >= 2 and lines[0].startswith("```") and lines[-1].startswith("```"):
+        return "\n".join(lines[1:-1]).strip()
+    return stripped
+
+
+def _extract_json_object(text: Optional[str]) -> Optional[Dict[str, Any]]:
+    if not text:
+        return None
+    cleaned = _strip_code_fences(str(text))
+    cleaned = cleaned.strip()
+    try:
+        obj = json.loads(cleaned)
+        return obj if isinstance(obj, dict) else None
+    except Exception:
+        start = cleaned.find("{")
+        end = cleaned.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            snippet = cleaned[start : end + 1]
+            try:
+                obj = json.loads(snippet)
+                return obj if isinstance(obj, dict) else None
+            except Exception:
+                return None
+    return None
+
+
+def _normalize_decision_patch(patch: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not patch or not isinstance(patch, dict):
+        return None
+    filtered = {k: v for k, v in patch.items() if k in DECISION_PATCH_ALLOWED_KEYS}
+
+    def normalize_map(value: Any) -> Dict[str, str]:
+        if not isinstance(value, dict):
+            return {}
+        normalized: Dict[str, str] = {}
+        for key, val in value.items():
+            k = str(key).strip()
+            v = str(val).strip()
+            if k and v:
+                normalized[k] = v
+        return normalized
+
+    def normalize_remove(value: Any) -> List[str]:
+        if isinstance(value, list):
+            items = value
+        elif isinstance(value, str):
+            items = [value]
+        else:
+            return []
+        result: List[str] = []
+        for item in items:
+            key = str(item).strip()
+            if key:
+                result.append(key)
+        return result
+
+    add = normalize_map(filtered.get("add"))
+    update = normalize_map(filtered.get("update"))
+    remove = normalize_remove(filtered.get("remove"))
+
+    if not add and not update and not remove:
+        return {}
+    return {"add": add, "update": update, "remove": remove}
+
+
+def _parse_decision_items(text: Optional[str]) -> Tuple[List[Dict[str, str]], Dict[str, int], set]:
+    items: List[Dict[str, str]] = []
+    key_index: Dict[str, int] = {}
+    plain_set: set = set()
+    for line in _split_decision_lines(text):
+        kv = _parse_decision_key_value(line)
+        if kv:
+            key, value = kv
+            item = {"type": "kv", "key": key, "value": value}
+            if key in key_index:
+                items[key_index[key]] = item
+            else:
+                key_index[key] = len(items)
+                items.append(item)
+        else:
+            if line not in plain_set:
+                items.append({"type": "plain", "value": line})
+                plain_set.add(line)
+    return items, key_index, plain_set
+
+
+def _decision_items_to_text(items: List[Dict[str, str]]) -> str:
+    if not items:
+        return DECISION_DEFAULT_MESSAGE
+    lines: List[str] = []
+    for item in items:
+        if item["type"] == "kv":
+            lines.append(f'{item["key"]}：{item["value"]}')
+        else:
+            lines.append(item["value"])
+    return "\n".join(lines)
+
+
+def _apply_decision_patch(prev_text: Optional[str], patch: Dict[str, Any]) -> str:
+    add = patch.get("add") or {}
+    update = patch.get("update") or {}
+    remove_list = patch.get("remove") or []
+
+    if not add and not update and not remove_list:
+        existing = "\n".join(_split_decision_lines(prev_text))
+        return existing if existing else DECISION_DEFAULT_MESSAGE
+
+    items, key_index, plain_set = _parse_decision_items(prev_text)
+
+    remove_set = {key for key in remove_list if key}
+    if remove_set:
+        items = [
+            item
+            for item in items
+            if not (item["type"] == "kv" and item["key"] in remove_set)
+        ]
+        key_index = {item["key"]: idx for idx, item in enumerate(items) if item["type"] == "kv"}
+
+    def apply_map(value_map: Dict[str, str]) -> None:
+        for key, value in value_map.items():
+            if key in remove_set:
+                continue
+            item = {"type": "kv", "key": key, "value": value}
+            if key in key_index:
+                items[key_index[key]] = item
+            else:
+                key_index[key] = len(items)
+                items.append(item)
+
+    apply_map(add)
+    apply_map(update)
+
+    merged = _decision_items_to_text(items)
+    return sanitize_llm_text(merged, max_length=MAX_DECISION_CHARS)
+
+
+def _merge_decision_text(prev_text: Optional[str], new_text: Optional[str]) -> str:
+    prev_lines = _split_decision_lines(prev_text)
+    new_lines = _split_decision_lines(new_text)
+
+    if not prev_lines and not new_lines:
+        return DECISION_DEFAULT_MESSAGE
+    if not new_lines:
+        return "\n".join(prev_lines)
+
+    result_lines = list(prev_lines)
+    key_index: Dict[str, int] = {}
+    for idx, line in enumerate(result_lines):
+        kv = _parse_decision_key_value(line)
+        if kv:
+            key_index[kv[0]] = idx
+
+    seen_plain = {line for line in result_lines if not _parse_decision_key_value(line)}
+
+    for line in new_lines:
+        kv = _parse_decision_key_value(line)
+        if kv:
+            key = kv[0]
+            if key in key_index:
+                result_lines[key_index[key]] = line
+            else:
+                key_index[key] = len(result_lines)
+                result_lines.append(line)
+        else:
+            if line not in seen_plain:
+                result_lines.append(line)
+                seen_plain.add(line)
+
+    merged = "\n".join(result_lines)
+    return sanitize_llm_text(merged, max_length=MAX_DECISION_CHARS)
 
 
 def output_is_safe(text: str) -> bool:
@@ -504,11 +741,16 @@ def write_decision(
     
     LLMを使用して、会話の内容から「目的地」や「日程」などの確定事項を要約させます。
     """
-    default_message = "決定している項目がありません。"
-    message = "決定している項目のみを抽出してください、説明などは一切必要ありません"
+    default_message = DECISION_DEFAULT_MESSAGE
+    message = (
+        "これまでの決定事項に新しく追加・変更された内容があれば、その項目だけをJSONで出力してください。"
+        "未確定や推測は書かず、説明や挨拶は一切不要です。"
+    )
     
     try:
-        content = redis_client.get_decision(session_id) or default_message
+        previous_text = redis_client.get_decision(session_id) or ""
+        previous_lines = _split_decision_lines(previous_text)
+        content = "\n".join(previous_lines) if previous_lines else default_message
         system_prompt = (
             PROMPTS.get(mode, PROMPTS["travel"])["decision_system"]
             + "\n"
@@ -517,10 +759,20 @@ def write_decision(
         )
         messages = _build_messages(system_prompt, chat_history, message)
         response = _invoke_with_tool_retries(messages)
-        response = sanitize_llm_text(response, max_length=int(os.getenv("MAX_DECISION_CHARS", "2000")))
+        response = sanitize_llm_text(response, max_length=MAX_DECISION_CHARS)
+        if not output_is_safe(response):
+            safe_text = "\n".join(previous_lines) if previous_lines else default_message
+            redis_client.save_decision(session_id, safe_text)
+            return safe_text
 
-        redis_client.save_decision(session_id, response)
-        return response
+        patch = _normalize_decision_patch(_extract_json_object(response))
+        if patch is not None:
+            merged = _apply_decision_patch(previous_text, patch)
+        else:
+            merged = _merge_decision_text(previous_text, response)
+
+        redis_client.save_decision(session_id, merged)
+        return merged
     except Exception as e:
         logger.error(f"Error in write_decision: {e}")
         return "決定事項の更新中にエラーが発生しました。"
