@@ -9,9 +9,10 @@ from typing import Generator
 # ロギング設定
 logger = logging.getLogger(__name__)
 
-# 環境変数からデータベースURLを取得。デフォルトはローカル開発用（docker-compose外での実行用）
-# docker-compose内では環境変数で上書きされる
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/yorozu")
+# 環境変数からデータベースURLを取得
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable must be set")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
