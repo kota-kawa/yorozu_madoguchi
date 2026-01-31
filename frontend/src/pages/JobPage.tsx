@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { FormEvent, KeyboardEvent, UIEvent } from 'react'
 import Header from '../components/Header/Header'
 import InfoPanel from '../components/UI/InfoPanel'
 import PlanViewer from '../components/Plan/PlanViewer'
@@ -32,20 +33,22 @@ const JobPage = () => {
     }
   }, [planFromChat])
 
-  const handleScroll = (event) => {
+  const handleScroll = (event: UIEvent<HTMLDivElement>) => {
     const target = event.currentTarget
     const isAtBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 10
     setAutoScroll(isAtBottom)
   }
 
-  const handleKeyDown = (event) => {
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
       handleSubmit(event)
     }
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = (
+    event: FormEvent<HTMLFormElement> | KeyboardEvent<HTMLTextAreaElement>,
+  ) => {
     event.preventDefault()
     sendMessage(input)
     setInput('')
