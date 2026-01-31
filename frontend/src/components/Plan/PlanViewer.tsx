@@ -2,10 +2,24 @@ import { useMemo, useRef, useState } from 'react'
 import html2canvas from 'html2canvas'
 import './Plan.css'
 
-const PlanViewer = ({ plan, isSubmitting, onSubmit, showSubmit = true, className = '' }) => {
+type PlanViewerProps = {
+  plan: string
+  isSubmitting?: boolean
+  onSubmit?: () => void
+  showSubmit?: boolean
+  className?: string
+}
+
+const PlanViewer = ({
+  plan,
+  isSubmitting = false,
+  onSubmit,
+  showSubmit = true,
+  className = '',
+}: PlanViewerProps) => {
   const [showSummary, setShowSummary] = useState(false)
   const [actionMessage, setActionMessage] = useState('')
-  const decisionCardRef = useRef(null)
+  const decisionCardRef = useRef<HTMLDivElement | null>(null)
   const planLines = useMemo(
     () => {
       if (!plan) return []
@@ -20,7 +34,7 @@ const PlanViewer = ({ plan, isSubmitting, onSubmit, showSubmit = true, className
     setActionMessage('')
   }
 
-  const downloadBlob = (blob, filename) => {
+  const downloadBlob = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
@@ -33,7 +47,7 @@ const PlanViewer = ({ plan, isSubmitting, onSubmit, showSubmit = true, className
 
   const formatTimestamp = () => {
     const now = new Date()
-    const pad = (value) => String(value).padStart(2, '0')
+    const pad = (value: number) => String(value).padStart(2, '0')
     return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
   }
 
@@ -53,7 +67,9 @@ const PlanViewer = ({ plan, isSubmitting, onSubmit, showSubmit = true, className
         backgroundColor: '#ffffff',
         scale: 2
       })
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, 'image/png'),
+      )
       if (!blob) {
         throw new Error('Failed to create image')
       }

@@ -1,6 +1,12 @@
 import './UI.css'
 
-const InfoPanel = ({ isOpen, samples, onSelect }) => {
+type InfoPanelProps = {
+  isOpen: boolean
+  samples: string[]
+  onSelect: (value: string) => void
+}
+
+const InfoPanel = ({ isOpen, samples, onSelect }: InfoPanelProps) => {
   return (
     <div className={`info-text ${isOpen ? 'open' : ''}`}>
       <h2>入力の例</h2>

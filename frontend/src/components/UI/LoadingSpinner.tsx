@@ -1,6 +1,11 @@
 import './UI.css'
 
-const LoadingSpinner = ({ visible, variant = 'overlay' }) => {
+type LoadingSpinnerProps = {
+  visible: boolean
+  variant?: 'overlay' | 'inline'
+}
+
+const LoadingSpinner = ({ visible, variant = 'overlay' }: LoadingSpinnerProps) => {
   if (!visible) return null
 
   if (variant === 'inline') {

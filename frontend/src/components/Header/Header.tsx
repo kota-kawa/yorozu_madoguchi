@@ -2,7 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import './Header.css'
 
-const AGENT_OPTIONS = [
+type AgentOption = {
+  value: string
+  label: string
+}
+
+const AGENT_OPTIONS: AgentOption[] = [
   { value: '/', label: '旅行計画チャット' },
   { value: '/reply', label: '返信作成アシスタント' },
   { value: '/fitness', label: '筋トレ・フィットネス' },
@@ -10,7 +15,7 @@ const AGENT_OPTIONS = [
   { value: '/study', label: '学習アシスタント' },
 ]
 
-const resolveCurrentAgent = (path) => {
+const resolveCurrentAgent = (path: string) => {
   if (path.startsWith('/reply')) return '/reply'
   if (path.startsWith('/fitness')) return '/fitness'
   if (path.startsWith('/job')) return '/job'
@@ -18,12 +23,17 @@ const resolveCurrentAgent = (path) => {
   return '/'
 }
 
+type HeaderProps = {
+  title?: string
+  subtitle?: string
+}
+
 const Header = ({
   title = 'よろずの窓口',
   subtitle = 'React フロントエンド ＋ Flask API',
-}) => {
+}: HeaderProps) => {
   const [isOpen, setIsOpen] = useState(false)
-  const dropdownRef = useRef(null)
+  const dropdownRef = useRef<HTMLDivElement | null>(null)
   const location = useLocation()
   const navigate = useNavigate()
   const currentAgent = resolveCurrentAgent(location.pathname)
@@ -32,8 +42,8 @@ const Header = ({
     AGENT_OPTIONS[0].label
 
   useEffect(() => {
-    const handleOutside = (event) => {
-      if (!dropdownRef.current?.contains(event.target)) {
+    const handleOutside = (event: MouseEvent) => {
+      if (!dropdownRef.current?.contains(event.target as Node)) {
         setIsOpen(false)
       }
     }
@@ -41,7 +51,7 @@ const Header = ({
     return () => document.removeEventListener('mousedown', handleOutside)
   }, [])
 
-  const handleSelect = (nextPath) => {
+  const handleSelect = (nextPath: string) => {
     if (nextPath && nextPath !== currentAgent) {
       navigate(nextPath)
     }

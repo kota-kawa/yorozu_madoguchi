@@ -1,14 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import './UserTypeGate.css'
 import { getStoredUserType, setStoredUserType } from '../../utils/userType'
 
-const UserTypeGate = ({ children }) => {
-  const [userType, setUserType] = useState(getStoredUserType)
-  const [status, setStatus] = useState(userType ? 'syncing' : 'idle')
+type UserType = '' | 'normal' | 'premium'
+type GateStatus = 'syncing' | 'idle' | 'ready' | 'error'
+type UserTypeGateProps = {
+  children: ReactNode
+}
+
+type UserTypeResponse = {
+  error?: string
+}
+
+const UserTypeGate = ({ children }: UserTypeGateProps) => {
+  const [userType, setUserType] = useState<UserType>(getStoredUserType)
+  const [status, setStatus] = useState<GateStatus>(userType ? 'syncing' : 'idle')
   const [error, setError] = useState('')
   const lastSyncedRef = useRef('')
 
-  const syncUserType = async (nextUserType) => {
+  const syncUserType = async (nextUserType: UserType) => {
     setStatus('syncing')
     setError('')
     try {
@@ -17,7 +28,7 @@ const UserTypeGate = ({ children }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_type: nextUserType }),
       })
-      const data = await response.json().catch(() => null)
+      const data = (await response.json().catch(() => null)) as UserTypeResponse | null
       if (!response.ok) {
         throw new Error(data?.error || 'ユーザー種別の登録に失敗しました。')
       }
@@ -25,7 +36,8 @@ const UserTypeGate = ({ children }) => {
       setStatus('ready')
     } catch (err) {
       setStatus('error')
-      setError(err?.message || 'ユーザー種別の登録に失敗しました。')
+      const message = err instanceof Error ? err.message : 'ユーザー種別の登録に失敗しました。'
+      setError(message)
     }
   }
 
@@ -35,7 +47,8 @@ const UserTypeGate = ({ children }) => {
     syncUserType(userType)
   }, [userType])
 
-  const handleSelect = (nextType) => {
+  const handleSelect = (nextType: UserType) => {
+    if (!nextType) return
     setStoredUserType(nextType)
     setUserType(nextType)
   }
