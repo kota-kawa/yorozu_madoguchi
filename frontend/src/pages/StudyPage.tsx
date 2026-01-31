@@ -4,16 +4,16 @@ import InfoPanel from '../components/UI/InfoPanel'
 import PlanViewer from '../components/Plan/PlanViewer'
 import MessageList from '../components/Chat/MessageList'
 import ChatInput from '../components/Chat/ChatInput'
-import { useFitnessChat } from '../hooks/useFitnessChat'
+import { useStudyChat } from '../hooks/useStudyChat'
 
 const SAMPLE_PROMPTS = [
-  '筋肥大したい。週3回でどんなメニューが良い？',
-  '運動初心者。まず何から始めればいい？',
-  '肩こり改善のための簡単な運動は？',
-  '自宅でできる減量メニューを教えて',
+  '今日の授業メモを整理ノートにして。',
+  '用語集を作って。',
+  '重要ポイントを短くまとめて。',
+  '確認問題を作って。',
 ]
 
-const FitnessPage = () => {
+const StudyPage = () => {
   const [input, setInput] = useState('')
   const [infoOpen, setInfoOpen] = useState(false)
   const [autoScroll, setAutoScroll] = useState(true)
@@ -24,7 +24,7 @@ const FitnessPage = () => {
     loading: chatLoading,
     planFromChat,
     sendMessage,
-  } = useFitnessChat()
+  } = useStudyChat()
 
   useEffect(() => {
     if (planFromChat !== undefined) {
@@ -52,10 +52,8 @@ const FitnessPage = () => {
   }
 
   return (
-    <div className="app theme-fitness">
-      <Header
-        subtitle="筋トレ・フィットネスアシスタント"
-      />
+    <div className="app theme-study">
+      <Header subtitle="学習アシスタント" />
 
       <div className="chat-container">
         <div className="card chat-card">
@@ -76,7 +74,7 @@ const FitnessPage = () => {
 
             <ChatInput
               input={input}
-              onInputChange={(e) => setInput(e.target.value)}
+              onInputChange={setInput}
               onKeyDown={handleKeyDown}
               onSubmit={handleSubmit}
               onToggleInfo={() => setInfoOpen((prev) => !prev)}
@@ -94,4 +92,4 @@ const FitnessPage = () => {
   )
 }
 
-export default FitnessPage
+export default StudyPage

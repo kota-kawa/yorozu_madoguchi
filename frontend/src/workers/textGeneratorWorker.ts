@@ -1,4 +1,10 @@
-self.onmessage = (event) => {
+/// <reference lib="webworker" />
+
+import type { WorkerInputMessage, WorkerOutputMessage } from '../types/worker'
+
+const ctx = self as DedicatedWorkerGlobalScope
+
+ctx.onmessage = (event: MessageEvent<WorkerInputMessage>) => {
   const remainingText = event.data?.remaining_text || ''
   let index = 0
 
@@ -7,12 +13,14 @@ self.onmessage = (event) => {
     if (index < remainingText.length) {
       // 処理落ちを防ぐため、長いテキストの場合は一度に送る文字数を少し増やすなどの調整も考えられるが
       // まずは単純に頻度を上げる
-      self.postMessage({ type: 'text', content: remainingText.charAt(index) })
+      ctx.postMessage({ type: 'text', content: remainingText.charAt(index) } as WorkerOutputMessage)
       index += 1
       return
     }
 
     clearInterval(interval)
-    self.postMessage({ type: 'done' })
+    ctx.postMessage({ type: 'done' } as WorkerOutputMessage)
   }, 15)
 }
+
+export {}

@@ -3,11 +3,20 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import './Chat.css'
+import type { ChatMessage } from '../../types/chat'
 
-const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }) => {
-  const dateRef = useRef(null)
+type MessageItemProps = {
+  message: ChatMessage
+  onYesNo: (value: string) => void
+  disabled: boolean
+  isLast: boolean
+  scrollToBottom: (behavior?: ScrollBehavior) => void
+}
 
-  const scrollRafRef = useRef(null)
+const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }: MessageItemProps) => {
+  const dateRef = useRef<HTMLInputElement | null>(null)
+
+  const scrollRafRef = useRef<number | null>(null)
 
   useEffect(() => {
     if (!isLast || !scrollToBottom) return
@@ -29,10 +38,10 @@ const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }
   }, [message.text, isLast, scrollToBottom])
 
   const handleDateSubmit = () => {
-    if (dateRef.current && dateRef.current.value) {
+    if (dateRef.current?.value) {
       const date = dateRef.current.value
       const [year, month, day] = date.split('-')
-      const formattedDate = `${year}年${parseInt(month)}月${parseInt(day)}日`
+      const formattedDate = `${year}年${Number(month)}月${Number(day)}日`
       onYesNo(formattedDate)
     }
   }
@@ -45,7 +54,7 @@ const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }
             <span className="loading-star star-main" />
             <span className="loading-star star-secondary" />
           </span>
-          <span className="loading-text">{message.text}</span>
+          <span className="loading-text">{message.text ?? ''}</span>
         </div>
       </div>
     )
@@ -55,7 +64,7 @@ const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }
     <div className={`chat-message ${message.sender}`}>
       <div className="markdown-content">
         <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-          {message.text}
+          {message.text ?? ''}
         </ReactMarkdown>
       </div>
       {/* 完了後にボタンを表示するために、テキスト表示完了を待つロジックを入れることもできるが
@@ -83,7 +92,7 @@ const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }
           <small className="selection-note">※他に要望があれば通常のチャットに入力できます</small>
         </>
       )}
-      {message.type === 'selection' && (
+      {message.type === 'selection' && message.choices?.length ? (
         <>
           <div className="button-container selection-container">
             {message.choices.map((choice, index) => (
@@ -100,7 +109,7 @@ const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }
           </div>
           <small className="selection-note">※他に要望があれば通常のチャットに入力できます</small>
         </>
-      )}
+      ) : null}
       {message.type === 'date_selection' && (
         <div className="button-container date-input-container">
            <input type="date" ref={dateRef} className="date-input" disabled={disabled} />

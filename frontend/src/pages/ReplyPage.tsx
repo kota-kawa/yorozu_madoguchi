@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { FormEvent, KeyboardEvent, UIEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../components/Header/Header'
 import MessageList from '../components/Chat/MessageList'
@@ -36,20 +37,22 @@ const ReplyPage = () => {
     }
   }, [planFromChat])
 
-  const handleScroll = (event) => {
+  const handleScroll = (event: UIEvent<HTMLDivElement>) => {
     const target = event.currentTarget
     const isAtBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 10
     setAutoScroll(isAtBottom)
   }
 
-  const handleKeyDown = (event) => {
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
       handleSubmit(event)
     }
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = (
+    event: FormEvent<HTMLFormElement> | KeyboardEvent<HTMLTextAreaElement>,
+  ) => {
     event.preventDefault()
     sendMessage(input)
     setInput('')
@@ -106,7 +109,7 @@ const ReplyPage = () => {
 
             <ChatInput
               input={input}
-              onInputChange={(e) => setInput(e.target.value)}
+              onInputChange={setInput}
               onKeyDown={handleKeyDown}
               onSubmit={handleSubmit}
               onToggleInfo={() => setInfoOpen((prev) => !prev)}

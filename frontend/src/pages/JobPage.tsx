@@ -1,50 +1,36 @@
 import { useEffect, useState } from 'react'
 import Header from '../components/Header/Header'
-import LoadingSpinner from '../components/UI/LoadingSpinner'
 import InfoPanel from '../components/UI/InfoPanel'
 import PlanViewer from '../components/Plan/PlanViewer'
 import MessageList from '../components/Chat/MessageList'
 import ChatInput from '../components/Chat/ChatInput'
-import { useChat } from '../hooks/useChat'
-import { usePlan } from '../hooks/usePlan'
+import { useJobChat } from '../hooks/useJobChat'
 
 const SAMPLE_PROMPTS = [
-  'どこに行くのがおすすめ？',
-  'どんな有名スポットがある？',
-  '落ち着ける場所はある？',
-  'ご飯に行くならどこ？',
+  '自己PRを400字で作りたい。強みは継続力。',
+  'ESのガクチカを添削してほしい。',
+  '志望動機を業界研究ベースで作ってほしい。',
+  '面接の想定質問と回答の骨子を作って。',
 ]
 
-const TravelPage = () => {
+const JobPage = () => {
   const [input, setInput] = useState('')
   const [infoOpen, setInfoOpen] = useState(false)
   const [autoScroll, setAutoScroll] = useState(true)
-  const [activeTab, setActiveTab] = useState('chat')
-  const [hasNewPlan, setHasNewPlan] = useState(false)
+  const [currentPlan, setCurrentPlan] = useState('')
 
   const {
     messages,
     loading: chatLoading,
     planFromChat,
     sendMessage,
-    addSystemMessage
-  } = useChat()
-
-  const {
-    currentPlan,
-    setCurrentPlan,
-    submittingPlan,
-    submitPlan
-  } = usePlan(addSystemMessage)
+  } = useJobChat()
 
   useEffect(() => {
-    if (planFromChat) {
+    if (planFromChat !== undefined) {
       setCurrentPlan(planFromChat)
-      if (activeTab !== 'plan') {
-        setHasNewPlan(true)
-      }
     }
-  }, [planFromChat, setCurrentPlan, activeTab])
+  }, [planFromChat])
 
   const handleScroll = (event) => {
     const target = event.currentTarget
@@ -65,39 +51,18 @@ const TravelPage = () => {
     setInput('')
   }
 
-  const isLoading = chatLoading || submittingPlan
-
   return (
-    <div className="app theme-travel">
-      <Header />
-
-      <div className="mobile-tab-nav">
-        <button
-          className={`tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
-          onClick={() => setActiveTab('chat')}
-        >
-          チャット
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'plan' ? 'active' : ''}`}
-          onClick={() => {
-            setActiveTab('plan')
-            setHasNewPlan(false)
-          }}
-        >
-          決定内容
-          {hasNewPlan && <span className="notification-dot" />}
-        </button>
-      </div>
+    <div className="app theme-job">
+      <Header subtitle="就活アシスタント" />
 
       <div className="chat-container">
-        <div className={`card chat-card ${activeTab === 'plan' ? 'mobile-hidden' : ''}`}>
+        <div className="card chat-card">
           <MessageList
             messages={messages}
             autoScroll={autoScroll}
             onScroll={handleScroll}
             onYesNo={sendMessage}
-            disabled={isLoading}
+            disabled={chatLoading}
           />
 
           <div className="card-footer">
@@ -109,26 +74,22 @@ const TravelPage = () => {
 
             <ChatInput
               input={input}
-              onInputChange={(e) => setInput(e.target.value)}
+              onInputChange={setInput}
               onKeyDown={handleKeyDown}
               onSubmit={handleSubmit}
               onToggleInfo={() => setInfoOpen((prev) => !prev)}
-              disabled={isLoading}
+              disabled={chatLoading}
             />
           </div>
         </div>
 
         <PlanViewer
           plan={currentPlan}
-          isSubmitting={submittingPlan}
-          onSubmit={submitPlan}
-          className={activeTab === 'chat' ? 'mobile-hidden' : ''}
+          showSubmit={false}
         />
       </div>
-
-      <LoadingSpinner visible={submittingPlan} />
     </div>
   )
 }
 
-export default TravelPage
+export default JobPage

@@ -1,18 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
 import { getStoredUserType } from '../utils/userType'
 import { streamWithWorker } from '../utils/streamHelper'
+import type { ChatApiResponse } from '../types/api'
+import type { ChatMessage, ChatMessageUpdate } from '../types/chat'
 
-const initialMessage = {
+const initialMessage: ChatMessage = {
   id: 'welcome',
   sender: 'bot',
   text: '返信したいLINEやDMの内容と、どのようなことをしたいか・言いたいかを教えてください。\nより多くの会話履歴が示されると良い答えを考えやすいです！',
 }
 
 export const useReplyChat = () => {
-  const [messages, setMessages] = useState([initialMessage])
+  const [messages, setMessages] = useState<ChatMessage[]>([initialMessage])
   const [loading, setLoading] = useState(false)
   const [planFromChat, setPlanFromChat] = useState('')
-  const workerRef = useRef(null)
+  const workerRef = useRef<Worker | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -26,23 +28,23 @@ export const useReplyChat = () => {
     }
   }, [])
 
-  const updateMessageText = (id, updater) => {
+  const updateMessageText = (id: string, updater: string | ((prevText: string) => string)) => {
     setMessages((prev) =>
       prev.map((message) => {
         if (message.id !== id) return message
-        const nextText = typeof updater === 'function' ? updater(message.text) : updater
+        const nextText = typeof updater === 'function' ? updater(message.text ?? '') : updater
         return { ...message, text: nextText }
       }),
     )
   }
 
-  const updateMessageMeta = (id, updates) => {
+  const updateMessageMeta = (id: string, updates: ChatMessageUpdate) => {
     setMessages((prev) =>
       prev.map((message) => (message.id === id ? { ...message, ...updates } : message)),
     )
   }
 
-  const sendMessage = async (text) => {
+  const sendMessage = async (text: string) => {
     const trimmed = text.trim()
     if (!trimmed) return
 
@@ -78,7 +80,7 @@ export const useReplyChat = () => {
         signal: controller.signal,
       })
 
-      const data = await response.json().catch(() => null)
+      const data = (await response.json().catch(() => null)) as ChatApiResponse | null
 
       if (!response.ok) {
         throw new Error(data?.error || data?.response || `Server Error: ${response.status}`)
@@ -86,28 +88,29 @@ export const useReplyChat = () => {
 
       const remainingText = data?.remaining_text
       const yesNoPhrase = data?.yes_no_phrase
-      const hasRemainingText =
-        remainingText !== null && remainingText !== undefined && remainingText !== 'Empty'
+      const remainingTextValue =
+        typeof remainingText === 'string' && remainingText !== 'Empty' ? remainingText : null
 
       if (data?.current_plan !== undefined) {
-        setPlanFromChat(data.current_plan)
+        setPlanFromChat(data.current_plan ?? '')
       }
 
-      if (hasRemainingText) {
+      if (remainingTextValue !== null) {
         updateMessageMeta(botMessageId, { text: '', type: undefined, pending: false })
 
         if (typeof Worker !== 'undefined') {
           const worker = new Worker(
-            new URL('../workers/textGeneratorWorker.js', import.meta.url),
+            new URL('../workers/textGeneratorWorker.ts', import.meta.url),
             { type: 'module' },
           )
-                      workerRef.current = worker
-            
-                      const streamFlushIntervalMs = 30
-                      let bufferedText = ''
-                      let flushTimeoutId = null
-            
-                      const flushBufferedText = () => {            if (!bufferedText) return
+          workerRef.current = worker
+
+          const streamFlushIntervalMs = 30
+          let bufferedText = ''
+          let flushTimeoutId: ReturnType<typeof setTimeout> | null = null
+
+          const flushBufferedText = () => {
+            if (!bufferedText) return
             const chunkToAppend = bufferedText
             bufferedText = ''
             updateMessageText(botMessageId, (prevText) => `${prevText}${chunkToAppend}`)
@@ -115,7 +118,7 @@ export const useReplyChat = () => {
 
           streamWithWorker(
             worker,
-            remainingText,
+            remainingTextValue,
             (chunk) => {
               bufferedText += chunk
               if (!flushTimeoutId) {
@@ -149,7 +152,7 @@ export const useReplyChat = () => {
             },
           )
         } else {
-          updateMessageMeta(botMessageId, { text: remainingText, type: undefined, pending: false })
+          updateMessageMeta(botMessageId, { text: remainingTextValue, type: undefined, pending: false })
           setLoading(false)
           if (yesNoPhrase) {
             setMessages((prev) => [
@@ -180,10 +183,12 @@ export const useReplyChat = () => {
         setLoading(false)
       }
     } catch (error) {
-      const message =
-        error.name === 'AbortError'
-          ? 'サーバーからの応答がありません。もう一度お試しください。'
-          : error.message || 'サーバーからの応答に失敗しました。'
+      const isAbort = error instanceof DOMException && error.name === 'AbortError'
+      const fallbackMessage =
+        error instanceof Error ? error.message : 'サーバーからの応答に失敗しました。'
+      const message = isAbort
+        ? 'サーバーからの応答がありません。もう一度お試しください。'
+        : fallbackMessage
 
       setMessages((prev) =>
         prev

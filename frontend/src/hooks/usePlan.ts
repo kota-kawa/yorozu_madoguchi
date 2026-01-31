@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import type { PlanSummaryResponse } from '../types/api'
 
-export const usePlan = (addSystemMessage) => {
+export const usePlan = (addSystemMessage: (text: string) => void) => {
   const [currentPlan, setCurrentPlan] = useState('')
   const [submittingPlan, setSubmittingPlan] = useState(false)
 
@@ -21,13 +22,13 @@ export const usePlan = (addSystemMessage) => {
         throw new Error('Failed to submit plan')
       }
 
-      let summary = null
+      let summary: PlanSummaryResponse | null = null
       try {
         const summaryResponse = await fetch('/complete', {
           headers: { Accept: 'application/json' },
         })
         if (summaryResponse.ok) {
-          summary = await summaryResponse.json()
+          summary = (await summaryResponse.json()) as PlanSummaryResponse
         }
       } catch (error) {
         console.warn("Failed to fetch summary:", error)

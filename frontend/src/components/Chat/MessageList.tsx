@@ -1,12 +1,22 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
+import type { UIEvent } from 'react'
 import MessageItem from './MessageItem'
 import './Chat.css'
+import type { ChatMessage } from '../../types/chat'
 
-const MessageList = ({ messages, autoScroll, onScroll, onYesNo, disabled }) => {
-  const messagesEndRef = useRef(null)
-  const listRef = useRef(null)
+type MessageListProps = {
+  messages: ChatMessage[]
+  autoScroll: boolean
+  onScroll?: (event: UIEvent<HTMLDivElement>) => void
+  onYesNo: (value: string) => void
+  disabled: boolean
+}
+
+const MessageList = ({ messages, autoScroll, onScroll, onYesNo, disabled }: MessageListProps) => {
+  const messagesEndRef = useRef<HTMLDivElement | null>(null)
+  const listRef = useRef<HTMLDivElement | null>(null)
   const autoScrollingRef = useRef(false)
-  const autoScrollTimeoutRef = useRef(null)
+  const autoScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     return () => {
@@ -26,7 +36,7 @@ const MessageList = ({ messages, autoScroll, onScroll, onYesNo, disabled }) => {
     }, 120)
   }
 
-  const scrollToBottom = (behavior = 'auto') => {
+  const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
     if (!autoScroll || !listRef.current) return
 
     const target = listRef.current
@@ -47,7 +57,7 @@ const MessageList = ({ messages, autoScroll, onScroll, onYesNo, disabled }) => {
     const target = listRef.current
     if (!target || typeof ResizeObserver === 'undefined') return
 
-    let rafId = null
+    let rafId: number | null = null
     const observer = new ResizeObserver(() => {
       if (!autoScroll) return
       if (rafId) cancelAnimationFrame(rafId)
@@ -64,8 +74,9 @@ const MessageList = ({ messages, autoScroll, onScroll, onYesNo, disabled }) => {
     }
   }, [autoScroll])
 
-  const handleScroll = (event) => {
-    if (autoScrollingRef.current && event.isTrusted === false) return
+  const handleScroll = (event: UIEvent<HTMLDivElement>) => {
+    const isTrusted = event.nativeEvent?.isTrusted
+    if (autoScrollingRef.current && isTrusted === false) return
     if (onScroll) onScroll(event)
   }
 

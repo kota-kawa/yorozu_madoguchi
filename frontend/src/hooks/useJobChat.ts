@@ -1,18 +1,21 @@
 import { useEffect, useState, useRef } from 'react'
 import { getStoredUserType } from '../utils/userType'
 import { streamWithWorker } from '../utils/streamHelper'
+import type { ChatApiResponse } from '../types/api'
+import type { ChatMessage, ChatMessageUpdate } from '../types/chat'
 
-const initialMessage = {
+const initialMessage: ChatMessage = {
   id: 'welcome',
   sender: 'bot',
-  text: '目的（筋肥大・減量・健康維持など）と、今の運動頻度や使える器具を教えてください。',
+  text:
+    '自己PR・ES・志望動機・面接対策のうち、今取り組みたい内容を教えてください。企業や職種、文字数、設問文があれば一緒にお願いします。',
 }
 
-export const useFitnessChat = () => {
-  const [messages, setMessages] = useState([initialMessage])
+export const useJobChat = () => {
+  const [messages, setMessages] = useState<ChatMessage[]>([initialMessage])
   const [loading, setLoading] = useState(false)
   const [planFromChat, setPlanFromChat] = useState('')
-  const workerRef = useRef(null)
+  const workerRef = useRef<Worker | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -26,23 +29,23 @@ export const useFitnessChat = () => {
     }
   }, [])
 
-  const updateMessageText = (id, updater) => {
+  const updateMessageText = (id: string, updater: string | ((prevText: string) => string)) => {
     setMessages((prev) =>
       prev.map((message) => {
         if (message.id !== id) return message
-        const nextText = typeof updater === 'function' ? updater(message.text) : updater
+        const nextText = typeof updater === 'function' ? updater(message.text ?? '') : updater
         return { ...message, text: nextText }
       }),
     )
   }
 
-  const updateMessageMeta = (id, updates) => {
+  const updateMessageMeta = (id: string, updates: ChatMessageUpdate) => {
     setMessages((prev) =>
       prev.map((message) => (message.id === id ? { ...message, ...updates } : message)),
     )
   }
 
-  const sendMessage = async (text) => {
+  const sendMessage = async (text: string) => {
     const trimmed = text.trim()
     if (!trimmed) return
 
@@ -68,33 +71,33 @@ export const useFitnessChat = () => {
     setLoading(true)
 
     try {
-      const response = await fetch('/fitness_send_message', {
+      const response = await fetch('/job_send_message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: trimmed, user_type: getStoredUserType() }),
       })
 
-      const data = await response.json().catch(() => null)
+      const data = (await response.json().catch(() => null)) as ChatApiResponse | null
 
       if (!response.ok) {
         const serverMessage = data?.response
         throw new Error(serverMessage || `Server Error: ${response.status}`)
       }
 
-      if (data.error) {
+      if (data?.error) {
         throw new Error(data.response || 'API Error')
       }
 
       const remainingText = data?.remaining_text
-      const hasRemainingText =
-        remainingText !== null && remainingText !== undefined && remainingText !== 'Empty'
+      const remainingTextValue =
+        typeof remainingText === 'string' && remainingText !== 'Empty' ? remainingText : null
       
       if (data?.current_plan !== undefined) {
-        setPlanFromChat(data.current_plan)
+        setPlanFromChat(data.current_plan ?? '')
       }
 
       const handleExtras = () => {
-        const updates = []
+        const updates: ChatMessage[] = []
         if (data?.yes_no_phrase) {
             updates.push({
             id: `yesno-${Date.now()}`,
@@ -123,19 +126,19 @@ export const useFitnessChat = () => {
         }
       }
 
-      if (hasRemainingText) {
+      if (remainingTextValue !== null) {
         updateMessageMeta(loadingMessageId, { text: '', type: undefined, pending: false })
 
         if (typeof Worker !== 'undefined') {
             const worker = new Worker(
-              new URL('../workers/textGeneratorWorker.js', import.meta.url),
+              new URL('../workers/textGeneratorWorker.ts', import.meta.url),
               { type: 'module' },
             )
             workerRef.current = worker
   
             const streamFlushIntervalMs = 30
             let bufferedText = ''
-            let flushTimeoutId = null
+            let flushTimeoutId: ReturnType<typeof setTimeout> | null = null
   
             const flushBufferedText = () => {
               if (!bufferedText) return
@@ -146,7 +149,7 @@ export const useFitnessChat = () => {
   
             streamWithWorker(
               worker,
-              remainingText,
+              remainingTextValue,
               (chunk) => {
                 bufferedText += chunk
                 if (!flushTimeoutId) {
@@ -170,7 +173,7 @@ export const useFitnessChat = () => {
             )
         } else {
             // Worker fallback
-            updateMessageMeta(loadingMessageId, { text: remainingText, type: undefined, pending: false })
+            updateMessageMeta(loadingMessageId, { text: remainingTextValue, type: undefined, pending: false })
             setLoading(false)
             handleExtras()
         }
@@ -183,9 +186,10 @@ export const useFitnessChat = () => {
 
     } catch (error) {
       console.error('SendMessage Error:', error)
+      const errMessage = error instanceof Error ? error.message : ''
       const displayMessage =
-        error.message && error.message !== 'Failed to fetch'
-          ? error.message
+        errMessage && errMessage !== 'Failed to fetch'
+          ? errMessage
           : 'サーバーからの応答に失敗しました。時間をおいて再試行してください。'
 
       setMessages((prev) =>

@@ -1,5 +1,15 @@
 import { useState, useRef, useEffect } from 'react'
+import type { FormEvent, KeyboardEvent } from 'react'
 import './Chat.css'
+
+type ChatInputProps = {
+  input: string
+  onInputChange: (value: string) => void
+  onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void
+  onToggleInfo: () => void
+  disabled: boolean
+}
 
 const ChatInput = ({
   input,
@@ -8,16 +18,16 @@ const ChatInput = ({
   onSubmit,
   onToggleInfo,
   disabled,
-}) => {
+}: ChatInputProps) => {
   const [isListening, setIsListening] = useState(false)
-  const recognitionRef = useRef(null)
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
 
   useEffect(() => {
     // ブラウザの音声認識APIの互換性チェック
-    const SpeechRecognition =
+    const SpeechRecognitionConstructor =
       window.SpeechRecognition || window.webkitSpeechRecognition
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition()
+    if (SpeechRecognitionConstructor) {
+      const recognition = new SpeechRecognitionConstructor()
       recognition.lang = 'ja-JP'
       recognition.continuous = false
       recognition.interimResults = false
@@ -26,8 +36,7 @@ const ChatInput = ({
         const transcript = event.results[0][0].transcript
         // 既存の入力がある場合はスペースを空けて追記
         const newValue = input ? `${input} ${transcript}` : transcript
-        // 親コンポーネントのステート更新関数を模倣したイベントオブジェクトを作成
-        onInputChange({ target: { value: newValue } })
+        onInputChange(newValue)
         setIsListening(false)
       }
 
@@ -88,7 +97,7 @@ const ChatInput = ({
           rows="1"
           maxLength={3000}
           value={input}
-          onChange={onInputChange}
+          onChange={(event) => onInputChange(event.target.value)}
           onKeyDown={onKeyDown}
         />
         <button
