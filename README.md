@@ -50,7 +50,7 @@ python -m unittest
 
 ## 📜 License
 
-MIT License. See `LICENSE` for details.
+Apache License 2.0. See `LICENSE` for details.
 
 ---
 
@@ -109,6 +109,6 @@ python -m unittest
 
 ## 📜 ライセンス
 
-MIT License（詳細は `LICENSE` を参照）
+Apache License 2.0（詳細は `LICENSE` を参照）
 
 </details>
