@@ -163,14 +163,15 @@
 
 @media (max-width: 600px) {
   .app-header {
-    padding: 12px 16px;
+    padding: 10px 12px;
+    margin-bottom: 16px;
     position: relative; /* スマホではsticky解除検討 */
   }
 
   .header-content {
     flex-direction: column;
     text-align: center;
-    gap: 16px;
+    gap: 12px;
   }
   
   .title-container {
@@ -178,20 +179,53 @@
   }
   
   .app-header h1 {
-    font-size: 1.6rem;
+    font-size: 1.25rem;
+    line-height: 1.15;
   }
-  
+
+  .subtitle {
+    font-size: 0.78rem;
+  }
+
   .agent-selector {
     width: 100%;
     align-items: stretch;
+    gap: 6px;
   }
 
   .agent-select-wrap {
     width: 100%;
+    padding: 1px;
+    border-radius: 18px;
+    min-width: 0;
+  }
+
+  .agent-select-wrap::after {
+    right: 12px;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid rgba(29, 36, 52, 0.6);
   }
 
   .agent-menu {
     left: 0;
     right: 0;
+    padding: 8px;
+    border-radius: 14px;
+    gap: 6px;
+  }
+
+  .agent-label {
+    font-size: 0.7rem;
+  }
+
+  .agent-select {
+    padding: 8px 36px 8px 12px;
+    font-size: 0.85rem;
+  }
+
+  .agent-option {
+    padding: 8px 12px;
+    font-size: 0.85rem;
   }
 }

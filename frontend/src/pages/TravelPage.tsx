@@ -103,7 +103,7 @@ const TravelPage = () => {
             disabled={isLoading}
           />
 
-          <div className="card-footer">
+          <div className="card-footer chat-footer">
             <InfoPanel
               isOpen={infoOpen}
               samples={SAMPLE_PROMPTS}

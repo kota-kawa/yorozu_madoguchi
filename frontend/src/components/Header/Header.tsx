@@ -30,7 +30,7 @@ type HeaderProps = {
 
 const Header = ({
   title = 'よろずの窓口',
-  subtitle = 'React フロントエンド ＋ Flask API',
+  subtitle = '旅行計画アシスタント',
 }: HeaderProps) => {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement | null>(null)

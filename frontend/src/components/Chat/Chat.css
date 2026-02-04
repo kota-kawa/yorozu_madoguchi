@@ -335,6 +335,34 @@ textarea:focus {
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
+@media (max-width: 600px) {
+  .chat-messages {
+    padding-bottom: calc(var(--chat-footer-height, 96px) + env(safe-area-inset-bottom) + var(--keyboard-offset, 0px));
+    scroll-padding-bottom: calc(var(--chat-footer-height, 96px) + env(safe-area-inset-bottom) + var(--keyboard-offset, 0px));
+  }
+
+  .chat-input {
+    gap: 8px;
+  }
+
+  .chat-form {
+    padding: 6px 10px;
+    gap: 8px;
+  }
+
+  textarea {
+    font-size: 0.95rem;
+  }
+
+  .btn-info,
+  .btn-chat,
+  .btn-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.05rem;
+  }
+}
+
 @media (max-width: 480px) {
   .chat-message {
     max-width: 90%;

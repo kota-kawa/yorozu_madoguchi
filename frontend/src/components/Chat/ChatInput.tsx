@@ -23,6 +23,29 @@ const ChatInput = ({
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
 
   useEffect(() => {
+    const viewport = window.visualViewport
+    if (!viewport) {
+      document.documentElement.style.setProperty('--keyboard-offset', '0px')
+      return
+    }
+
+    const updateOffset = () => {
+      const offset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+      document.documentElement.style.setProperty('--keyboard-offset', `${offset}px`)
+    }
+
+    updateOffset()
+    viewport.addEventListener('resize', updateOffset)
+    viewport.addEventListener('scroll', updateOffset)
+
+    return () => {
+      viewport.removeEventListener('resize', updateOffset)
+      viewport.removeEventListener('scroll', updateOffset)
+      document.documentElement.style.setProperty('--keyboard-offset', '0px')
+    }
+  }, [])
+
+  useEffect(() => {
     // ブラウザの音声認識APIの互換性チェック
     const SpeechRecognitionConstructor =
       window.SpeechRecognition || window.webkitSpeechRecognition
