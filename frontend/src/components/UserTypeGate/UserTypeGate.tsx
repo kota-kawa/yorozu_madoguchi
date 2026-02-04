@@ -25,6 +25,7 @@ const UserTypeGate = ({ children }: UserTypeGateProps) => {
   const mountedRef = useRef(true)
 
   useEffect(() => {
+    mountedRef.current = true
     return () => {
       mountedRef.current = false
       inFlightRef.current?.abort()
