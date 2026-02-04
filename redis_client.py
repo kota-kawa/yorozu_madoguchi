@@ -13,11 +13,36 @@ try:
 except ValueError:
     REDIS_SESSION_TTL_SECONDS = 172800
 
+def _env_float(name: str, default: float) -> float:
+    raw = os.getenv(name, str(default)).strip()
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.getenv(name, str(default)).strip()
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+REDIS_SOCKET_TIMEOUT_SECONDS = _env_float("REDIS_SOCKET_TIMEOUT_SECONDS", 2.0)
+REDIS_CONNECT_TIMEOUT_SECONDS = _env_float("REDIS_CONNECT_TIMEOUT_SECONDS", 2.0)
+REDIS_HEALTH_CHECK_INTERVAL = _env_int("REDIS_HEALTH_CHECK_INTERVAL", 30)
+
 # Redisクライアントの初期化
 # decode_responses=True により、bytes ではなく str が返されるため、
 # Pythonコード内でエンコード/デコードを意識する必要が減ります。
 try:
-    redis_client: Optional[redis.Redis] = redis.from_url(REDIS_URL, decode_responses=True)
+    redis_client: Optional[redis.Redis] = redis.from_url(
+        REDIS_URL,
+        decode_responses=True,
+        socket_timeout=REDIS_SOCKET_TIMEOUT_SECONDS,
+        socket_connect_timeout=REDIS_CONNECT_TIMEOUT_SECONDS,
+        retry_on_timeout=True,
+        health_check_interval=REDIS_HEALTH_CHECK_INTERVAL,
+    )
 except Exception as e:
     logger.error(f"Failed to connect to Redis: {e}")
     redis_client = None

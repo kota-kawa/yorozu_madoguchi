@@ -13,6 +13,8 @@ type UserTypeResponse = {
   error?: string
 }
 
+const SYNC_TIMEOUT_MS = 15000
+
 const UserTypeGate = ({ children }: UserTypeGateProps) => {
   const [userType, setUserType] = useState<UserType>(getStoredUserType)
   const [status, setStatus] = useState<GateStatus>(userType ? 'syncing' : 'idle')
@@ -32,17 +34,25 @@ const UserTypeGate = ({ children }: UserTypeGateProps) => {
   const syncUserType = async (nextUserType: UserType) => {
     const requestId = ++requestIdRef.current
     inFlightRef.current?.abort()
-    const controller = new AbortController()
+    const supportsAbort = typeof AbortController !== 'undefined'
+    const controller = supportsAbort ? new AbortController() : null
     inFlightRef.current = controller
-    const timeoutId = window.setTimeout(() => controller.abort(), 15000)
     setStatus('syncing')
     setError('')
+    const timeoutId = window.setTimeout(() => {
+      if (!mountedRef.current) return
+      if (requestIdRef.current !== requestId) return
+      requestIdRef.current += 1
+      controller?.abort()
+      setStatus('error')
+      setError('通信がタイムアウトしました。再試行してください。')
+    }, SYNC_TIMEOUT_MS)
     try {
       const response = await fetch('/api/user_type', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_type: nextUserType }),
-        signal: controller.signal,
+        ...(controller ? { signal: controller.signal } : {}),
       })
       const data = (await response.json().catch(() => null)) as UserTypeResponse | null
       if (!response.ok) {
@@ -55,7 +65,7 @@ const UserTypeGate = ({ children }: UserTypeGateProps) => {
       if (!mountedRef.current || requestId !== requestIdRef.current) return
       setStatus('error')
       const message =
-        controller.signal.aborted
+        controller?.signal.aborted
           ? '通信がタイムアウトしました。再試行してください。'
           : err instanceof Error
             ? err.message
@@ -84,6 +94,16 @@ const UserTypeGate = ({ children }: UserTypeGateProps) => {
   const handleRetry = () => {
     if (!userType) return
     syncUserType(userType)
+  }
+
+  const handleCancel = () => {
+    requestIdRef.current += 1
+    inFlightRef.current?.abort()
+    inFlightRef.current = null
+    setStoredUserType('')
+    setUserType('')
+    setStatus('idle')
+    setError('')
   }
 
   const shouldBlock = status !== 'ready'
@@ -119,6 +139,9 @@ const UserTypeGate = ({ children }: UserTypeGateProps) => {
               <div className="user-type-status">
                 <div className="user-type-spinner" aria-hidden="true" />
                 <p>ユーザー種別を登録しています...</p>
+                <button type="button" className="user-type-back" onClick={handleCancel}>
+                  選択し直す
+                </button>
               </div>
             )}
 
