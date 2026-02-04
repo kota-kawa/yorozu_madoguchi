@@ -21,6 +21,14 @@ const ChatInput = ({
 }: ChatInputProps) => {
   const [isListening, setIsListening] = useState(false)
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
+    }
+  }, [input])
 
   useEffect(() => {
     const viewport = window.visualViewport
@@ -91,47 +99,50 @@ const ChatInput = ({
   }
 
   return (
-    <div className="chat-input">
-      <button
-        type="button"
-        id="information"
-        className="btn-info original-btn"
-        onClick={onToggleInfo}
-        aria-label="入力例を表示"
-      >
-        <i className="bi bi-info-circle-fill" aria-hidden />
-      </button>
-
-      <form className="chat-form" onSubmit={onSubmit}>
+    <div className="chat-input-wrapper">
+      <div className="chat-input">
         <button
           type="button"
-          className={`btn-icon original-btn ${isListening ? 'listening' : ''}`}
-          onClick={handleMicClick}
-          aria-label="音声入力"
-          disabled={disabled}
+          className="btn-info original-btn"
+          onClick={onToggleInfo}
+          aria-label="入力例を表示"
         >
-          <i className={`bi ${isListening ? 'bi-mic-mute-fill' : 'bi-mic-fill'}`} aria-hidden />
+          <i className="bi bi-lightbulb" aria-hidden />
         </button>
 
-        <textarea
-          id="message"
-          name="message"
-          placeholder={isListening ? '聞いています...' : 'メッセージを入力...'}
-          rows="1"
-          maxLength={3000}
-          value={input}
-          onChange={(event) => onInputChange(event.target.value)}
-          onKeyDown={onKeyDown}
-        />
-        <button
-          type="submit"
-          className="btn-chat original-btn"
-          disabled={disabled}
-          aria-label="送信"
-        >
-          <i className="bi bi-send-fill" aria-hidden />
-        </button>
-      </form>
+        <form className="chat-form" onSubmit={onSubmit}>
+          <button
+            type="button"
+            className={`btn-icon original-btn mic-btn ${isListening ? 'listening' : ''}`}
+            onClick={handleMicClick}
+            aria-label="音声入力"
+            disabled={disabled}
+          >
+            <i className={`bi ${isListening ? 'bi-mic-mute-fill' : 'bi-mic-fill'}`} aria-hidden />
+          </button>
+
+          <textarea
+            ref={textareaRef}
+            id="message"
+            name="message"
+            placeholder={isListening ? 'お話しください...' : 'メッセージを入力...'}
+            rows={1}
+            maxLength={3000}
+            value={input}
+            onChange={(event) => onInputChange(event.target.value)}
+            onKeyDown={onKeyDown}
+          />
+
+          <button
+            type="submit"
+            className="btn-chat original-btn"
+            disabled={disabled || !input.trim()}
+            aria-label="送信"
+          >
+            <i className="bi bi-arrow-up-short" aria-hidden />
+          </button>
+        </form>
+      </div>
     </div>
   )
 }
