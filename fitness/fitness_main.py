@@ -111,11 +111,20 @@ def fitness_send_message() -> ResponseOrTuple:
         if len(prompt) > 3000:
             return error_response("入力された文字数が3000文字を超えています。短くして再度お試しください。", status=400)
 
+        stored_language = redis_client.get_user_language(session_id)
+        language = llama_core.resolve_user_language(
+            prompt,
+            fallback=stored_language,
+            accept_language=request.headers.get("Accept-Language"),
+        )
+        redis_client.save_user_language(session_id, language)
+
         # LLMとの対話実行 (mode="fitness")
         response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text = llama_core.chat_with_llama(
             session_id,
             prompt,
             mode="fitness",
+            language=language,
         )
         return jsonify({
             'response': response,

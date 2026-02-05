@@ -162,7 +162,8 @@ def reset_session(session_id: str) -> None:
     try:
         keys = [
             get_session_key(session_id, "chat_history"),
-            get_session_key(session_id, "decision")
+            get_session_key(session_id, "decision"),
+            get_session_key(session_id, "user_language"),
         ]
         if redis_client:
             redis_client.delete(*keys)
@@ -191,3 +192,25 @@ def save_user_type(session_id: str, user_type: str) -> None:
         _set_with_ttl(key, user_type)
     except Exception as e:
         logger.error(f"Error saving user_type for {session_id}: {e}")
+
+def get_user_language(session_id: str) -> str:
+    """指定されたセッションIDのユーザー言語を取得する"""
+    key = get_session_key(session_id, "user_language")
+    try:
+        if redis_client:
+            data = redis_client.get(key)
+        else:
+            logger.warning("Redis client is not available; using in-memory fallback.")
+            data = _memory_get(key)
+        return data if data else ""
+    except Exception as e:
+        logger.error(f"Error getting user_language for {session_id}: {e}")
+        return ""
+
+def save_user_language(session_id: str, language: str) -> None:
+    """指定されたセッションIDのユーザー言語を保存する"""
+    key = get_session_key(session_id, "user_language")
+    try:
+        _set_with_ttl(key, language)
+    except Exception as e:
+        logger.error(f"Error saving user_language for {session_id}: {e}")

@@ -189,9 +189,17 @@ def reply_send_message() -> ResponseOrTuple:
             'remaining_text': ""
         }), 400
 
+    stored_language = redis_client.get_user_language(session_id)
+    language = llama_core.resolve_user_language(
+        prompt,
+        fallback=stored_language,
+        accept_language=request.headers.get("Accept-Language"),
+    )
+    redis_client.save_user_language(session_id, language)
+
     # LLMとの対話実行 (mode="reply")
     response, current_plan, yes_no_phrase, _choices, _is_date_select, remaining_text = (
-        llama_core.chat_with_llama(session_id, prompt, mode="reply")
+        llama_core.chat_with_llama(session_id, prompt, mode="reply", language=language)
     )
     return jsonify({'response': response, 'current_plan': current_plan,'yes_no_phrase': yes_no_phrase,'remaining_text': remaining_text})
 

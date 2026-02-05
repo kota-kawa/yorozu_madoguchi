@@ -20,6 +20,15 @@ groq_api_key = os.getenv("GROQ_API_KEY")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 MAX_OUTPUT_CHARS = int(os.getenv("MAX_OUTPUT_CHARS", "0"))
 MAX_DECISION_CHARS = int(os.getenv("MAX_DECISION_CHARS", "2000"))
+DECISION_MAX_ITEMS = int(os.getenv("DECISION_MAX_ITEMS", "10"))
+DECISION_FLEX_KEY_LIMIT = int(os.getenv("DECISION_FLEX_KEY_LIMIT", "2"))
+DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "ja").strip().lower() or "ja"
+SUPPORTED_LANGUAGES = {"ja", "en"}
+LANGUAGE_NAMES = {"ja": "日本語", "en": "English"}
+DECISION_MEMO_KEYS_BY_LANGUAGE = {
+    "ja": os.getenv("DECISION_MEMO_KEY_JA", os.getenv("DECISION_MEMO_KEY", "メモ")),
+    "en": os.getenv("DECISION_MEMO_KEY_EN", "Notes"),
+}
 # Groqモデル設定
 GROQ_MODEL_NAME = os.getenv("GROQ_MODEL_NAME", "openai/gpt-oss-20b")
 GROQ_FALLBACK_MODEL_NAME = os.getenv("GROQ_FALLBACK_MODEL_NAME")
@@ -29,12 +38,30 @@ OUTPUT_GUARD_ENABLED = os.getenv("OUTPUT_GUARD_ENABLED", "true").lower() in ("1"
 if not groq_api_key:
     raise RuntimeError("GROQ_API_KEY が設定されていないか、無効です。")
 
-DECISION_DEFAULT_MESSAGE = "決定している項目がありません。"
+DECISION_DEFAULT_MESSAGES = {
+    "ja": "決定している項目がありません。",
+    "en": "No decisions yet.",
+}
+DECISION_ERROR_MESSAGES = {
+    "ja": "決定事項の更新中にエラーが発生しました。",
+    "en": "Failed to update decisions.",
+}
+DECISION_SAFETY_MESSAGES = {
+    "ja": "安全性の理由で表示できません。",
+    "en": "This content can't be shown for safety reasons.",
+}
+DECISION_GUARD_BLOCKED_MESSAGES = {
+    "ja": "それには答えられません",
+    "en": "I can't answer that.",
+}
+DECISION_DEFAULT_MESSAGE = DECISION_DEFAULT_MESSAGES["ja"]
 DECISION_IGNORED_LINES = {
-    DECISION_DEFAULT_MESSAGE,
+    DECISION_DEFAULT_MESSAGES["ja"],
+    DECISION_DEFAULT_MESSAGES["en"],
     "決定事項がありません。",
     "決定している項目はありません。",
-    "決定事項の更新中にエラーが発生しました。",
+    DECISION_ERROR_MESSAGES["ja"],
+    DECISION_ERROR_MESSAGES["en"],
     "Empty",
     "{}",
     "[]",
@@ -45,7 +72,7 @@ DECISION_BULLET_PREFIX_RE = re.compile(
 DECISION_KV_SEPARATOR_RE = re.compile(r"\s*[:：]\s*", re.UNICODE)
 DECISION_PATCH_ALLOWED_KEYS = {"add", "update", "remove"}
 DECISION_UNKNOWN_ANSWER_RE = re.compile(
-    r"^(?:\?|？|わからない|不明|未定|まだ|さっき言った|前に言った|そのまま)$",
+    r"^(?:\?|？|わからない|不明|未定|まだ|さっき言った|前に言った|そのまま|not sure|unknown|tbd|later|no idea|same as before|as before)$",
     re.IGNORECASE,
 )
 DECISION_DATE_LIKE_RE = re.compile(
@@ -62,15 +89,197 @@ DECISION_YES_NO_TOKENS = {
     "n",
     "ok",
 }
+LANGUAGE_JA_RE = re.compile(r"[ぁ-んァ-ン一-龯]")
+LANGUAGE_LATIN_RE = re.compile(r"[A-Za-z]")
+
+DECISION_KEY_LABELS_BY_MODE = {
+    "travel": {
+        "ja": {
+            "destination": "目的地",
+            "departure": "出発地",
+            "dates": "日程",
+            "travelers": "人数",
+            "budget": "予算",
+            "transport": "交通手段",
+            "accommodation": "宿泊",
+            "companions": "同行者",
+        },
+        "en": {
+            "destination": "Destination",
+            "departure": "Departure",
+            "dates": "Dates",
+            "travelers": "Travelers",
+            "budget": "Budget",
+            "transport": "Transport",
+            "accommodation": "Accommodation",
+            "companions": "Companions",
+        },
+    },
+    "reply": {
+        "ja": {
+            "response_policy": "返信方針",
+            "tone": "トーン",
+            "length": "長さ",
+            "purpose": "目的",
+            "key_points": "伝えたい内容",
+            "avoid": "避けたい内容",
+        },
+        "en": {
+            "response_policy": "Response policy",
+            "tone": "Tone",
+            "length": "Length",
+            "purpose": "Purpose",
+            "key_points": "Key points",
+            "avoid": "Avoid",
+        },
+    },
+    "fitness": {
+        "ja": {
+            "goal": "目標",
+            "frequency": "頻度",
+            "time": "時間",
+            "experience": "経験",
+            "environment": "環境",
+            "constraints": "制約",
+            "diet": "食事方針",
+        },
+        "en": {
+            "goal": "Goal",
+            "frequency": "Frequency",
+            "time": "Time",
+            "experience": "Experience",
+            "environment": "Environment",
+            "constraints": "Constraints",
+            "diet": "Diet",
+        },
+    },
+    "job": {
+        "ja": {
+            "company": "対象企業",
+            "role": "職種",
+            "prompt": "設問文",
+            "word_count": "文字数",
+            "self_pr": "自己PR要素",
+            "gakuchika": "ガクチカ要素",
+            "motive": "志望動機要素",
+            "interview": "面接対策方針",
+        },
+        "en": {
+            "company": "Company",
+            "role": "Role",
+            "prompt": "Prompt",
+            "word_count": "Word count",
+            "self_pr": "Self PR",
+            "gakuchika": "Gakuchika",
+            "motive": "Motivation",
+            "interview": "Interview prep",
+        },
+    },
+    "study": {
+        "ja": {
+            "class": "授業名",
+            "scope": "範囲",
+            "goal": "学習目標",
+            "key_points": "重要ポイント",
+            "terms": "用語",
+            "questions": "確認問題",
+            "next_task": "次のタスク",
+        },
+        "en": {
+            "class": "Class",
+            "scope": "Scope",
+            "goal": "Learning goal",
+            "key_points": "Key points",
+            "terms": "Terms",
+            "questions": "Check questions",
+            "next_task": "Next task",
+        },
+    },
+}
+
+DECISION_KEY_EXTRA_ALIASES_BY_MODE = {
+    "travel": {
+        "destination": ["行き先", "旅行先", "destinations"],
+        "departure": ["出発地点", "出発", "origin", "from"],
+        "dates": ["日付", "旅行日程", "schedule", "date", "when"],
+        "travelers": ["人数", "旅行人数", "people", "guests"],
+        "budget": ["費用", "price", "price range"],
+        "transport": ["交通", "移動手段", "transportation", "transit"],
+        "accommodation": ["ホテル", "宿", "stay", "lodging"],
+        "companions": ["同行", "同伴者", "companion", "companions"],
+    },
+    "reply": {
+        "response_policy": ["返答方針", "返信の方針", "reply policy", "response"],
+        "tone": ["口調"],
+        "length": ["文字数", "word count"],
+        "purpose": ["狙い", "goal"],
+        "key_points": ["要点", "伝えたいこと", "message"],
+        "avoid": ["避けたいこと", "ng", "don't mention"],
+    },
+    "fitness": {
+        "goal": ["目的"],
+        "frequency": ["回数", "per week"],
+        "time": ["duration", "minutes"],
+        "experience": ["経験値", "level"],
+        "environment": ["設備", "equipment"],
+        "constraints": ["制限", "怪我", "injury", "limitations"],
+        "diet": ["食事", "nutrition"],
+    },
+    "job": {
+        "company": ["企業"],
+        "role": ["ポジション", "position"],
+        "prompt": ["質問", "question"],
+        "word_count": ["字数"],
+        "self_pr": ["自己PR"],
+        "gakuchika": ["ガクチカ"],
+        "motive": ["志望動機"],
+        "interview": ["面接方針", "interview"],
+    },
+    "study": {
+        "class": ["科目", "course"],
+        "scope": ["coverage"],
+        "goal": ["目標"],
+        "key_points": ["要点"],
+        "terms": ["vocabulary"],
+        "questions": ["確認", "practice questions"],
+        "next_task": ["次やること"],
+    },
+}
+
+DECISION_ALLOWED_KEYS_BY_MODE = {
+    mode: list(labels.get("ja", {}).keys())
+    for mode, labels in DECISION_KEY_LABELS_BY_MODE.items()
+}
 DECISION_SLOT_QUESTION_PATTERNS = {
-    "出発地": re.compile(r"(出発|出発地|出発地点).*(どこ|どちら|どこから|どちらから)", re.IGNORECASE),
-    "目的地": re.compile(r"(目的地|行き先|旅行先|行きたい場所|どこに行きたい)", re.IGNORECASE),
-    "日程": re.compile(r"(日程|いつ|ご都合|何日|何泊|何月|何日から)", re.IGNORECASE),
+    "出発地": re.compile(
+        r"(出発|出発地|出発地点).*(どこ|どちら|どこから|どちらから)|"
+        r"(departure|origin|from).*(where|which|location)",
+        re.IGNORECASE,
+    ),
+    "目的地": re.compile(
+        r"(目的地|行き先|旅行先|行きたい場所|どこに行きたい)|"
+        r"(destination|where to|where do you want to go|travel to)",
+        re.IGNORECASE,
+    ),
+    "日程": re.compile(
+        r"(日程|いつ|ご都合|何日|何泊|何月|何日から)|"
+        r"(dates|date|schedule|when)",
+        re.IGNORECASE,
+    ),
 }
 DECISION_SLOT_VALUE_PATTERNS = {
-    "出発地": re.compile(r"(出発地|出発地点|出発は|出発)\s*(?:は|:|：)?\s*(.+)", re.IGNORECASE),
-    "目的地": re.compile(r"(目的地|行き先|旅行先|行きたい場所|行き先は)\s*(?:は|:|：)?\s*(.+)", re.IGNORECASE),
-    "日程": re.compile(r"(日程|日付|出発日|旅行日程|ご都合)\s*(?:は|:|：)?\s*(.+)", re.IGNORECASE),
+    "出発地": re.compile(
+        r"(出発地|出発地点|出発は|出発|departure|origin)\s*(?:は|:|：|is)?\s*(.+)",
+        re.IGNORECASE,
+    ),
+    "目的地": re.compile(
+        r"(目的地|行き先|旅行先|行きたい場所|行き先は|destination)\s*(?:は|:|：|is)?\s*(.+)",
+        re.IGNORECASE,
+    ),
+    "日程": re.compile(
+        r"(日程|日付|出発日|旅行日程|ご都合|dates|date|schedule)\s*(?:は|:|：|is)?\s*(.+)",
+        re.IGNORECASE,
+    ),
 }
 
 # プロンプトの定義
@@ -134,7 +343,7 @@ PROMPTS = {
         - 必要に応じてユーザーの意向を確認し、決定を促す。
 
         ## 制約条件と出力ルール（厳守）
-        - 言語: 日本語。
+        - 言語: ユーザーの言語。必ずユーザーと同じ言語で返答すること。
         - トーン: 親しみやすく、丁寧な「です・ます」調。
         - 応答の長さ: 200文字以内目安。
         - 質問: 一度のメッセージで一つの質問。
@@ -184,7 +393,7 @@ PROMPTS = {
         4. 次回アクションの要約と確認。
 
         ## 制約条件と出力ルール（厳守）
-        - 言語: 日本語。
+        - 言語: ユーザーの言語。必ずユーザーと同じ言語で返答すること。
         - 応答の長さ: 200文字以内目安。
         - 質問: 一度のメッセージで一つの質問。
         - 特殊形式: ユーザーのアクションが必要な場合は、以下の形式を**厳密に**使用すること。
@@ -234,7 +443,7 @@ PROMPTS = {
         4. 改善点の指摘と、修正版の提示。
 
         ## 制約条件と出力ルール（厳守）
-        - 言語: 日本語。
+        - 言語: ユーザーの言語。必ずユーザーと同じ言語で返答すること。
         - 応答の長さ: 通常は400文字以内目安。文章作成は指定文字数を優先。
         - 質問: 一度のメッセージで一つの質問。
         - 特殊形式: ユーザーのアクションが必要な場合は、以下の形式を**厳密に**使用すること。
@@ -281,7 +490,7 @@ PROMPTS = {
         - 1つの返答で1つのタスクに集中する。
 
         ## 制約条件と出力ルール（厳守）
-        - 言語: 日本語。
+        - 言語: ユーザーの言語。必ずユーザーと同じ言語で返答すること。
         - 応答の長さ: 600文字以内目安（指定がある場合は指定優先）。
         - 質問: 一度のメッセージで一つの質問。
         - 特殊形式: ユーザーのアクションが必要な場合は、以下の形式を**厳密に**使用すること。
@@ -314,12 +523,116 @@ PROMPTS = {
     }
 }
 
-def current_datetime_jp_line() -> str:
-    """現在日時を日本語フォーマットで返すヘルパー関数"""
-    weekday_map = ["月", "火", "水", "木", "金", "土", "日"]
+def _normalize_language_code(language: Optional[str]) -> str:
+    if not language:
+        return DEFAULT_LANGUAGE
+    normalized = language.strip().lower().replace("_", "-")
+    if normalized in SUPPORTED_LANGUAGES:
+        return normalized
+    if normalized.startswith("ja"):
+        return "ja"
+    if normalized.startswith("en"):
+        return "en"
+    return DEFAULT_LANGUAGE
+
+
+def _detect_language(text: str) -> Optional[str]:
+    if not text:
+        return None
+    if LANGUAGE_JA_RE.search(text):
+        return "ja"
+    if LANGUAGE_LATIN_RE.search(text):
+        return "en"
+    return None
+
+
+def _parse_accept_language(header_value: Optional[str]) -> Optional[str]:
+    if not header_value:
+        return None
+    parts = [part.strip() for part in header_value.split(",") if part.strip()]
+    for part in parts:
+        code = part.split(";")[0].strip().lower()
+        if code.startswith("ja"):
+            return "ja"
+        if code.startswith("en"):
+            return "en"
+    return None
+
+
+def resolve_user_language(
+    message: str,
+    fallback: Optional[str] = None,
+    accept_language: Optional[str] = None,
+) -> str:
+    detected = _detect_language(message)
+    if detected:
+        return detected
+    normalized_fallback = _normalize_language_code(fallback) if fallback else None
+    if normalized_fallback:
+        return normalized_fallback
+    header_lang = _parse_accept_language(accept_language)
+    if header_lang:
+        return header_lang
+    return DEFAULT_LANGUAGE
+
+
+def _language_instruction(language: str) -> str:
+    lang = _normalize_language_code(language)
+    if lang == "en":
+        return "Language: English. Respond only in English."
+    return "言語: 日本語。日本語のみで返答してください。"
+
+
+def _decision_language_instruction(language: str) -> str:
+    lang = _normalize_language_code(language)
+    if lang == "en":
+        return "All item names and values must be in English. Do not mix languages."
+    return "項目名と内容は日本語で統一し、言語を混在させないでください。"
+
+
+def _memo_key_for_language(language: str) -> str:
+    lang = _normalize_language_code(language)
+    return DECISION_MEMO_KEYS_BY_LANGUAGE.get(lang, DECISION_MEMO_KEYS_BY_LANGUAGE["ja"])
+
+
+def _decision_default_message(language: str) -> str:
+    lang = _normalize_language_code(language)
+    return DECISION_DEFAULT_MESSAGES.get(lang, DECISION_DEFAULT_MESSAGES["ja"])
+
+
+def _decision_error_message(language: str) -> str:
+    lang = _normalize_language_code(language)
+    return DECISION_ERROR_MESSAGES.get(lang, DECISION_ERROR_MESSAGES["ja"])
+
+
+def _decision_safety_message(language: str) -> str:
+    lang = _normalize_language_code(language)
+    return DECISION_SAFETY_MESSAGES.get(lang, DECISION_SAFETY_MESSAGES["ja"])
+
+
+def _decision_guard_blocked_message(language: str) -> str:
+    lang = _normalize_language_code(language)
+    return DECISION_GUARD_BLOCKED_MESSAGES.get(lang, DECISION_GUARD_BLOCKED_MESSAGES["ja"])
+
+
+def current_datetime_line(language: str) -> str:
+    """現在日時を言語に合わせて返すヘルパー関数"""
     now = datetime.now()
+    if _normalize_language_code(language) == "en":
+        weekday_map = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        weekday = weekday_map[now.weekday()]
+        return (
+            f"Current datetime: {now.year}-{now.month:02d}-{now.day:02d} "
+            f"({weekday}) {now.hour:02d}:{now.minute:02d}"
+        )
+    weekday_map = ["月", "火", "水", "木", "金", "土", "日"]
     weekday = weekday_map[now.weekday()]
     return f"現在日時: {now.year}年{now.month}月{now.day}日（{weekday}） {now.hour:02d}:{now.minute:02d}"
+
+
+def current_datetime_jp_line() -> str:
+    """現在日時を日本語フォーマットで返すヘルパー関数"""
+    return current_datetime_line("ja")
 
 
 def sanitize_llm_text(text: Optional[str], max_length: int = MAX_OUTPUT_CHARS) -> str:
@@ -376,7 +689,14 @@ def _is_date_like(text: str) -> bool:
         return False
     if DECISION_DATE_LIKE_RE.search(text):
         return True
-    return any(token in text for token in ("今日", "明日", "明後日", "あさって", "今週", "来週", "再来週", "来月", "週末", "平日"))
+    lowered = text.lower()
+    return any(
+        token in text
+        for token in ("今日", "明日", "明後日", "あさって", "今週", "来週", "再来週", "来月", "週末", "平日")
+    ) or any(
+        token in lowered
+        for token in ("today", "tomorrow", "this week", "next week", "weekend", "weekday", "next month")
+    )
 
 
 def _extract_kv_map(decision_text: Optional[str]) -> Dict[str, str]:
@@ -557,6 +877,147 @@ def _parse_decision_items(text: Optional[str]) -> Tuple[List[Dict[str, str]], Di
                 items.append({"type": "plain", "value": line})
                 plain_set.add(line)
     return items, key_index, plain_set
+
+
+def _normalize_key_alias(key: str) -> str:
+    cleaned = key.strip().lower()
+    cleaned = re.sub(r"[\s_\-./]+", "", cleaned)
+    cleaned = re.sub(r"[：:]", "", cleaned)
+    return cleaned
+
+
+_DECISION_ALIAS_CACHE: Dict[str, Dict[str, str]] = {}
+
+
+def _get_decision_alias_lookup(mode: str) -> Dict[str, str]:
+    if mode in _DECISION_ALIAS_CACHE:
+        return _DECISION_ALIAS_CACHE[mode]
+
+    lookup: Dict[str, str] = {}
+    labels_by_lang = DECISION_KEY_LABELS_BY_MODE.get(mode, {})
+    for labels in labels_by_lang.values():
+        for canonical, label in labels.items():
+            lookup[_normalize_key_alias(label)] = canonical
+    extras = DECISION_KEY_EXTRA_ALIASES_BY_MODE.get(mode, {})
+    for canonical, aliases in extras.items():
+        for alias in aliases:
+            lookup[_normalize_key_alias(alias)] = canonical
+
+    _DECISION_ALIAS_CACHE[mode] = lookup
+    return lookup
+
+
+def _canonicalize_decision_key(key: str, mode: str) -> Optional[str]:
+    if not key:
+        return None
+    lookup = _get_decision_alias_lookup(mode)
+    return lookup.get(_normalize_key_alias(key))
+
+
+def _label_for_canonical_key(mode: str, language: str, canonical: str) -> str:
+    labels_by_lang = DECISION_KEY_LABELS_BY_MODE.get(mode, {})
+    lang = _normalize_language_code(language)
+    labels = labels_by_lang.get(lang) or labels_by_lang.get("ja") or {}
+    return labels.get(canonical, canonical)
+
+
+def _is_memo_key(key: str) -> bool:
+    normalized = _normalize_key_alias(key)
+    for memo_key in DECISION_MEMO_KEYS_BY_LANGUAGE.values():
+        if normalized == _normalize_key_alias(memo_key):
+            return True
+    return False
+
+
+def _build_memo_value(entries: List[str]) -> str:
+    normalized: List[str] = []
+    for entry in entries:
+        cleaned = _normalize_decision_line(entry)
+        if cleaned:
+            normalized.append(cleaned)
+    return " / ".join(normalized)
+
+
+def _enforce_decision_policy(text: Optional[str], mode: str, language: str) -> str:
+    items, _, _ = _parse_decision_items(text)
+    if not items:
+        return _decision_default_message(language)
+
+    allowed_keys = set(DECISION_ALLOWED_KEYS_BY_MODE.get(mode, []))
+    memo_entries: List[str] = []
+    ordered_items: List[Dict[str, str]] = []
+    fixed_index: Dict[str, int] = {}
+    flex_index: Dict[str, int] = {}
+
+    for item in items:
+        if item["type"] == "kv":
+            key = item["key"].strip()
+            value = item["value"].strip()
+            if _is_memo_key(key):
+                if value:
+                    memo_entries.append(value)
+                continue
+            canonical = _canonicalize_decision_key(key, mode)
+            if canonical and canonical in allowed_keys:
+                if canonical in fixed_index:
+                    ordered_items[fixed_index[canonical]]["value"] = value
+                else:
+                    fixed_index[canonical] = len(ordered_items)
+                    ordered_items.append({"kind": "fixed", "canonical": canonical, "value": value})
+                continue
+
+            if key in flex_index:
+                ordered_items[flex_index[key]]["value"] = value
+            else:
+                flex_index[key] = len(ordered_items)
+                ordered_items.append({"kind": "flex", "key": key, "value": value})
+        else:
+            if item.get("value"):
+                memo_entries.append(item["value"])
+
+    flex_limit = max(0, DECISION_FLEX_KEY_LIMIT)
+    if flex_limit >= 0:
+        flex_indices = [i for i, item in enumerate(ordered_items) if item["kind"] == "flex"]
+        overflow = flex_indices[flex_limit:]
+        for idx in overflow:
+            removed = ordered_items[idx]
+            memo_entries.append(f"{removed['key']}：{removed['value']}")
+        for idx in reversed(overflow):
+            del ordered_items[idx]
+
+    if DECISION_MAX_ITEMS > 0:
+        def total_items() -> int:
+            return len(ordered_items) + (1 if memo_entries else 0)
+
+        while total_items() > DECISION_MAX_ITEMS and ordered_items:
+            idx = None
+            for i in range(len(ordered_items) - 1, -1, -1):
+                if ordered_items[i]["kind"] == "flex":
+                    idx = i
+                    break
+            if idx is None:
+                idx = len(ordered_items) - 1
+            removed = ordered_items.pop(idx)
+            if removed["kind"] == "fixed":
+                key_label = _label_for_canonical_key(mode, language, removed["canonical"])
+                memo_entries.append(f"{key_label}：{removed['value']}")
+            else:
+                memo_entries.append(f"{removed['key']}：{removed['value']}")
+
+    final_items: List[Dict[str, str]] = []
+    for item in ordered_items:
+        if item["kind"] == "fixed":
+            key_label = _label_for_canonical_key(mode, language, item["canonical"])
+        else:
+            key_label = item["key"]
+        final_items.append({"type": "kv", "key": key_label, "value": item["value"]})
+    memo_value = _build_memo_value(memo_entries)
+    if memo_value:
+        final_items.append({"type": "kv", "key": _memo_key_for_language(language), "value": memo_value})
+
+    if not final_items:
+        return _decision_default_message(language)
+    return sanitize_llm_text(_decision_items_to_text(final_items), max_length=MAX_DECISION_CHARS)
 
 
 def _decision_items_to_text(items: List[Dict[str, str]]) -> str:
@@ -796,6 +1257,7 @@ def run_qa_chain(
     chat_history: List[Tuple[str, str]],
     mode: str = "travel",
     decision_text: Optional[str] = None,
+    language: Optional[str] = None,
 ) -> Tuple[str, Optional[str], Optional[List[str]], bool, str]:
     """
     ユーザーのメッセージに対してLLMで応答を生成する
@@ -805,23 +1267,37 @@ def run_qa_chain(
     3. レスポンスのサニタイズと安全性チェック
     4. 特殊形式（Select, Yes/No, DateSelect）の抽出と解析
     """
-    system_prompt = PROMPTS.get(mode, PROMPTS["travel"])["system"] + "\n" + current_datetime_jp_line()
+    lang = _normalize_language_code(language)
+    system_prompt = (
+        _language_instruction(lang)
+        + "\n"
+        + PROMPTS.get(mode, PROMPTS["travel"])["system"]
+        + "\n"
+        + current_datetime_line(lang)
+    )
     decision_text = (decision_text or "").strip()
-    if decision_text in ("決定している項目がありません。", "決定事項の更新中にエラーが発生しました。"):
+    if decision_text in DECISION_IGNORED_LINES:
         decision_text = ""
     if decision_text:
-        system_prompt += (
-            "\n\n## 既に決定している情報\n"
-            f"{decision_text}\n"
-            "- 既に決定している内容は繰り返し質問せず、次に必要な情報を確認してください。"
-        )
+        if lang == "en":
+            system_prompt += (
+                "\n\n## Decisions so far\n"
+                f"{decision_text}\n"
+                "- Do not ask again about already decided items. Ask for the next missing info."
+            )
+        else:
+            system_prompt += (
+                "\n\n## 既に決定している情報\n"
+                f"{decision_text}\n"
+                "- 既に決定している内容は繰り返し質問せず、次に必要な情報を確認してください。"
+            )
     
     messages = _build_messages(system_prompt, chat_history, message)
     response = _invoke_with_tool_retries(messages)
     response = sanitize_llm_text(response)
 
     if not output_is_safe(response):
-        safe_message = "安全性の理由で表示できません。"
+        safe_message = _decision_safety_message(lang)
         return safe_message, None, None, False, safe_message
 
     # Yes/No形式の抽出ロジック
@@ -868,36 +1344,50 @@ def write_decision(
     session_id: str,
     chat_history: List[Tuple[str, str]],
     mode: str = "travel",
+    language: Optional[str] = None,
 ) -> str:
     """
     チャット履歴から決定事項を抽出し、Redisに保存する
     
     LLMを使用して、会話の内容から「目的地」や「日程」などの確定事項を要約させます。
     """
-    default_message = DECISION_DEFAULT_MESSAGE
-    message = (
-        "これまでの決定事項に新しく追加・変更された内容があれば、その項目だけをJSONで出力してください。"
-        "未確定や推測は書かず、説明や挨拶は一切不要です。"
-    )
+    lang = _normalize_language_code(language)
+    default_message = _decision_default_message(lang)
+    if lang == "en":
+        message = (
+            "If there are new or updated decisions, output only those items as JSON. "
+            "Do not include uncertain or inferred information. No explanations or greetings."
+        )
+    else:
+        message = (
+            "これまでの決定事項に新しく追加・変更された内容があれば、その項目だけをJSONで出力してください。"
+            "未確定や推測は書かず、説明や挨拶は一切不要です。"
+        )
     
     try:
         previous_text = redis_client.get_decision(session_id) or ""
+        previous_text = _enforce_decision_policy(previous_text, mode, lang)
         derived_patch = _derive_decision_patch_from_history(chat_history, previous_text)
         if derived_patch:
             previous_text = _apply_decision_patch(previous_text, derived_patch)
+            previous_text = _enforce_decision_policy(previous_text, mode, lang)
         previous_lines = _split_decision_lines(previous_text)
         content = "\n".join(previous_lines) if previous_lines else default_message
+        previous_label = "Previous decisions:" if lang == "en" else "以前の決定事項:"
         system_prompt = (
             PROMPTS.get(mode, PROMPTS["travel"])["decision_system"]
             + "\n"
-            + current_datetime_jp_line()
-            + f"\n以前の決定事項:\n{content}\n"
+            + _decision_language_instruction(lang)
+            + "\n"
+            + current_datetime_line(lang)
+            + f"\n{previous_label}\n{content}\n"
         )
         messages = _build_messages(system_prompt, chat_history, message)
         response = _invoke_with_tool_retries(messages)
         response = sanitize_llm_text(response, max_length=MAX_DECISION_CHARS)
         if not output_is_safe(response):
             safe_text = "\n".join(previous_lines) if previous_lines else default_message
+            safe_text = _enforce_decision_policy(safe_text, mode, lang)
             redis_client.save_decision(session_id, safe_text)
             return safe_text
 
@@ -907,16 +1397,18 @@ def write_decision(
         else:
             merged = _merge_decision_text(previous_text, response)
 
+        merged = _enforce_decision_policy(merged, mode, lang)
         redis_client.save_decision(session_id, merged)
         return merged
     except Exception as e:
         logger.error(f"Error in write_decision: {e}")
-        return "決定事項の更新中にエラーが発生しました。"
+        return _decision_error_message(lang)
 
 def chat_with_llama(
     session_id: str,
     prompt: str,
     mode: str = "travel",
+    language: Optional[str] = None,
 ) -> Tuple[Optional[str], str, Optional[str], Optional[List[str]], bool, str]:
     """
     LLMとの対話を行うメイン関数
@@ -926,15 +1418,18 @@ def chat_with_llama(
     3. LLM応答の生成（run_qa_chain）
     4. 履歴と決定事項の保存
     """
+    lang = _normalize_language_code(language or redis_client.get_user_language(session_id))
     result = guard.content_checker(prompt)
     if 'unsafe' in result:
-        return None, redis_client.get_decision(session_id) or "安全性の問題で表示できません", None, None, False, "それには答えられません"
+        fallback_decision = redis_client.get_decision(session_id) or _decision_safety_message(lang)
+        return None, fallback_decision, None, None, False, _decision_guard_blocked_message(lang)
     
     chat_history = redis_client.get_chat_history(session_id)
     decision_text = redis_client.get_decision(session_id)
+    decision_text = _enforce_decision_policy(decision_text, mode, lang)
 
     response, yes_no_phrase, choices, is_date_select, remaining_text = run_qa_chain(
-        prompt, chat_history, mode=mode, decision_text=decision_text
+        prompt, chat_history, mode=mode, decision_text=decision_text, language=lang
     )
     response = sanitize_llm_text(response)
     remaining_text = sanitize_llm_text(remaining_text)
@@ -942,7 +1437,6 @@ def chat_with_llama(
     chat_history.append(("human", prompt))
     chat_history.append(("assistant", response))
     redis_client.save_chat_history(session_id, chat_history)
-    current_plan = write_decision(session_id, chat_history, mode=mode)
+    current_plan = write_decision(session_id, chat_history, mode=mode, language=lang)
     
     return response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text
-
