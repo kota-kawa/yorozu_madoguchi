@@ -138,6 +138,7 @@
 
 .chat-form {
   flex: 1;
+  min-width: 0;
   display: flex;
   gap: 8px;
   align-items: flex-end;
@@ -157,6 +158,7 @@
 
 textarea {
   flex: 1;
+  min-width: 0;
   border: none;
   background: transparent;
   resize: none;
@@ -186,6 +188,7 @@ textarea:focus {
 .btn-info {
   width: 44px;
   height: 44px;
+  min-width: 44px;
   border-radius: 50%;
   background-color: #f1f5f9;
   color: var(--text-muted);
@@ -203,6 +206,7 @@ textarea:focus {
 .btn-chat {
   width: 36px;
   height: 36px;
+  min-width: 36px;
   border-radius: 50%;
   background-color: var(--primary-color);
   color: white;
@@ -235,6 +239,7 @@ textarea:focus {
   color: var(--text-muted);
   font-size: 1.2rem;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .btn-icon:hover {
@@ -359,13 +364,14 @@ textarea:focus {
   }
 
   .chat-input {
-    gap: 8px;
+    gap: 6px;
+    width: 100%;
   }
 
   .chat-form {
-    padding: 4px 4px 4px 12px;
+    padding: 4px 4px 4px 10px;
     gap: 4px;
-    border-radius: 28px;
+    border-radius: 24px;
     background: #ffffff;
     border: 1px solid rgba(226, 232, 240, 1);
     box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
@@ -378,18 +384,28 @@ textarea:focus {
   textarea {
     font-size: 1rem; /* Prevent auto-zoom on iOS */
     padding: 8px 0;
+    max-height: 120px;
   }
 
   .btn-info {
-    width: 40px;
-    height: 40px;
-    font-size: 1.2rem;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    font-size: 1.1rem;
   }
 
   .btn-chat {
-    width: 34px;
-    height: 34px;
-    font-size: 1.6rem;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    font-size: 1.4rem;
+  }
+
+  .btn-icon {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    font-size: 1.1rem;
   }
 }
 
