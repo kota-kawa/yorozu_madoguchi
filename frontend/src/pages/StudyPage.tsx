@@ -63,6 +63,7 @@ const StudyPage = () => {
           <MessageList
             messages={messages}
             autoScroll={autoScroll}
+            isStreaming={chatLoading}
             onScroll={handleScroll}
             onYesNo={sendMessage}
             disabled={chatLoading}

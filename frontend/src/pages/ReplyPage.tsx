@@ -97,6 +97,7 @@ const ReplyPage = () => {
           <MessageList
             messages={messages}
             autoScroll={autoScroll}
+            isStreaming={chatLoading}
             onScroll={handleScroll}
             onYesNo={sendMessage}
             disabled={isLoading}

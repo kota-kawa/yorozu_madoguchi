@@ -7,12 +7,20 @@ import type { ChatMessage } from '../../types/chat'
 type MessageListProps = {
   messages: ChatMessage[]
   autoScroll: boolean
+  isStreaming?: boolean
   onScroll?: (event: UIEvent<HTMLDivElement>) => void
   onYesNo: (value: string) => void
   disabled: boolean
 }
 
-const MessageList = ({ messages, autoScroll, onScroll, onYesNo, disabled }: MessageListProps) => {
+const MessageList = ({
+  messages,
+  autoScroll,
+  isStreaming = false,
+  onScroll,
+  onYesNo,
+  disabled,
+}: MessageListProps) => {
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
   const autoScrollingRef = useRef(false)
@@ -74,9 +82,18 @@ const MessageList = ({ messages, autoScroll, onScroll, onYesNo, disabled }: Mess
     }
   }, [autoScroll])
 
+  useEffect(() => {
+    if (!autoScroll || !isStreaming) return
+
+    const intervalId = setInterval(() => {
+      scrollToBottom('auto')
+    }, 1500)
+
+    return () => clearInterval(intervalId)
+  }, [autoScroll, isStreaming])
+
   const handleScroll = (event: UIEvent<HTMLDivElement>) => {
-    const isTrusted = event.nativeEvent?.isTrusted
-    if (autoScrollingRef.current && isTrusted === false) return
+    if (autoScrollingRef.current) return
     if (onScroll) onScroll(event)
   }
 
