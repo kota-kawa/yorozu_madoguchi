@@ -91,12 +91,41 @@ export const useReplyChat = () => {
       }
 
       const remainingText = data?.remaining_text
-      const yesNoPhrase = data?.yes_no_phrase
       const remainingTextValue =
         typeof remainingText === 'string' && remainingText !== 'Empty' ? remainingText : null
 
       if (data?.current_plan !== undefined) {
         setPlanFromChat(data.current_plan ?? '')
+      }
+
+      const handleExtras = () => {
+        const updates: ChatMessage[] = []
+        if (data?.yes_no_phrase) {
+          updates.push({
+            id: `yesno-${Date.now()}`,
+            sender: 'bot',
+            text: data.yes_no_phrase,
+            type: 'yesno',
+          })
+        }
+        if (data?.choices && Array.isArray(data.choices) && data.choices.length > 0) {
+          updates.push({
+            id: `selection-${Date.now()}`,
+            sender: 'bot',
+            choices: data.choices,
+            type: 'selection',
+          })
+        }
+        if (data?.is_date_select) {
+          updates.push({
+            id: `date-selection-${Date.now()}`,
+            sender: 'bot',
+            type: 'date_selection',
+          })
+        }
+        if (updates.length > 0) {
+          setMessages((prev) => [...prev, ...updates])
+        }
       }
 
       if (remainingTextValue !== null) {
@@ -141,50 +170,30 @@ export const useReplyChat = () => {
               setLoading(false)
               workerRef.current?.terminate()
               workerRef.current = null
-
-              if (yesNoPhrase) {
-                setMessages((prev) => [
-                  ...prev,
-                  {
-                    id: `yesno-${Date.now()}`,
-                    sender: 'bot',
-                    text: yesNoPhrase,
-                    type: 'yesno',
-                  },
-                ])
-              }
+              handleExtras()
             },
           )
         } else {
           updateMessageMeta(botMessageId, { text: remainingTextValue, type: undefined, pending: false })
           setLoading(false)
-          if (yesNoPhrase) {
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: `yesno-${Date.now()}`,
-                sender: 'bot',
-                text: yesNoPhrase,
-                type: 'yesno',
-              },
-            ])
-          }
+          handleExtras()
         }
       } else {
-        const fallbackText = yesNoPhrase || data?.response || '返信候補を準備できませんでした。'
+        const fallbackText = data?.response || ''
         setMessages((prev) =>
           prev.map((message) =>
             message.id === botMessageId
               ? {
                   ...message,
                   text: fallbackText,
-                  type: yesNoPhrase ? 'yesno' : undefined,
+                  type: undefined,
                   pending: false,
                 }
               : message,
           ),
         )
         setLoading(false)
+        handleExtras()
       }
     } catch (error) {
       const isAbort = error instanceof DOMException && error.name === 'AbortError'

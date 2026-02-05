@@ -133,6 +133,8 @@ def reply_send_message() -> ResponseOrTuple:
             'response': 'リクエストの形式が正しくありません（JSONを送信してください）。',
             'current_plan': "",
             'yes_no_phrase': "",
+            'choices': None,
+            'is_date_select': False,
             'remaining_text': ""
         }), 400
 
@@ -146,6 +148,8 @@ def reply_send_message() -> ResponseOrTuple:
             'response': "利用状況を確認できません。しばらく待ってから再試行してください。",
             'current_plan': "",
             'yes_no_phrase': "",
+            'choices': None,
+            'is_date_select': False,
             'remaining_text': ""
         }), 503
     if not user_type:
@@ -154,6 +158,8 @@ def reply_send_message() -> ResponseOrTuple:
             'response': "ユーザー種別を選択してください。",
             'current_plan': "",
             'yes_no_phrase': "",
+            'choices': None,
+            'is_date_select': False,
             'remaining_text': ""
         }), 400
     if total_exceeded:
@@ -161,6 +167,8 @@ def reply_send_message() -> ResponseOrTuple:
             'response': "今日の上限に達しました。明日またご利用ください。",
             'current_plan': "",
             'yes_no_phrase': "",
+            'choices': None,
+            'is_date_select': False,
             'remaining_text': ""
         }), 429
     if not is_allowed:
@@ -168,6 +176,8 @@ def reply_send_message() -> ResponseOrTuple:
             'response': f"申し訳ありませんが、本日の利用制限（{limit}回）に達しました。明日またご利用ください。",
             'current_plan': "",
             'yes_no_phrase': "",
+            'choices': None,
+            'is_date_select': False,
             'remaining_text': ""
         }), 429
 
@@ -179,6 +189,8 @@ def reply_send_message() -> ResponseOrTuple:
             'response': "メッセージを入力してください。",
             'current_plan': "",
             'yes_no_phrase': "",
+            'choices': None,
+            'is_date_select': False,
             'remaining_text': ""
         }), 400
     if len(prompt) > 3000:
@@ -186,6 +198,8 @@ def reply_send_message() -> ResponseOrTuple:
             'response': "入力された文字数が3000文字を超えています。短くして再度お試しください。",
             'current_plan': "",
             'yes_no_phrase': "",
+            'choices': None,
+            'is_date_select': False,
             'remaining_text': ""
         }), 400
 
@@ -198,10 +212,17 @@ def reply_send_message() -> ResponseOrTuple:
     redis_client.save_user_language(session_id, language)
 
     # LLMとの対話実行 (mode="reply")
-    response, current_plan, yes_no_phrase, _choices, _is_date_select, remaining_text = (
+    response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text = (
         llama_core.chat_with_llama(session_id, prompt, mode="reply", language=language)
     )
-    return jsonify({'response': response, 'current_plan': current_plan,'yes_no_phrase': yes_no_phrase,'remaining_text': remaining_text})
+    return jsonify({
+        'response': response,
+        'current_plan': current_plan,
+        'yes_no_phrase': yes_no_phrase,
+        'choices': choices,
+        'is_date_select': is_date_select,
+        'remaining_text': remaining_text
+    })
 
 @reply_bp.route('/reply_submit_plan', methods=['POST'])
 def reply_submit_plan() -> ResponseOrTuple:
