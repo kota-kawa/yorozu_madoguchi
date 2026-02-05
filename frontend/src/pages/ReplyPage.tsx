@@ -23,6 +23,8 @@ const ReplyPage = () => {
   const [autoScroll, setAutoScroll] = useState(true)
   const [currentPlan, setCurrentPlan] = useState('')
   const [submittingPlan, setSubmittingPlan] = useState(false)
+  const [activeTab, setActiveTab] = useState<'chat' | 'plan'>('chat')
+  const [hasNewPlan, setHasNewPlan] = useState(false)
   const navigate = useNavigate()
 
   const {
@@ -35,8 +37,11 @@ const ReplyPage = () => {
   useEffect(() => {
     if (planFromChat !== undefined) {
       setCurrentPlan(planFromChat)
+      if (planFromChat && activeTab !== 'plan') {
+        setHasNewPlan(true)
+      }
     }
-  }, [planFromChat])
+  }, [planFromChat, activeTab])
 
   const handleScroll = (event: UIEvent<HTMLDivElement>) => {
     const target = event.currentTarget
@@ -92,8 +97,27 @@ const ReplyPage = () => {
         subtitle="返信作成アシスタント"
       />
 
+      <div className="mobile-tab-nav">
+        <button
+          className={`tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
+          onClick={() => setActiveTab('chat')}
+        >
+          チャット
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'plan' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveTab('plan')
+            setHasNewPlan(false)
+          }}
+        >
+          決定内容
+          {hasNewPlan && <span className="notification-dot" />}
+        </button>
+      </div>
+
       <div className="chat-container">
-        <div className="card chat-card">
+        <div className={`card chat-card ${activeTab === 'plan' ? 'mobile-hidden' : ''}`}>
           <MessageList
             messages={messages}
             autoScroll={autoScroll}
@@ -126,6 +150,7 @@ const ReplyPage = () => {
           plan={currentPlan}
           isSubmitting={submittingPlan}
           onSubmit={submitPlan}
+          className={activeTab === 'chat' ? 'mobile-hidden' : ''}
         />
       </div>
 
