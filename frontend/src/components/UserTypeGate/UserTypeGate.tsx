@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import './UserTypeGate.css'
+import { apiUrl } from '../../utils/apiBase'
 import { getStoredUserType, setStoredUserType } from '../../utils/userType'
 
 type UserType = '' | 'normal' | 'premium'
@@ -49,10 +50,11 @@ const UserTypeGate = ({ children }: UserTypeGateProps) => {
       setError('通信がタイムアウトしました。再試行してください。')
     }, SYNC_TIMEOUT_MS)
     try {
-      const response = await fetch('/api/user_type', {
+      const response = await fetch(apiUrl('/api/user_type'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_type: nextUserType }),
+        credentials: 'include',
         ...(controller ? { signal: controller.signal } : {}),
       })
       const data = (await response.json().catch(() => null)) as UserTypeResponse | null

@@ -8,6 +8,7 @@ import InfoPanel from '../components/UI/InfoPanel'
 import PlanViewer from '../components/Plan/PlanViewer'
 import LoadingSpinner from '../components/UI/LoadingSpinner'
 import { useReplyChat } from '../hooks/useReplyChat'
+import { apiUrl } from '../utils/apiBase'
 
 const SAMPLE_PROMPTS = [
   'どこに行くのがおすすめ？',
@@ -63,10 +64,11 @@ const ReplyPage = () => {
 
     setSubmittingPlan(true)
     try {
-      const response = await fetch('/reply_submit_plan', {
+      const response = await fetch(apiUrl('/reply_submit_plan'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan: currentPlan }),
+        credentials: 'include',
       })
 
       if (!response.ok) {

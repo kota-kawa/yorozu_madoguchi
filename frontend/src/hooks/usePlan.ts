@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { apiUrl } from '../utils/apiBase'
 import type { PlanSummaryResponse } from '../types/api'
 
 export const usePlan = (addSystemMessage: (text: string) => void) => {
@@ -12,10 +13,11 @@ export const usePlan = (addSystemMessage: (text: string) => void) => {
 
     setSubmittingPlan(true)
     try {
-      const response = await fetch('/travel_submit_plan', {
+      const response = await fetch(apiUrl('/travel_submit_plan'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan: currentPlan }),
+        credentials: 'include',
       })
 
       if (!response.ok) {
@@ -24,8 +26,9 @@ export const usePlan = (addSystemMessage: (text: string) => void) => {
 
       let summary: PlanSummaryResponse | null = null
       try {
-        const summaryResponse = await fetch('/complete', {
+        const summaryResponse = await fetch(apiUrl('/complete'), {
           headers: { Accept: 'application/json' },
+          credentials: 'include',
         })
         if (summaryResponse.ok) {
           summary = (await summaryResponse.json()) as PlanSummaryResponse

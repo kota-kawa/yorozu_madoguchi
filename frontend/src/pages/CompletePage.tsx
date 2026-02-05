@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Header from '../components/Header/Header'
 import LoadingSpinner from '../components/UI/LoadingSpinner'
 import './CompletePage.css'
+import { apiUrl } from '../utils/apiBase'
 
 type ReservationSummaryResponse = {
   reservation_data?: unknown
@@ -27,8 +28,9 @@ const CompletePage = () => {
     const controller = new AbortController()
     const fetchSummary = async () => {
       try {
-        const response = await fetch('/complete', {
+        const response = await fetch(apiUrl('/complete'), {
           headers: { Accept: 'application/json' },
+          credentials: 'include',
           signal: controller.signal,
         })
 

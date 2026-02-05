@@ -19,6 +19,28 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
+def _db_init_lock_key() -> int:
+    """
+    DB初期化用のアドバイザリロックキーを取得する
+    """
+    raw = os.getenv("DB_INIT_LOCK_KEY", "834221").strip()
+    try:
+        return int(raw)
+    except ValueError:
+        return 834221
+
+def _acquire_db_init_lock(connection) -> None:
+    """
+    DB初期化の同時実行を防ぐためのアドバイザリロックを取得する
+    """
+    connection.execute(text("SELECT pg_advisory_lock(:key)"), {"key": _db_init_lock_key()})
+
+def _release_db_init_lock(connection) -> None:
+    """
+    DB初期化のアドバイザリロックを解放する
+    """
+    connection.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": _db_init_lock_key()})
+
 def get_db() -> Generator[Session, None, None]:
     """
     データベースセッションを取得する依存関係関数
@@ -43,10 +65,15 @@ def init_db() -> None:
     
     for i in range(max_retries):
         try:
-            # テーブル作成（存在しない場合）
-            Base.metadata.create_all(bind=engine)
-            # スキーマの確認と更新
-            _ensure_reservation_schema()
+            with engine.begin() as connection:
+                _acquire_db_init_lock(connection)
+                try:
+                    # テーブル作成（存在しない場合）
+                    Base.metadata.create_all(bind=connection)
+                    # スキーマの確認と更新
+                    _ensure_reservation_schema(connection)
+                finally:
+                    _release_db_init_lock(connection)
             logger.info("Database initialized successfully.")
             return
         except OperationalError as e:
@@ -58,14 +85,14 @@ def init_db() -> None:
                 raise e
 
 
-def _ensure_reservation_schema() -> None:
+def _ensure_reservation_schema(connection) -> None:
     """
     reservation_plansテーブルのスキーマを確認し、必要なカラムを追加する
     
     既存のテーブルに対して、session_idカラムやインデックスが不足している場合に追加します。
     簡易的なマイグレーション機能として動作します。
     """
-    inspector = inspect(engine)
+    inspector = inspect(connection)
     if "reservation_plans" not in inspector.get_table_names():
         return
 
@@ -73,9 +100,8 @@ def _ensure_reservation_schema() -> None:
     if "session_id" in columns:
         return
 
-    with engine.begin() as connection:
-        # 複数ワーカー起動時の競合でDuplicateColumnが発生しないようにガード
-        connection.execute(text("ALTER TABLE reservation_plans ADD COLUMN IF NOT EXISTS session_id VARCHAR(64)"))
-        connection.execute(
-            text("CREATE INDEX IF NOT EXISTS ix_reservation_plans_session_id ON reservation_plans (session_id)")
-        )
+    # 複数ワーカー起動時の競合でDuplicateColumnが発生しないようにガード
+    connection.execute(text("ALTER TABLE reservation_plans ADD COLUMN IF NOT EXISTS session_id VARCHAR(64)"))
+    connection.execute(
+        text("CREATE INDEX IF NOT EXISTS ix_reservation_plans_session_id ON reservation_plans (session_id)")
+    )

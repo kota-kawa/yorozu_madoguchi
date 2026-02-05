@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { apiUrl } from '../utils/apiBase'
 import { getStoredUserType } from '../utils/userType'
 import { streamWithWorker } from '../utils/streamHelper'
 import type { ChatApiResponse } from '../types/api'
@@ -18,7 +19,9 @@ export const useReplyChat = () => {
 
   useEffect(() => {
     const controller = new AbortController()
-    fetch('/api/reset', { method: 'POST', signal: controller.signal }).catch(() => {})
+    fetch(apiUrl('/api/reset'), { method: 'POST', signal: controller.signal, credentials: 'include' }).catch(
+      () => {},
+    )
     return () => controller.abort()
   }, [])
 
@@ -73,10 +76,11 @@ export const useReplyChat = () => {
     const timeoutId = setTimeout(() => controller.abort(), 60000)
 
     try {
-      const response = await fetch('/reply_send_message', {
+      const response = await fetch(apiUrl('/reply_send_message'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: trimmed, user_type: getStoredUserType() }),
+        credentials: 'include',
         signal: controller.signal,
       })
 
