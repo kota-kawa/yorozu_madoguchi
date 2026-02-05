@@ -4,19 +4,30 @@
   border: 1px solid #e2e8f0;
   border-radius: 16px;
   padding: 16px;
-  margin-bottom: 16px;
-  box-shadow: var(--shadow-lg);
-  position: absolute;
-  bottom: 80px;
-  left: 20px;
-  right: 20px;
-  z-index: 10;
+  box-shadow: var(--shadow-xl);
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(560px, calc(100% - 40px));
+  z-index: 1001;
   display: none;
   animation: fadeIn 0.2s ease-out;
+  pointer-events: auto;
 }
 
 .info-text.open {
   display: block;
+}
+
+.info-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.05); /* Slight tint to show it's active */
 }
 
 .info-text h2 {
@@ -51,15 +62,14 @@
 }
 
 @media (max-width: 600px) {
-  .chat-footer .info-text {
-    left: 12px;
-    right: 12px;
-    bottom: calc(100% + 12px);
+  .info-text {
+    bottom: calc(env(safe-area-inset-bottom) + 80px);
+    width: calc(100% - 24px);
     padding: 16px;
     border-radius: 20px;
-    background: rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.98);
     backdrop-filter: blur(10px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
   }
 }
 

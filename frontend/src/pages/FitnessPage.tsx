@@ -75,6 +75,7 @@ const FitnessPage = () => {
               isOpen={infoOpen}
               samples={SAMPLE_PROMPTS}
               onSelect={setInput}
+              onClose={() => setInfoOpen(false)}
             />
 
             <ChatInput
