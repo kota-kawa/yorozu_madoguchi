@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
 import logging
+import os
 
 from groq_openai_client import get_groq_client
 
@@ -7,6 +8,7 @@ from groq_openai_client import get_groq_client
 load_dotenv()
 
 client = get_groq_client()
+GROQ_GUARD_MODEL_NAME = os.getenv("GROQ_GUARD_MODEL_NAME", "meta-llama/llama-guard-4-12b")
 
 def content_checker(prompt: str) -> str:
     """
@@ -25,7 +27,7 @@ def content_checker(prompt: str) -> str:
                 "content": prompt,
             }
         ],
-        model="meta-llama/llama-guard-4-12b",
+        model=GROQ_GUARD_MODEL_NAME,
     )
     result = chat_completion.choices[0].message.content
     logging.getLogger(__name__).info("Content check result: %s", result)
