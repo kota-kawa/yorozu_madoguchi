@@ -1,7 +1,7 @@
 import datetime
 import logging
 from typing import Any, Optional, Tuple
-from redis_client import redis_client, get_user_type
+import redis_client
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ def resolve_user_type(session_id: str, user_type: Optional[str] = None) -> str:
     if not session_id:
         return normalized if normalized else ""
 
-    stored = get_user_type(session_id)
+    stored = redis_client.get_user_type(session_id)
     stored_normalized = normalize_user_type(stored)
     if stored_normalized:
         return stored_normalized
@@ -58,7 +58,8 @@ def check_and_increment_limit(session_id: str, user_type: Optional[str] = None) 
     - total_exceeded: システム全体の制限を超過したか (True/False)
     - error_code: エラーコード (Redis利用不可など)
     """
-    if not redis_client:
+    client = redis_client.get_redis_client()
+    if not client:
         logger.error("Redis client is not available. Rejecting limit check.")
         # Fail closed: Redisが利用できない場合は安全のためブロック
         return False, 0, 0, "", False, "redis_unavailable"
@@ -108,7 +109,7 @@ def check_and_increment_limit(session_id: str, user_type: Optional[str] = None) 
     """
 
     try:
-        result = redis_client.eval(
+        result = client.eval(
             lua_script,
             2,
             user_key,

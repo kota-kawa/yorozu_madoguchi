@@ -40,7 +40,6 @@ class FakeRedis:
 
 class LimitManagerTests(unittest.TestCase):
     def setUp(self):
-        self.original_redis = limit_manager.redis_client
         self.original_user_limits = dict(limit_manager.USER_TYPE_LIMITS)
         self.original_total_limit = limit_manager.TOTAL_DAILY_LIMIT
         import redis_client as redis_module
@@ -48,13 +47,11 @@ class LimitManagerTests(unittest.TestCase):
         self.original_redis_module_client = redis_module.redis_client
 
         fake_redis = FakeRedis()
-        limit_manager.redis_client = fake_redis
         redis_module.redis_client = fake_redis
         limit_manager.USER_TYPE_LIMITS = {"normal": 2, "premium": 5}
         limit_manager.TOTAL_DAILY_LIMIT = 3
 
     def tearDown(self):
-        limit_manager.redis_client = self.original_redis
         limit_manager.USER_TYPE_LIMITS = self.original_user_limits
         limit_manager.TOTAL_DAILY_LIMIT = self.original_total_limit
         self.redis_module.redis_client = self.original_redis_module_client
