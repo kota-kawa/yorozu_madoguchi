@@ -1,3 +1,8 @@
+"""
+返信サポート機能のBlueprint実装。
+Blueprint for the reply support feature.
+"""
+
 from flask import Blueprint, request, jsonify, redirect, make_response, Response
 import llama_core
 import reservation
@@ -16,14 +21,17 @@ import limit_manager
 logger = logging.getLogger(__name__)
 
 # Blueprintの定義: メッセージ返信機能（reply）のルートを管理
+# Blueprint definition for reply routes
 reply_bp = Blueprint('reply', __name__)
 
 def resolve_frontend_url(path: str = "") -> str:
     """
     フロントエンドのURLを動的に解決する
+    Resolve the frontend base URL dynamically.
     
     環境（本番、ローカル、Dockerなど）に応じて適切なベースURLを決定し、
     リダイレクト先やリンク生成に使用します。
+    Chooses a base URL based on the environment for redirects and links.
     """
     host = request.headers.get('Host', '')
     if 'chat.project-kk.com' in host:
@@ -38,13 +46,16 @@ def resolve_frontend_url(path: str = "") -> str:
     return f"{base_url}{path}"
 
 # ホームのチャット画面
+# Home chat screen
 @reply_bp.route('/reply')
 def reply_home() -> Response:
     """
     返信機能の初期化エンドポイント
+    Initialize reply feature and start a new session.
     
     新規セッションを作成し、Redis上のデータをクリアしてから
     フロントエンドのチャット画面へリダイレクトします。
+    Creates a new session, clears Redis data, and redirects to the chat UI.
     """
     session_id = str(uuid.uuid4())
     try:
@@ -57,13 +68,16 @@ def reply_home() -> Response:
     return response
 
 # 予約完了画面
+# Reservation completion screen
 @reply_bp.route('/reply_complete')
 def reply_complete() -> ResponseOrTuple:
     """
     完了画面表示用エンドポイント
+    Completion screen endpoint.
     
     データベースから最新の予約プラン情報を取得し、
     JSONデータとして返すか、フロントエンドの完了画面へリダイレクトします。
+    Loads the latest plan and returns JSON or redirects to the completion UI.
     """
     reservation_data = []
     session_id = request.cookies.get('session_id')
@@ -73,6 +87,7 @@ def reply_complete() -> ResponseOrTuple:
     db = SessionLocal()
     try:
         # DBから最新の計画を取得
+        # Fetch the latest plan from DB
         plan = (
             db.query(ReservationPlan)
             .filter(ReservationPlan.session_id == session_id)
@@ -101,23 +116,28 @@ def reply_complete() -> ResponseOrTuple:
     accepts_json = request.accept_mimetypes.get('application/json', 0)
     accepts_html = request.accept_mimetypes.get('text/html', 0)
     # JSONを要求されている場合はデータを返す
+    # Return JSON when requested
     if accepts_json >= accepts_html:
         return jsonify({"reservation_data": reservation_data})
 
     # 結果をログ出力
+    # Log results for diagnostics
     for item in reservation_data:
         logger.info(f"Reservation Data: {item}")
     return redirect(resolve_frontend_url('/complete'))
 
 
 # メッセージを受け取り、レスポンスを返すエンドポイント
+# Receive a message and return an LLM response
 @reply_bp.route('/reply_send_message', methods=['POST'])
 def reply_send_message() -> ResponseOrTuple:
     """
     メッセージ送信処理エンドポイント
+    Message handling endpoint for reply feature.
     
     ユーザーからのメッセージを受け取り、LLMを使用して応答を生成します。
     CSRFチェック、セッション検証、利用制限チェックを含みます。
+    Includes CSRF, session, and rate-limit checks.
     """
     if not security.is_csrf_valid(request):
         return jsonify({'error': '不正なリクエストです。', 'response': '不正なリクエストです。'}), 403
@@ -139,6 +159,7 @@ def reply_send_message() -> ResponseOrTuple:
         }), 400
 
     # 利用制限のチェック
+    # Check rate limits
     is_allowed, count, limit, user_type, total_exceeded, error_code = (
         limit_manager.check_and_increment_limit(session_id, user_type=data.get("user_type"))
     )
@@ -184,6 +205,7 @@ def reply_send_message() -> ResponseOrTuple:
     prompt = data.get('message')
 
     # 文字数制限のチェック
+    # Enforce message length limit
     if not prompt:
         return jsonify({
             'response': "メッセージを入力してください。",
@@ -212,6 +234,7 @@ def reply_send_message() -> ResponseOrTuple:
     redis_client.save_user_language(session_id, language)
 
     # LLMとの対話実行 (mode="reply")
+    # Invoke LLM for reply mode
     response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text = (
         llama_core.chat_with_llama(session_id, prompt, mode="reply", language=language)
     )
@@ -228,8 +251,10 @@ def reply_send_message() -> ResponseOrTuple:
 def reply_submit_plan() -> ResponseOrTuple:
     """
     プラン確定処理エンドポイント
+    Finalize plan endpoint.
     
     現在のセッションでの決定事項を解析し、データベースに保存します。
+    Parses decisions for the session and persists to the database.
     """
     if not security.is_csrf_valid(request):
         return jsonify({'error': '不正なリクエストです。'}), 403

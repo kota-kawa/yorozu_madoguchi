@@ -1,3 +1,8 @@
+"""
+LLM対話ロジックと決定事項管理のコア実装。
+Core logic for LLM chat flows and decision tracking.
+"""
+
 import logging
 import os
 import guard
@@ -11,11 +16,14 @@ from typing import Any, Dict, List, Optional, Tuple
 from groq_openai_client import get_groq_client
 
 # ロギング設定
+# Configure logging
 logger = logging.getLogger(__name__)
 # 特定の警告を抑制
+# Suppress specific warnings
 warnings.filterwarnings("ignore", message=".*clean_up_tokenization_spaces.*")
 
 # APIキーと設定の読み込み
+# Load API keys and configuration
 groq_api_key = os.getenv("GROQ_API_KEY")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 MAX_OUTPUT_CHARS = int(os.getenv("MAX_OUTPUT_CHARS", "0"))
@@ -30,9 +38,11 @@ DECISION_MEMO_KEYS_BY_LANGUAGE = {
     "en": os.getenv("DECISION_MEMO_KEY_EN", "Notes"),
 }
 # Groqモデル設定
+# Groq model configuration
 GROQ_MODEL_NAME = os.getenv("GROQ_MODEL_NAME", "openai/gpt-oss-20b")
 GROQ_FALLBACK_MODEL_NAME = os.getenv("GROQ_FALLBACK_MODEL_NAME")
 # 出力ガードレールの有効化設定
+# Toggle output guardrails
 OUTPUT_GUARD_ENABLED = os.getenv("OUTPUT_GUARD_ENABLED", "true").lower() in ("1", "true", "yes")
 
 if not groq_api_key:
@@ -283,7 +293,7 @@ DECISION_SLOT_VALUE_PATTERNS = {
 }
 
 # プロンプトの定義
-# 各モード（travel, reply, fitness）ごとのシステムプロンプトと決定事項抽出プロンプトを定義
+# Define system prompts and decision-extraction prompts per mode
 PROMPTS = {
     "travel": {
         "system": """
@@ -528,6 +538,8 @@ PROMPTS = {
     }
 }
 
+# 言語判定・正規化のヘルパー
+# Language detection and normalization helpers
 def _normalize_language_code(language: Optional[str]) -> str:
     if not language:
         return DEFAULT_LANGUAGE
@@ -621,7 +633,9 @@ def _decision_guard_blocked_message(language: str) -> str:
 
 
 def current_datetime_line(language: str) -> str:
-    """現在日時を言語に合わせて返すヘルパー関数"""
+    """現在日時を言語に合わせて返すヘルパー関数
+    Return the current datetime formatted for the given language.
+    """
     now = datetime.now()
     if _normalize_language_code(language) == "en":
         weekday_map = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -636,13 +650,16 @@ def current_datetime_line(language: str) -> str:
 
 
 def current_datetime_jp_line() -> str:
-    """現在日時を日本語フォーマットで返すヘルパー関数"""
+    """現在日時を日本語フォーマットで返すヘルパー関数
+    Return the current datetime in Japanese format.
+    """
     return current_datetime_line("ja")
 
 
 def sanitize_llm_text(text: Optional[str], max_length: int = MAX_OUTPUT_CHARS) -> str:
     """
     LLMからの出力テキストをサニタイズ（制御文字除去、長さ制限）する
+    Sanitize LLM output (remove control chars, enforce length).
     """
     if text is None:
         return ""
@@ -652,7 +669,8 @@ def sanitize_llm_text(text: Optional[str], max_length: int = MAX_OUTPUT_CHARS) -
         cleaned = f"{cleaned[:max_length]}..."
     return cleaned
 
-
+# 決定事項テキストの解析・正規化
+# Decision text parsing and normalization
 def _normalize_decision_line(line: str) -> str:
     cleaned = DECISION_BULLET_PREFIX_RE.sub("", line.strip())
     cleaned = re.sub(r"\s+", " ", cleaned)
@@ -793,6 +811,8 @@ def _derive_decision_patch_from_history(
     return {"add": add, "update": update, "remove": []}
 
 
+# JSON抽出とパッチ正規化
+# JSON extraction and patch normalization
 def _strip_code_fences(text: str) -> str:
     stripped = text.strip()
     if not stripped.startswith("```"):
@@ -863,6 +883,8 @@ def _normalize_decision_patch(patch: Optional[Dict[str, Any]]) -> Optional[Dict[
     return {"add": add, "update": update, "remove": remove}
 
 
+# 決定事項のアイテム化とキー正規化
+# Decision itemization and key normalization
 def _parse_decision_items(text: Optional[str]) -> Tuple[List[Dict[str, str]], Dict[str, int], set]:
     items: List[Dict[str, str]] = []
     key_index: Dict[str, int] = {}
@@ -1111,9 +1133,12 @@ def _merge_decision_text(prev_text: Optional[str], new_text: Optional[str]) -> s
     return sanitize_llm_text(merged, max_length=MAX_DECISION_CHARS)
 
 
+# 出力ガードとLLM呼び出し
+# Output guardrails and LLM invocation
 def output_is_safe(text: str) -> bool:
     """
     出力テキストの安全性をチェックする（Guard使用）
+    Check output safety using the guard model.
     """
     if not OUTPUT_GUARD_ENABLED or not text:
         return True
@@ -1130,6 +1155,7 @@ def _build_messages(
     chat_history: List[Tuple[str, str]],
     user_input: str,
 ) -> List[Dict[str, str]]:
+    """LLM呼び出し用のmessages配列を構築する / Build messages for LLM API calls."""
     messages: List[Dict[str, str]] = [{"role": "system", "content": system_prompt}]
     for role, content in chat_history:
         if role == "assistant":
@@ -1266,11 +1292,16 @@ def run_qa_chain(
 ) -> Tuple[str, Optional[str], Optional[List[str]], bool, str]:
     """
     ユーザーのメッセージに対してLLMで応答を生成する
+    Generate an LLM response for a user message.
     
     1. プロンプトの構築（システムプロンプト + 履歴 + ユーザー入力）
     2. LLMの呼び出し
     3. レスポンスのサニタイズと安全性チェック
     4. 特殊形式（Select, Yes/No, DateSelect）の抽出と解析
+    1) Build prompt (system + history + user input)
+    2) Call LLM
+    3) Sanitize response and run safety checks
+    4) Extract special formats (Select, Yes/No, DateSelect)
     """
     lang = _normalize_language_code(language)
     system_prompt = (
@@ -1306,28 +1337,34 @@ def run_qa_chain(
         return safe_message, None, None, False, safe_message
 
     # Yes/No形式の抽出ロジック
+    # Extract Yes/No format
     yes_no_phrase = None
     choices = None
     is_date_select = False
     remaining_text = response
 
     # Select: [...] 形式の抽出 (正規表現)
+    # Extract Select [...] via regex
     select_match = re.search(r'Select\s*[:：]\s*[\[\［](.*?)[\]\］]', response, re.DOTALL)
     if select_match:
         choices_str = select_match.group(1)
         # カンマ区切り（全角・半角）でリスト化し、引用符などを除去
+        # Split by commas and strip quotes
         parts = re.split(r'[,、，]', choices_str)
         choices = [c.strip().strip('"\'') for c in parts if c.strip()]
         # Select部分を除去してremaining_textを更新
+        # Remove Select segment from remaining_text
         remaining_text = remaining_text.replace(select_match.group(0), "").strip()
 
     # DateSelect: true 形式の抽出
+    # Extract DateSelect: true
     date_match = re.search(r'DateSelect\s*[:：]\s*true', remaining_text, re.IGNORECASE)
     if date_match:
         is_date_select = True
         remaining_text = remaining_text.replace(date_match.group(0), "").strip()
 
     # Yes/No形式の抽出 (Selectが見つからなかった場合、または共存する場合)
+    # Extract Yes/No when Select isn't present (or coexists)
     if not choices and not is_date_select and "Yes/No" in remaining_text:
         start = remaining_text.find('Yes/No:')
         if start != -1:
@@ -1353,8 +1390,10 @@ def write_decision(
 ) -> str:
     """
     チャット履歴から決定事項を抽出し、Redisに保存する
+    Extract decisions from chat history and store them in Redis.
     
     LLMを使用して、会話の内容から「目的地」や「日程」などの確定事項を要約させます。
+    Uses the LLM to summarize confirmed items (destination, dates, etc.).
     """
     lang = _normalize_language_code(language)
     default_message = _decision_default_message(lang)
@@ -1417,11 +1456,16 @@ def chat_with_llama(
 ) -> Tuple[Optional[str], str, Optional[str], Optional[List[str]], bool, str]:
     """
     LLMとの対話を行うメイン関数
+    Main entry point for LLM chat handling.
     
     1. 入力の安全性チェック
     2. チャット履歴の取得
     3. LLM応答の生成（run_qa_chain）
     4. 履歴と決定事項の保存
+    1) Input safety check
+    2) Load chat history
+    3) Generate LLM response (run_qa_chain)
+    4) Persist history and decisions
     """
     lang = _normalize_language_code(language or redis_client.get_user_language(session_id))
     result = guard.content_checker(prompt)

@@ -1,3 +1,8 @@
+"""
+アプリケーションのエントリーポイント（Flask API）。
+Application entry point for the Flask API.
+"""
+
 from flask import Flask, request, jsonify, make_response, Response
 from flask_cors import CORS
 from dotenv import load_dotenv 
@@ -16,33 +21,37 @@ from job.job_main import job_bp
 from study.study_main import study_bp
 
 # 環境変数の読み込み
+# Load environment variables
 load_dotenv()
 
 # ロギング設定
+# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # データベース初期化
-# アプリケーション起動時にデータベーステーブルを作成・確認します
+# Initialize database tables at application startup
 init_db()
 
 # 許可されたオリジンを取得（CORS設定用）
+# Resolve allowed origins for CORS configuration
 ALLOWED_ORIGINS = security.get_allowed_origins()
 
 app = Flask(__name__)
 
 ResponseOrTuple = Union[Response, Tuple[Response, int]]
 # 最大リクエストサイズを制限
-# デフォルトで256KBに制限し、巨大なペイロードによるDoS攻撃を防ぎます
+# Limit max request size (default 256KB) to reduce DoS risk
 try:
     app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("MAX_CONTENT_LENGTH", "262144"))
 except ValueError:
     app.config["MAX_CONTENT_LENGTH"] = 262144
 # CORSの設定
-# 特定のオリジンからのリクエストのみを許可し、クレデンシャル情報の送受信を有効にします
+# Allow requests from specific origins and enable credentials
 CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS}}, supports_credentials=True)
 
 # 各機能のBlueprintを登録
+# Register feature-specific blueprints
 app.register_blueprint(reply_bp)
 app.register_blueprint(travel_bp)
 app.register_blueprint(fitness_bp)
@@ -52,16 +61,20 @@ app.register_blueprint(study_bp)
 def reset_session_data(session_id: str) -> None:
     """
     Redisのセッションデータをリセットする
+    Reset session data stored in Redis.
     
     指定されたセッションIDに関連するチャット履歴や一時データを削除・初期化します。
+    Clears chat history and temporary data for the given session ID.
     """
     redis_client.reset_session(session_id)
 
 def error_response(message: str, status: int = 400) -> Tuple[Response, int]:
     """
     エラーレスポンスを返すヘルパー関数
+    Helper to return a consistent JSON error response.
     
     一貫した形式でJSONエラーメッセージを生成します。
+    Generates JSON error messages in a uniform format.
     """
     return jsonify({"error": message, "response": message}), status
 
@@ -69,9 +82,11 @@ def error_response(message: str, status: int = 400) -> Tuple[Response, int]:
 def apply_security_headers(response: Response) -> Response:
     """
     すべてのレスポンスにセキュリティヘッダーを付与する
+    Attach security headers to every response.
     
     X-Content-Type-Options, X-Frame-Options などのヘッダーを設定し、
     ブラウザベースの攻撃（クリックジャッキングなど）を軽減します。
+    Adds headers (e.g., X-Content-Type-Options, X-Frame-Options) to mitigate browser-based attacks.
     """
     return security.apply_security_headers(response)
 
@@ -79,6 +94,7 @@ def apply_security_headers(response: Response) -> Response:
 def handle_request_too_large(error: RequestEntityTooLarge) -> Tuple[Response, int]:
     """
     リクエストサイズ超過エラーのハンドリング
+    Handle request payloads that exceed the configured size limit.
     """
     return error_response("リクエストサイズが大きすぎます。", status=413)
 
@@ -86,24 +102,30 @@ def handle_request_too_large(error: RequestEntityTooLarge) -> Tuple[Response, in
 def reset() -> ResponseOrTuple:
     """
     セッションリセットエンドポイント
+    Session reset endpoint.
     
     現在のセッションデータをクリアし、必要に応じて新しいセッションIDを発行します。
+    Clears current session data and issues a new session ID if needed.
     """
     try:
         # CSRFトークンの検証
+        # Validate CSRF token
         if not security.is_csrf_valid(request):
             return error_response("不正なリクエストです。", status=403)
 
         session_id = request.cookies.get('session_id')
         if not session_id:
             # セッションIDがない場合は新規作成して返す（実質リセットと同じ）
+            # If no session ID exists, create one (equivalent to reset)
             session_id = str(uuid.uuid4())
         
         # Redis上のデータをリセット
+        # Reset data in Redis
         reset_session_data(session_id)
         
         response = make_response(jsonify({"status": "reset"}))
         # クッキーにセッションIDが設定されていない場合、新規設定
+        # Set session cookie if missing
         if not request.cookies.get('session_id'):
              response.set_cookie('session_id', session_id, **security.cookie_settings(request))
              
@@ -116,11 +138,14 @@ def reset() -> ResponseOrTuple:
 def set_user_type() -> ResponseOrTuple:
     """
     ユーザー種別設定エンドポイント
+    User type configuration endpoint.
     
     ユーザーの種類（normal/premium）を設定し、Redisに保存します。
+    Stores the user type (normal/premium) in Redis.
     """
     try:
         # CSRFトークンの検証
+        # Validate CSRF token
         if not security.is_csrf_valid(request):
             return error_response("不正なリクエストです。", status=403)
 
@@ -128,6 +153,7 @@ def set_user_type() -> ResponseOrTuple:
         user_type = data.get('user_type', '').strip().lower()
 
         # 入力値のバリデーション
+        # Validate input
         if user_type not in ['normal', 'premium']:
             return error_response("ユーザー種別が正しくありません。", status=400)
 
@@ -137,6 +163,7 @@ def set_user_type() -> ResponseOrTuple:
             reset_session_data(session_id)
 
         # Redisにユーザー種別を保存
+        # Persist user type in Redis
         redis_client.save_user_type(session_id, user_type)
 
         response = make_response(jsonify({"user_type": user_type}))

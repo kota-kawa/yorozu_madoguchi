@@ -1,3 +1,8 @@
+"""
+Groq/OpenAI互換クライアントの生成と再利用。
+Factory for a Groq/OpenAI-compatible client with caching.
+"""
+
 import os
 from typing import Optional
 
@@ -9,8 +14,14 @@ _client: Optional[openai.OpenAI] = None
 
 
 def get_groq_client() -> openai.OpenAI:
+    """
+    Groqクライアントを生成・再利用する
+    Create and reuse a singleton Groq client.
+    """
     global _client
     if _client is None:
+        # 初回のみ環境変数を読み込み、クライアントを生成
+        # Initialize the client only once
         api_key = os.environ.get("GROQ_API_KEY")
         if not api_key:
             raise RuntimeError("GROQ_API_KEY が設定されていないか、無効です。")

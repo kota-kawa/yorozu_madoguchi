@@ -1,3 +1,8 @@
+"""
+Redisアクセスと簡易フォールバック（インメモリ）の管理。
+Redis access and a lightweight in-memory fallback.
+"""
+
 import os
 import json
 import redis
@@ -50,12 +55,14 @@ REDIS_FAIL_FAST = _env_bool("REDIS_FAIL_FAST", False)
 REDIS_ALLOW_FALLBACK = _env_bool("REDIS_ALLOW_FALLBACK", True)
 
 # Redisクライアントの状態管理
+# Redis client state tracking
 redis_client: Optional[Any] = None
 _redis_lock = threading.Lock()
 _last_health_check = 0.0
 _last_reconnect_attempt = 0.0
 
 # Redisが使えない場合の簡易フォールバック（単一プロセス限定）
+# In-memory fallback when Redis is unavailable (single-process only)
 _memory_store: Dict[str, Tuple[str, Optional[float]]] = {}
 
 
@@ -193,8 +200,10 @@ def _memory_delete(*keys: str) -> None:
 def get_session_key(session_id: str, key_type: str) -> str:
     """
     セッションIDに基づいたRedisキーを生成する
+    Build a Redis key from session ID and key type.
 
     例: session:abc-123:chat_history
+    Example: session:abc-123:chat_history
     """
     return f"session:{session_id}:{key_type}"
 
@@ -202,6 +211,7 @@ def get_session_key(session_id: str, key_type: str) -> str:
 def _set_with_ttl(key: str, value: str) -> None:
     """
     TTL（有効期限）付きで値を設定するヘルパー関数
+    Helper to set a value with TTL.
     """
     client = get_redis_client()
     if not client:
@@ -222,9 +232,11 @@ def _set_with_ttl(key: str, value: str) -> None:
 def get_chat_history(session_id: str) -> List[Tuple[str, str]]:
     """
     指定されたセッションIDのチャット履歴を取得する
+    Fetch chat history for a session.
 
     履歴はJSONリスト形式で保存されており、取得時にタプルのリストへ変換します。
     戻り値: [(role, text), ...]
+    Stored as a JSON list and returned as [(role, text), ...].
     """
     key = get_session_key(session_id, "chat_history")
     try:
@@ -239,6 +251,7 @@ def get_chat_history(session_id: str) -> List[Tuple[str, str]]:
                 data = None
         if data:
             # JSONのリスト[role, text]をタプル(role, text)に変換
+            # Convert JSON list [role, text] to tuples
             return [tuple(item) for item in json.loads(data)]
     except Exception as e:
         _mark_unhealthy("get", e)
@@ -253,8 +266,10 @@ def get_chat_history(session_id: str) -> List[Tuple[str, str]]:
 def save_chat_history(session_id: str, chat_history: Sequence[Tuple[str, str]]) -> None:
     """
     指定されたセッションIDのチャット履歴を保存する
+    Save chat history for a session.
 
     リスト形式の履歴をJSON文字列にシリアライズしてRedisに保存します。
+    Serializes the list to JSON and stores it in Redis.
     """
     key = get_session_key(session_id, "chat_history")
     try:
@@ -266,6 +281,7 @@ def save_chat_history(session_id: str, chat_history: Sequence[Tuple[str, str]]) 
 def get_decision(session_id: str) -> str:
     """
     指定されたセッションIDの決定事項（構造化前のテキスト）を取得する
+    Fetch decision text (unstructured) for a session.
     """
     key = get_session_key(session_id, "decision")
     try:
@@ -289,6 +305,7 @@ def get_decision(session_id: str) -> str:
 def save_decision(session_id: str, decision_text: str) -> None:
     """
     指定されたセッションIDの決定事項を保存する
+    Save decision text for a session.
     """
     key = get_session_key(session_id, "decision")
     try:
@@ -300,8 +317,10 @@ def save_decision(session_id: str, decision_text: str) -> None:
 def reset_session(session_id: str) -> None:
     """
     指定されたセッションIDに関連する全データを削除する
+    Delete all data associated with a session ID.
 
     チャット履歴や決定事項など、セッションに関連するキーをまとめて削除します。
+    Removes chat history, decisions, and other session keys.
     """
     keys = [
         get_session_key(session_id, "chat_history"),
@@ -322,7 +341,7 @@ def reset_session(session_id: str) -> None:
 
 
 def get_user_type(session_id: str) -> str:
-    """指定されたセッションIDのユーザー種別を取得する"""
+    """指定されたセッションIDのユーザー種別を取得する / Get user type for a session."""
     key = get_session_key(session_id, "user_type")
     try:
         client = get_redis_client()
@@ -343,7 +362,7 @@ def get_user_type(session_id: str) -> str:
 
 
 def save_user_type(session_id: str, user_type: str) -> None:
-    """指定されたセッションIDのユーザー種別を保存する"""
+    """指定されたセッションIDのユーザー種別を保存する / Save user type for a session."""
     key = get_session_key(session_id, "user_type")
     try:
         _set_with_ttl(key, user_type)
@@ -352,7 +371,7 @@ def save_user_type(session_id: str, user_type: str) -> None:
 
 
 def get_user_language(session_id: str) -> str:
-    """指定されたセッションIDのユーザー言語を取得する"""
+    """指定されたセッションIDのユーザー言語を取得する / Get user language for a session."""
     key = get_session_key(session_id, "user_language")
     try:
         client = get_redis_client()
@@ -373,7 +392,7 @@ def get_user_language(session_id: str) -> str:
 
 
 def save_user_language(session_id: str, language: str) -> None:
-    """指定されたセッションIDのユーザー言語を保存する"""
+    """指定されたセッションIDのユーザー言語を保存する / Save user language for a session."""
     key = get_session_key(session_id, "user_language")
     try:
         _set_with_ttl(key, language)
@@ -382,6 +401,7 @@ def save_user_language(session_id: str, language: str) -> None:
 
 
 # 初期接続（失敗時はフォールバック／fail-fast）
+# Initial connection (fallback or fail-fast on failure)
 if redis_client is None:
     if REDIS_FAIL_FAST:
         redis_client = _connect_with_retries()

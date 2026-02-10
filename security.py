@@ -1,3 +1,8 @@
+"""
+セキュリティ関連のヘルパー（CORS/CSRF/CSP/Cookie設定）。
+Security helpers for CORS, CSRF, CSP, and cookie settings.
+"""
+
 import os
 from typing import Any, Dict, List
 from urllib.parse import urlparse
@@ -10,8 +15,10 @@ DEFAULT_ALLOWED_ORIGINS = ("https://chat.project-kk.com", "http://localhost:5173
 def get_allowed_origins() -> List[str]:
     """
     許可されたオリジンのリストを取得する
+    Get the list of allowed origins.
     
     環境変数 `ALLOWED_ORIGINS` とデフォルト値をマージして返します。
+    Merges `ALLOWED_ORIGINS` with defaults.
     """
     frontend_origin = os.getenv("FRONTEND_ORIGIN", DEFAULT_ALLOWED_ORIGINS[0])
     raw_origins = os.getenv("ALLOWED_ORIGINS", frontend_origin).split(",")
@@ -25,6 +32,7 @@ def get_allowed_origins() -> List[str]:
 def _origin_from_referer(referer: str) -> str:
     """
     Refererヘッダーからオリジン（スキーム + ホスト）を抽出する
+    Extract origin (scheme + host) from the Referer header.
     """
     try:
         parsed = urlparse(referer)
@@ -38,10 +46,12 @@ def _origin_from_referer(referer: str) -> str:
 def is_csrf_valid(request: Request) -> bool:
     """
     CSRF（クロスサイトリクエストフォージェリ）検証を行う
+    Validate CSRF (Cross-Site Request Forgery) conditions.
     
     1. リクエストメソッドが安全な場合（GET, HEAD, OPTIONS）はスルー
     2. Originヘッダーが許可リストにあるか確認
     3. Originがない場合、Refererヘッダーを確認
+    1) Allow safe methods, 2) check Origin header, 3) fallback to Referer.
     """
     if request.method not in ("POST", "PUT", "PATCH", "DELETE"):
         return True
@@ -63,8 +73,10 @@ def is_csrf_valid(request: Request) -> bool:
 def should_set_secure_cookie(request: Request) -> bool:
     """
     CookieにSecure属性を付与すべきか判定する
+    Decide whether to set the Secure attribute on cookies.
     
     本番環境やHTTPS接続時にはTrueを返します。ローカル開発環境ではFalseになる場合があります。
+    Returns True for production/HTTPS; may be False for local dev.
     """
     env_value = os.getenv("COOKIE_SECURE", "").strip().lower()
     if env_value:
@@ -83,8 +95,10 @@ def should_set_secure_cookie(request: Request) -> bool:
 def cookie_settings(request: Request) -> Dict[str, Any]:
     """
     一貫したCookie設定パラメータを生成する
+    Build consistent cookie settings.
     
     HttpOnly, SameSite, Secure などのセキュリティ属性を設定します。
+    Includes HttpOnly, SameSite, Secure, and related attributes.
     """
     samesite = os.getenv("COOKIE_SAMESITE", "Lax")
     try:
@@ -104,8 +118,10 @@ def cookie_settings(request: Request) -> Dict[str, Any]:
 def build_csp() -> str:
     """
     Content Security Policy (CSP) ヘッダー文字列を構築する
+    Build the Content Security Policy (CSP) header value.
     
     XSS攻撃などのリスクを軽減するため、許可するリソースのソースを制限します。
+    Restricts resource sources to reduce XSS and related risks.
     """
     allowed = get_allowed_origins()
     connect_sources = ["'self'"] + allowed
@@ -134,6 +150,7 @@ def build_csp() -> str:
 def apply_security_headers(response: Response) -> Response:
     """
     レスポンスに各種セキュリティヘッダーを付与する
+    Attach common security headers to the response.
     """
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")

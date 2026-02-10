@@ -1,3 +1,8 @@
+"""
+コンテンツ安全性チェック（ガードレール）用モジュール。
+Module for content safety checking (guardrails).
+"""
+
 from dotenv import load_dotenv
 import json
 import logging
@@ -7,6 +12,7 @@ from typing import Any, Dict, Optional
 from groq_openai_client import get_groq_client
 
 # .envファイルの読み込み
+# Load variables from .env
 load_dotenv()
 
 client = get_groq_client()
@@ -82,10 +88,13 @@ def _normalize_guard_result(raw: str) -> str:
 def content_checker(prompt: str) -> str:
     """
     入力または出力テキストの安全性をチェックする
+    Check the safety of input or output text.
 
     Safety GPT OSS 20B を使用して、安全かどうかを判定します。
+    Uses Safety GPT OSS 20B to classify content as safe/unsafe.
     """
     # 短すぎるテキストはチェックをスキップ（誤検知防止や効率化のため）
+    # Skip very short inputs to reduce false positives and overhead
     if len(prompt) <= 5:
         return "safe"
 

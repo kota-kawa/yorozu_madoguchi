@@ -1,3 +1,8 @@
+"""
+学習アシスタント機能のBlueprint実装。
+Blueprint for the study assistant feature.
+"""
+
 from flask import Blueprint, request, jsonify, redirect, make_response, Response
 import logging
 import os
@@ -12,6 +17,7 @@ import security
 logger = logging.getLogger(__name__)
 
 # Blueprintの定義：学習アシスタント機能に関連するルートをまとめる
+# Blueprint definition for study assistant routes
 study_bp = Blueprint('study', __name__)
 
 ResponseOrTuple = Union[Response, Tuple[Response, int]]
@@ -20,8 +26,10 @@ ResponseOrTuple = Union[Response, Tuple[Response, int]]
 def resolve_frontend_url(path: str = "") -> str:
     """
     フロントエンドのURLを動的に解決する
+    Resolve the frontend base URL dynamically.
 
     環境に応じて適切なベースURLを返します。
+    Returns the appropriate base URL depending on the environment.
     """
     host = request.headers.get('Host', '')
     if 'chat.project-kk.com' in host:
@@ -37,12 +45,12 @@ def resolve_frontend_url(path: str = "") -> str:
 
 
 def reset_session_data(session_id: str) -> None:
-    """Redisのセッションデータをリセットする"""
+    """Redisのセッションデータをリセットする / Reset session data in Redis."""
     redis_client.reset_session(session_id)
 
 
 def error_response(message: str, status: int = 400) -> ResponseOrTuple:
-    """エラーレスポンスを返すヘルパー関数"""
+    """エラーレスポンスを返すヘルパー関数 / Helper to return JSON error responses."""
     return jsonify({"error": message, "response": message}), status
 
 
@@ -50,8 +58,10 @@ def error_response(message: str, status: int = 400) -> ResponseOrTuple:
 def study_home() -> Response:
     """
     学習アシスタントの初期化エンドポイント
+    Initialize study assistant feature and start a new session.
 
     新規セッションを作成し、フロントエンドの学習画面へリダイレクトします。
+    Creates a new session and redirects to the UI.
     """
     session_id = str(uuid.uuid4())
     reset_session_data(session_id)
@@ -66,6 +76,7 @@ def study_home() -> Response:
 def study_send_message() -> ResponseOrTuple:
     """
     学習アシスタントのメッセージ処理エンドポイント
+    Handle study assistant chat messages.
     """
     try:
         if not security.is_csrf_valid(request):
@@ -80,6 +91,7 @@ def study_send_message() -> ResponseOrTuple:
             return error_response("リクエストの形式が正しくありません（JSONを送信してください）。", status=400)
 
         # 利用制限のチェック
+        # Check rate limits
         is_allowed, count, limit, user_type, total_exceeded, error_code = (
             limit_manager.check_and_increment_limit(session_id, user_type=data.get("user_type"))
         )

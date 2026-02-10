@@ -1,3 +1,8 @@
+"""
+旅行予約プランの抽出と保存を行うモジュール。
+Module for extracting and storing travel reservation plans.
+"""
+
 from dotenv import load_dotenv
 import os
 from datetime import datetime
@@ -14,15 +19,17 @@ from groq_openai_client import get_groq_client
 
 import warnings
 # 不要な警告を抑制
+# Suppress noisy warnings
 warnings.filterwarnings("ignore", message=".*clean_up_tokenization_spaces.*")
 
 # .envファイルの読み込み
+# Load variables from .env
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 def current_datetime_jp_line() -> str:
-    """現在日時を日本語フォーマットで返すヘルパー関数"""
+    """現在日時を日本語フォーマットで返すヘルパー関数 / Return current datetime in JP format."""
     weekday_map = ["月", "火", "水", "木", "金", "土", "日"]
     now = datetime.now()
     weekday = weekday_map[now.weekday()]
@@ -31,8 +38,10 @@ def current_datetime_jp_line() -> str:
 class ReservationData(BaseModel):
     """
     LLMからの構造化出力のためのPydanticモデル
+    Pydantic model for structured LLM output.
     
     旅行計画の各要素を定義します。
+    Defines fields for a travel plan.
     """
     destinations: Optional[str] = Field(description="目的地", default=None)
     departure: Optional[str] = Field(description="出発地", default=None)
@@ -50,8 +59,10 @@ MAX_DATE_LENGTH = 32
 def sanitize_field(value: Optional[str], max_length: int = MAX_FIELD_LENGTH) -> Optional[str]:
     """
     入力フィールドのサニタイズを行う
+    Sanitize input fields.
     
     制御文字の除去、空白の正規化、最大長の制限を行います。
+    Removes control chars, normalizes whitespace, and enforces max length.
     """
     if value is None:
         return None
@@ -69,6 +80,7 @@ def sanitize_field(value: Optional[str], max_length: int = MAX_FIELD_LENGTH) -> 
 def normalize_date(value: Optional[str]) -> Optional[str]:
     """
     日付文字列を正規化する（YYYY-MM-DD形式）
+    Normalize date strings to YYYY-MM-DD.
     """
     text = sanitize_field(value, max_length=MAX_DATE_LENGTH)
     if not text:
@@ -103,6 +115,7 @@ def write_reservation_plan(
 ) -> str:
     """
     予約プラン情報をデータベースに保存（作成または更新）する
+    Persist a reservation plan (create or update).
     """
     if not session_id:
         raise ValueError("session_id is required")
@@ -119,6 +132,7 @@ def write_reservation_plan(
     db = SessionLocal()
     try:
         # セッション単位で最新のプランを取得
+        # Fetch latest plan for the session
         plan = (
             db.query(ReservationPlan)
             .filter(ReservationPlan.session_id == session_id)
@@ -128,6 +142,7 @@ def write_reservation_plan(
         
         if plan:
             # 更新処理
+            # Update existing plan
             plan.destinations = destinations
             plan.departure = departure
             plan.hotel = hotel
@@ -138,6 +153,7 @@ def write_reservation_plan(
             plan.end_date = end
         else:
             # 新規作成処理
+            # Create new plan
             plan = ReservationPlan(
                 session_id=session_id,
                 destinations=destinations,
@@ -163,15 +179,21 @@ def write_reservation_plan(
 def complete_plan(session_id: str) -> str:
     """
     Redis上の決定事項テキストから構造化データを抽出し、DBへ保存する
+    Extract structured data from Redis decision text and save to DB.
     
     1. Redisから非構造化テキスト（決定事項）を取得
     2. Groq (LLM) を使用して ReservationData モデルに構造化
     3. write_reservation_plan を呼び出してDBに保存
+    1) Load unstructured text from Redis
+    2) Use Groq (LLM) to structure into ReservationData
+    3) Save via write_reservation_plan
     """
     # Redisから読み込む
+    # Load from Redis
     text = redis_client.get_decision(session_id)
     
     # プロンプトメッセージを作成する
+    # Build prompt for the LLM
     system_prompt = (
         "あなたは旅行計画のアシスタントです。提供されたテキストから予約に関する情報を抽出してください。"
         "値がない場合はnullとしてください。"
@@ -193,6 +215,7 @@ def complete_plan(session_id: str) -> str:
     result = _parse_reservation_json(content)
 
     # 抽出されたデータでDB保存処理を実行
+    # Persist extracted data
     write_reservation_plan(
         session_id=session_id,
         destinations=result.destinations,

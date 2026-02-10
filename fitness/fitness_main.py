@@ -1,3 +1,8 @@
+"""
+フィットネス相談機能のBlueprint実装。
+Blueprint for the fitness consultation feature.
+"""
+
 from flask import Blueprint, request, jsonify, redirect, make_response, Response
 import logging
 import os
@@ -12,6 +17,7 @@ import security
 logger = logging.getLogger(__name__)
 
 # Blueprintの定義：フィットネス機能に関連するルートをまとめる
+# Blueprint definition for fitness routes
 fitness_bp = Blueprint('fitness', __name__)
 
 ResponseOrTuple = Union[Response, Tuple[Response, int]]
@@ -20,9 +26,11 @@ ResponseOrTuple = Union[Response, Tuple[Response, int]]
 def resolve_frontend_url(path: str = "") -> str:
     """
     フロントエンドのURLを動的に解決する
+    Resolve the frontend base URL dynamically.
     
     リクエストのHostヘッダーを確認し、本番環境、ローカル環境、または環境変数に基づいて
     適切なフロントエンドのベースURLを返します。
+    Chooses the base URL based on host or environment configuration.
     """
     host = request.headers.get('Host', '')
     if 'chat.project-kk.com' in host:
@@ -38,12 +46,12 @@ def resolve_frontend_url(path: str = "") -> str:
 
 
 def reset_session_data(session_id: str) -> None:
-    """Redisのセッションデータをリセットする"""
+    """Redisのセッションデータをリセットする / Reset session data in Redis."""
     redis_client.reset_session(session_id)
 
 
 def error_response(message: str, status: int = 400) -> ResponseOrTuple:
-    """エラーレスポンスを返すヘルパー関数"""
+    """エラーレスポンスを返すヘルパー関数 / Helper to return JSON error responses."""
     return jsonify({"error": message, "response": message}), status
 
 
@@ -51,9 +59,11 @@ def error_response(message: str, status: int = 400) -> ResponseOrTuple:
 def fitness_home() -> Response:
     """
     フィットネス機能の初期化エンドポイント
+    Initialize fitness feature and start a new session.
     
     新しいセッションIDを発行し、セッションデータをリセットした後、
     フロントエンドのフィットネス画面へリダイレクトします。
+    Issues a new session ID, resets data, and redirects to the UI.
     """
     session_id = str(uuid.uuid4())
     reset_session_data(session_id)
@@ -68,14 +78,20 @@ def fitness_home() -> Response:
 def fitness_send_message() -> ResponseOrTuple:
     """
     フィットネスチャットのメッセージ処理エンドポイント
+    Handle fitness chat messages.
     
     1. CSRFチェックとセッション検証
     2. 利用制限（レートリミット）の確認とカウント更新
     3. 入力メッセージの検証（空文字、文字数制限）
     4. LLM（llama_core）への問い合わせと応答の生成
+    1) CSRF and session validation
+    2) Rate-limit check and increment
+    3) Input validation (empty/length)
+    4) LLM call and response generation
     """
     try:
         # CSRFトークンの検証
+        # Validate CSRF token
         if not security.is_csrf_valid(request):
             return error_response("不正なリクエストです。", status=403)
 
@@ -88,6 +104,7 @@ def fitness_send_message() -> ResponseOrTuple:
             return error_response("リクエストの形式が正しくありません（JSONを送信してください）。", status=400)
 
         # 利用制限のチェック
+        # Check rate limits
         is_allowed, count, limit, user_type, total_exceeded, error_code = (
             limit_manager.check_and_increment_limit(session_id, user_type=data.get("user_type"))
         )
@@ -108,6 +125,7 @@ def fitness_send_message() -> ResponseOrTuple:
             return error_response("メッセージを入力してください。", status=400)
 
         # 文字数制限チェック
+        # Enforce message length limit
         if len(prompt) > 3000:
             return error_response("入力された文字数が3000文字を超えています。短くして再度お試しください。", status=400)
 
@@ -120,6 +138,7 @@ def fitness_send_message() -> ResponseOrTuple:
         redis_client.save_user_language(session_id, language)
 
         # LLMとの対話実行 (mode="fitness")
+        # Invoke LLM for fitness mode
         response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text = llama_core.chat_with_llama(
             session_id,
             prompt,
