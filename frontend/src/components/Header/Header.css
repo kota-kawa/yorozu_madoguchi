@@ -1,9 +1,14 @@
 /* Header Styles */
 .app-header {
-  padding: 16px 24px;
-  background-color: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  padding: 16px 32px;
+  background-color: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 24px;
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 10px 15px -3px rgba(0, 0, 0, 0.03);
   margin-bottom: 32px;
   position: sticky;
   top: 0;
@@ -24,21 +29,22 @@
 }
 
 .app-header h1 {
-  font-size: 2rem;
-  background: linear-gradient(to right, var(--primary-color, #646cff), var(--accent-color, #535bf2));
+  font-size: 1.65rem;
+  background: linear-gradient(135deg, var(--primary-color, #646cff), var(--accent-color, #535bf2));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  margin-bottom: 4px;
-  letter-spacing: -0.05em;
+  margin-bottom: 2px;
+  letter-spacing: -0.03em;
   line-height: 1.2;
 }
 
 .subtitle {
-  color: #666;
-  font-size: 0.9rem;
-  font-weight: 500;
+  color: var(--text-muted, #64748b);
+  font-size: 0.85rem;
+  font-weight: 600;
   margin: 0;
+  letter-spacing: 0.02em;
 }
 
 .agent-selector {
@@ -163,9 +169,10 @@
 
 @media (max-width: 600px) {
   .app-header {
-    padding: 10px 12px;
+    padding: 12px 16px;
     margin-bottom: 16px;
-    position: relative; /* スマホではsticky解除検討 */
+    border-radius: 20px;
+    position: relative;
   }
 
   .header-content {
