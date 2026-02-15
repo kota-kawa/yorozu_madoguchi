@@ -55,6 +55,8 @@ const FitnessPage = () => {
     event: FormEvent<HTMLFormElement> | KeyboardEvent<HTMLTextAreaElement>,
   ) => {
     event.preventDefault()
+    if (chatLoading) return
+    if (!input.trim()) return
     sendMessage(input)
     setInput('')
   }

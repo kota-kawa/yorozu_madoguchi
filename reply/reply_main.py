@@ -14,6 +14,7 @@ import logging
 import os
 import security
 from typing import Tuple, Union
+from session_request_lock import session_request_lock
 
 ResponseOrTuple = Union[Response, Tuple[Response, int]]
 import limit_manager
@@ -146,106 +147,118 @@ def reply_send_message() -> ResponseOrTuple:
     if not session_id:
         return jsonify({'error': 'セッションが無効です。ページをリロードしてください。'}), 400
 
-    data = request.get_json(silent=True)
-    if data is None:
-        return jsonify({
-            'error': 'リクエストの形式が正しくありません（JSONを送信してください）。',
-            'response': 'リクエストの形式が正しくありません（JSONを送信してください）。',
-            'current_plan': "",
-            'yes_no_phrase': "",
-            'choices': None,
-            'is_date_select': False,
-            'remaining_text': ""
-        }), 400
+    with session_request_lock(session_id) as lock_acquired:
+        if not lock_acquired:
+            return jsonify({
+                'error': "前のメッセージを処理中です。応答が返るまでお待ちください。",
+                'response': "前のメッセージを処理中です。応答が返るまでお待ちください。",
+                'current_plan': "",
+                'yes_no_phrase': "",
+                'choices': None,
+                'is_date_select': False,
+                'remaining_text': ""
+            }), 409
 
-    # 利用制限のチェック
-    # Check rate limits
-    is_allowed, count, limit, user_type, total_exceeded, error_code = (
-        limit_manager.check_and_increment_limit(session_id, user_type=data.get("user_type"))
-    )
-    if error_code == "redis_unavailable":
-        return jsonify({
-            'error': "利用状況を確認できません。しばらく待ってから再試行してください。",
-            'response': "利用状況を確認できません。しばらく待ってから再試行してください。",
-            'current_plan': "",
-            'yes_no_phrase': "",
-            'choices': None,
-            'is_date_select': False,
-            'remaining_text': ""
-        }), 503
-    if not user_type:
-        return jsonify({
-            'error': "ユーザー種別を選択してください。",
-            'response': "ユーザー種別を選択してください。",
-            'current_plan': "",
-            'yes_no_phrase': "",
-            'choices': None,
-            'is_date_select': False,
-            'remaining_text': ""
-        }), 400
-    if total_exceeded:
-        return jsonify({
-            'response': "今日の上限に達しました。明日またご利用ください。",
-            'current_plan': "",
-            'yes_no_phrase': "",
-            'choices': None,
-            'is_date_select': False,
-            'remaining_text': ""
-        }), 429
-    if not is_allowed:
-        return jsonify({
-            'response': f"申し訳ありませんが、本日の利用制限（{limit}回）に達しました。明日またご利用ください。",
-            'current_plan': "",
-            'yes_no_phrase': "",
-            'choices': None,
-            'is_date_select': False,
-            'remaining_text': ""
-        }), 429
+        data = request.get_json(silent=True)
+        if data is None:
+            return jsonify({
+                'error': 'リクエストの形式が正しくありません（JSONを送信してください）。',
+                'response': 'リクエストの形式が正しくありません（JSONを送信してください）。',
+                'current_plan': "",
+                'yes_no_phrase': "",
+                'choices': None,
+                'is_date_select': False,
+                'remaining_text': ""
+            }), 400
 
-    prompt = data.get('message')
+        # 利用制限のチェック
+        # Check rate limits
+        is_allowed, count, limit, user_type, total_exceeded, error_code = (
+            limit_manager.check_and_increment_limit(session_id, user_type=data.get("user_type"))
+        )
+        if error_code == "redis_unavailable":
+            return jsonify({
+                'error': "利用状況を確認できません。しばらく待ってから再試行してください。",
+                'response': "利用状況を確認できません。しばらく待ってから再試行してください。",
+                'current_plan': "",
+                'yes_no_phrase': "",
+                'choices': None,
+                'is_date_select': False,
+                'remaining_text': ""
+            }), 503
+        if not user_type:
+            return jsonify({
+                'error': "ユーザー種別を選択してください。",
+                'response': "ユーザー種別を選択してください。",
+                'current_plan': "",
+                'yes_no_phrase': "",
+                'choices': None,
+                'is_date_select': False,
+                'remaining_text': ""
+            }), 400
+        if total_exceeded:
+            return jsonify({
+                'response': "今日の上限に達しました。明日またご利用ください。",
+                'current_plan': "",
+                'yes_no_phrase': "",
+                'choices': None,
+                'is_date_select': False,
+                'remaining_text': ""
+            }), 429
+        if not is_allowed:
+            return jsonify({
+                'response': f"申し訳ありませんが、本日の利用制限（{limit}回）に達しました。明日またご利用ください。",
+                'current_plan': "",
+                'yes_no_phrase': "",
+                'choices': None,
+                'is_date_select': False,
+                'remaining_text': ""
+            }), 429
 
-    # 文字数制限のチェック
-    # Enforce message length limit
-    if not prompt:
+        prompt = data.get('message')
+
+        # 文字数制限のチェック
+        # Enforce message length limit
+        if not prompt:
+            return jsonify({
+                'response': "メッセージを入力してください。",
+                'current_plan': "",
+                'yes_no_phrase': "",
+                'choices': None,
+                'is_date_select': False,
+                'remaining_text': ""
+            }), 400
+        if len(prompt) > 3000:
+            return jsonify({
+                'response': "入力された文字数が3000文字を超えています。短くして再度お試しください。",
+                'current_plan': "",
+                'yes_no_phrase': "",
+                'choices': None,
+                'is_date_select': False,
+                'remaining_text': ""
+            }), 400
+
+        stored_language = redis_client.get_user_language(session_id)
+        language = llama_core.resolve_user_language(
+            prompt,
+            fallback=stored_language,
+            accept_language=request.headers.get("Accept-Language"),
+        )
+        redis_client.save_user_language(session_id, language)
+
+        # LLMとの対話実行 (mode="reply")
+        # Invoke LLM for reply mode
+        response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text = (
+            llama_core.chat_with_llama(session_id, prompt, mode="reply", language=language)
+        )
         return jsonify({
-            'response': "メッセージを入力してください。",
-            'current_plan': "",
-            'yes_no_phrase': "",
-            'choices': None,
-            'is_date_select': False,
-            'remaining_text': ""
-        }), 400
-    if len(prompt) > 3000:
-        return jsonify({
-            'response': "入力された文字数が3000文字を超えています。短くして再度お試しください。",
-            'current_plan': "",
-            'yes_no_phrase': "",
-            'choices': None,
-            'is_date_select': False,
-            'remaining_text': ""
-        }), 400
-
-    stored_language = redis_client.get_user_language(session_id)
-    language = llama_core.resolve_user_language(
-        prompt,
-        fallback=stored_language,
-        accept_language=request.headers.get("Accept-Language"),
-    )
-    redis_client.save_user_language(session_id, language)
-
-    # LLMとの対話実行 (mode="reply")
-    # Invoke LLM for reply mode
-    response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text = (
-        llama_core.chat_with_llama(session_id, prompt, mode="reply", language=language)
-    )
-    return jsonify({
-        'response': response,
-        'current_plan': current_plan,
-        'yes_no_phrase': yes_no_phrase,
-        'choices': choices,
-        'is_date_select': is_date_select,
-        'remaining_text': remaining_text
-    })
+            'response': response,
+            'current_plan': current_plan,
+            'yes_no_phrase': yes_no_phrase,
+            'choices': choices,
+            'is_date_select': is_date_select,
+            'remaining_text': remaining_text
+        })
 
 @reply_bp.route('/reply_submit_plan', methods=['POST'])
 def reply_submit_plan() -> ResponseOrTuple:

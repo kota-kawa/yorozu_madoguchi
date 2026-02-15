@@ -131,6 +131,7 @@ const ChatInput = ({
             value={input}
             onChange={(event) => onInputChange(event.target.value)}
             onKeyDown={onKeyDown}
+            disabled={disabled}
           />
 
           <button

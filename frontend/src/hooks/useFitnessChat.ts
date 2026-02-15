@@ -16,6 +16,7 @@ export const useFitnessChat = () => {
   const [loading, setLoading] = useState(false)
   const [planFromChat, setPlanFromChat] = useState('')
   const workerRef = useRef<Worker | null>(null)
+  const inFlightRef = useRef(false)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -47,7 +48,14 @@ export const useFitnessChat = () => {
     )
   }
 
+  const finishSending = () => {
+    inFlightRef.current = false
+    setLoading(false)
+  }
+
   const sendMessage = async (text: string) => {
+    if (inFlightRef.current) return
+
     const trimmed = text.trim()
     if (!trimmed) return
 
@@ -56,6 +64,7 @@ export const useFitnessChat = () => {
       return
     }
 
+    inFlightRef.current = true
     workerRef.current?.terminate()
     workerRef.current = null
 
@@ -168,7 +177,7 @@ export const useFitnessChat = () => {
                   flushTimeoutId = null
                 }
                 flushBufferedText()
-                setLoading(false)
+                finishSending()
                 workerRef.current?.terminate()
                 workerRef.current = null
                 handleExtras()
@@ -177,13 +186,13 @@ export const useFitnessChat = () => {
         } else {
             // Worker fallback
             updateMessageMeta(loadingMessageId, { text: remainingTextValue, type: undefined, pending: false })
-            setLoading(false)
+            finishSending()
             handleExtras()
         }
       } else {
         const botText = data?.response || ''
         updateMessageMeta(loadingMessageId, { text: botText, type: undefined, pending: false })
-        setLoading(false)
+        finishSending()
         handleExtras()
       }
 
@@ -204,7 +213,7 @@ export const useFitnessChat = () => {
             text: displayMessage,
           }),
       )
-      setLoading(false)
+      finishSending()
     } 
   }
 

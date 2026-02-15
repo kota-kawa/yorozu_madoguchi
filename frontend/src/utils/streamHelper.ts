@@ -6,6 +6,14 @@ export const streamWithWorker = (
   onChunk: (chunk: string) => void,
   onDone: () => void,
 ): void => {
+  let isCompleted = false
+
+  const finalize = () => {
+    if (isCompleted) return
+    isCompleted = true
+    onDone()
+  }
+
   worker.onmessage = (event: MessageEvent<WorkerOutputMessage>) => {
     if (event.data?.type === 'text') {
       onChunk(event.data.content)
@@ -13,8 +21,10 @@ export const streamWithWorker = (
     }
 
     if (event.data?.type === 'done') {
-      onDone()
+      finalize()
     }
   }
+  worker.onerror = () => finalize()
+  worker.onmessageerror = () => finalize()
   worker.postMessage({ remaining_text: text } as WorkerInputMessage)
 }

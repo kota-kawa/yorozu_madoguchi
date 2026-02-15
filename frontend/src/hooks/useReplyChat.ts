@@ -16,6 +16,7 @@ export const useReplyChat = () => {
   const [loading, setLoading] = useState(false)
   const [planFromChat, setPlanFromChat] = useState('')
   const workerRef = useRef<Worker | null>(null)
+  const inFlightRef = useRef(false)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -47,7 +48,14 @@ export const useReplyChat = () => {
     )
   }
 
+  const finishSending = () => {
+    inFlightRef.current = false
+    setLoading(false)
+  }
+
   const sendMessage = async (text: string) => {
+    if (inFlightRef.current) return
+
     const trimmed = text.trim()
     if (!trimmed) return
 
@@ -56,6 +64,7 @@ export const useReplyChat = () => {
       return
     }
 
+    inFlightRef.current = true
     workerRef.current?.terminate()
     workerRef.current = null
 
@@ -167,7 +176,7 @@ export const useReplyChat = () => {
                 flushTimeoutId = null
               }
               flushBufferedText()
-              setLoading(false)
+              finishSending()
               workerRef.current?.terminate()
               workerRef.current = null
               handleExtras()
@@ -175,7 +184,7 @@ export const useReplyChat = () => {
           )
         } else {
           updateMessageMeta(botMessageId, { text: remainingTextValue, type: undefined, pending: false })
-          setLoading(false)
+          finishSending()
           handleExtras()
         }
       } else {
@@ -192,7 +201,7 @@ export const useReplyChat = () => {
               : message,
           ),
         )
-        setLoading(false)
+        finishSending()
         handleExtras()
       }
     } catch (error) {
@@ -208,7 +217,7 @@ export const useReplyChat = () => {
           .filter((messageItem) => messageItem.id !== botMessageId)
           .concat({ id: `error-${Date.now()}`, sender: 'bot', text: message }),
       )
-      setLoading(false)
+      finishSending()
     } finally {
       clearTimeout(timeoutId)
     }
