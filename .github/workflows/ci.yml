@@ -7,8 +7,43 @@ on:
     branches: ["main"]
 
 jobs:
-  frontend-lint:
+  python-syntax-check:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run Python syntax check
+        run: |
+          python - <<'PY'
+          import pathlib
+          import sys
+
+          skip_dirs = {'.git', '__pycache__', 'node_modules', '.venv', 'venv'}
+          errors = []
+
+          for path in pathlib.Path('.').rglob('*.py'):
+              if any(part in skip_dirs for part in path.parts):
+                  continue
+              try:
+                  source = path.read_text(encoding='utf-8')
+                  compile(source, str(path), 'exec')
+              except SyntaxError as err:
+                  errors.append(f"{path}:{err.lineno}:{err.offset}: {err.msg}")
+
+          if errors:
+              print('\n'.join(errors))
+              sys.exit(1)
+
+          print('Python syntax check passed')
+          PY
+
+  typescript-typecheck:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,7 +53,22 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install frontend dependencies
         run: npm ci
+      - name: Run TypeScript syntax check
+        run: npx tsc --noEmit --noCheck
+
+  frontend-lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
         working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci
       - name: Run frontend lint
         run: npm run lint
-        working-directory: frontend
