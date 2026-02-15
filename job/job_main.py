@@ -13,6 +13,7 @@ import llama_core
 import limit_manager
 import redis_client
 import security
+from session_request_lock import session_request_lock
 
 logger = logging.getLogger(__name__)
 
@@ -86,52 +87,59 @@ def job_send_message() -> ResponseOrTuple:
         if not session_id:
             return error_response("セッションが無効です。ページをリロードしてください。", status=400)
 
-        data = request.get_json(silent=True)
-        if data is None:
-            return error_response("リクエストの形式が正しくありません（JSONを送信してください）。", status=400)
+        with session_request_lock(session_id) as lock_acquired:
+            if not lock_acquired:
+                return error_response(
+                    "前のメッセージを処理中です。応答が返るまでお待ちください。",
+                    status=409,
+                )
 
-        # 利用制限のチェック
-        # Check rate limits
-        is_allowed, count, limit, user_type, total_exceeded, error_code = (
-            limit_manager.check_and_increment_limit(session_id, user_type=data.get("user_type"))
-        )
-        if error_code == "redis_unavailable":
-            return error_response("利用状況を確認できません。しばらく待ってから再試行してください。", status=503)
-        if not user_type:
-            return error_response("ユーザー種別を選択してください。", status=400)
-        if total_exceeded:
-            return error_response("今日の上限に達しました。明日またご利用ください。", status=429)
-        if not is_allowed:
-            return error_response(
-                f"本日の利用制限（{limit}回）に達しました。明日またご利用ください。",
-                status=429
+            data = request.get_json(silent=True)
+            if data is None:
+                return error_response("リクエストの形式が正しくありません（JSONを送信してください）。", status=400)
+
+            # 利用制限のチェック
+            # Check rate limits
+            is_allowed, count, limit, user_type, total_exceeded, error_code = (
+                limit_manager.check_and_increment_limit(session_id, user_type=data.get("user_type"))
             )
+            if error_code == "redis_unavailable":
+                return error_response("利用状況を確認できません。しばらく待ってから再試行してください。", status=503)
+            if not user_type:
+                return error_response("ユーザー種別を選択してください。", status=400)
+            if total_exceeded:
+                return error_response("今日の上限に達しました。明日またご利用ください。", status=429)
+            if not is_allowed:
+                return error_response(
+                    f"本日の利用制限（{limit}回）に達しました。明日またご利用ください。",
+                    status=429
+                )
 
-        prompt = data.get('message', '')
-        if not prompt:
-            return error_response("メッセージを入力してください。", status=400)
-        if len(prompt) > 3000:
-            return error_response("入力された文字数が3000文字を超えています。短くして再度お試しください。", status=400)
+            prompt = data.get('message', '')
+            if not prompt:
+                return error_response("メッセージを入力してください。", status=400)
+            if len(prompt) > 3000:
+                return error_response("入力された文字数が3000文字を超えています。短くして再度お試しください。", status=400)
 
-        stored_language = redis_client.get_user_language(session_id)
-        language = llama_core.resolve_user_language(
-            prompt,
-            fallback=stored_language,
-            accept_language=request.headers.get("Accept-Language"),
-        )
-        redis_client.save_user_language(session_id, language)
+            stored_language = redis_client.get_user_language(session_id)
+            language = llama_core.resolve_user_language(
+                prompt,
+                fallback=stored_language,
+                accept_language=request.headers.get("Accept-Language"),
+            )
+            redis_client.save_user_language(session_id, language)
 
-        response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text = (
-            llama_core.chat_with_llama(session_id, prompt, mode="job", language=language)
-        )
-        return jsonify({
-            'response': response,
-            'current_plan': current_plan,
-            'yes_no_phrase': yes_no_phrase,
-            'choices': choices,
-            'is_date_select': is_date_select,
-            'remaining_text': remaining_text
-        })
+            response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text = (
+                llama_core.chat_with_llama(session_id, prompt, mode="job", language=language)
+            )
+            return jsonify({
+                'response': response,
+                'current_plan': current_plan,
+                'yes_no_phrase': yes_no_phrase,
+                'choices': choices,
+                'is_date_select': is_date_select,
+                'remaining_text': remaining_text
+            })
     except Exception as e:
         logger.error(f"Error in job_send_message: {e}", exc_info=True)
         return error_response("サーバー内部でエラーが発生しました。しばらく待ってから再試行してください。", status=500)
