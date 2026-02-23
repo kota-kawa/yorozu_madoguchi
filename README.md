@@ -1,4 +1,14 @@
+> 一番下に日本語版もあります
+
 # 🌟 Yorozu Madoguchi (よろず窓口)
+
+![Backend](https://img.shields.io/badge/Backend-Flask-black)
+![Frontend](https://img.shields.io/badge/Frontend-React%20%2B%20TypeScript-61DAFB)
+![Bundler](https://img.shields.io/badge/Bundler-Vite-646CFF)
+![DB](https://img.shields.io/badge/DB-PostgreSQL-336791)
+![Cache](https://img.shields.io/badge/Cache-Redis-DC382D)
+![AI](https://img.shields.io/badge/AI-Groq-orange)
+![Container](https://img.shields.io/badge/Container-Docker-2496ED)
 
 **Yorozu Madoguchi** is an AI-assisted travel planning web app where users chat with an assistant and receive personalized itineraries. It is designed to demonstrate end-to-end product thinking: conversational UX, robust backend services, and a modern frontend—all orchestrated with Docker Compose for easy onboarding.
 
