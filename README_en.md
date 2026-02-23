@@ -5,6 +5,20 @@
 Hello! Welcome to "Yorozu Madoguchi"! 👋
 This project is an application where you can have fun creating travel plans while chatting with AI. ✈️👜
 
+## UI Preview
+
+<p align="center">
+  <img src="assets/images/Yorozu-Madoguchi-ScreenShot.png" alt="Yorozu Madoguchi UI Preview" width="1100">
+</p>
+
+## 🎬 Demo Video
+
+Click the thumbnail to open the video on YouTube.
+
+| [![Demo Video](https://img.youtube.com/vi/g3DgbxYkKDw/hqdefault.jpg)](https://youtu.be/g3DgbxYkKDw) |
+| --- |
+| Demo Video |
+
 ## ✨ What can it do?
 
 *   **💬 Chat Consultation**: An AI assistant will consult with you on your trip!

@@ -12,6 +12,20 @@
 
 **Yorozu Madoguchi** is an AI-assisted travel planning web app where users chat with an assistant and receive personalized itineraries. It is designed to demonstrate end-to-end product thinking: conversational UX, robust backend services, and a modern frontend—all orchestrated with Docker Compose for easy onboarding.
 
+## UI Preview
+
+<p align="center">
+  <img src="assets/images/Yorozu-Madoguchi-ScreenShot.png" alt="Yorozu Madoguchi UI Preview" width="1100">
+</p>
+
+## 🎬 Demo Video
+
+Click the thumbnail to open the video on YouTube.
+
+| [![Demo Video](https://img.youtube.com/vi/g3DgbxYkKDw/hqdefault.jpg)](https://youtu.be/g3DgbxYkKDw) |
+| --- |
+| Demo Video |
+
 ## 🔎 Highlights (for recruiters)
 
 - **Product-focused AI UX**: Converts free-form chat into actionable travel plans, showcasing how to bridge natural language input with structured outcomes.
@@ -70,6 +84,20 @@ Apache License 2.0. See `LICENSE` for details.
 # 🌟 よろず窓口 (Yorozu Madoguchi)
 
 **「よろず窓口」** は、AIとチャットしながら旅行プランを作成できるWebアプリです。会話形式のUXと、フロントエンド・バックエンド・データ基盤を一体化した構成により、プロダクトとしての完成度と拡張性を意識して設計しています。
+
+## UI プレビュー
+
+<p align="center">
+  <img src="assets/images/Yorozu-Madoguchi-ScreenShot.png" alt="よろず窓口 UI プレビュー" width="1100">
+</p>
+
+## 🎬 デモ動画
+
+サムネイルをクリックするとYouTubeで動画を開きます。
+
+| [![デモ動画](https://img.youtube.com/vi/g3DgbxYkKDw/hqdefault.jpg)](https://youtu.be/g3DgbxYkKDw) |
+| --- |
+| デモ動画 |
 
 ## 🔎 就職活動向けのアピールポイント
 
