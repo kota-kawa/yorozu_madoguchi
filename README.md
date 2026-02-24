@@ -20,7 +20,7 @@
 
 ## 🎬 Demo Video
 
-ユーザーと旅行計画をしている様子です。
+ユーザーと旅行計画をしている様子です。Click a thumbnail to open the video on YouTube.
 
 <a href="https://youtu.be/g3DgbxYkKDw">
   <img src="https://img.youtube.com/vi/g3DgbxYkKDw/hqdefault.jpg" alt="Demo Video" width="100%">
