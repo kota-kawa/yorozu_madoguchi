@@ -20,11 +20,11 @@
 
 ## 🎬 Demo Video
 
-Click the thumbnail to open the video on YouTube.
+ユーザーと旅行計画をしている様子です。
 
-| [![Demo Video](https://img.youtube.com/vi/g3DgbxYkKDw/hqdefault.jpg)](https://youtu.be/g3DgbxYkKDw) |
-| --- |
-| Demo Video |
+<a href="https://youtu.be/g3DgbxYkKDw">
+  <img src="https://img.youtube.com/vi/g3DgbxYkKDw/hqdefault.jpg" alt="Demo Video" width="100%">
+</a>
 
 ## 🔎 Highlights (for recruiters)
 
