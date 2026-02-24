@@ -93,11 +93,11 @@ Apache License 2.0. See `LICENSE` for details.
 
 ## 🎬 デモ動画
 
-サムネイルをクリックするとYouTubeで動画を開きます。
+ユーザーと旅行計画をしている様子です。サムネイルをクリックするとYouTubeで動画を開きます。
 
-| [![デモ動画](https://img.youtube.com/vi/g3DgbxYkKDw/hqdefault.jpg)](https://youtu.be/g3DgbxYkKDw) |
-| --- |
-| デモ動画 |
+<a href="https://youtu.be/g3DgbxYkKDw">
+  <img src="https://img.youtube.com/vi/g3DgbxYkKDw/hqdefault.jpg" alt="デモ動画" width="100%">
+</a>
 
 ## 🔎 就職活動向けのアピールポイント
 
