@@ -69,7 +69,14 @@ docker compose down
 ## 🧪 Tests
 
 ```bash
-python -m unittest
+python3 tests/run_unit_tests.py
+```
+
+Coverage report:
+
+```bash
+coverage run --branch tests/run_unit_tests.py
+coverage report -m --omit='tests/*'
 ```
 
 ## 📜 License
@@ -142,7 +149,14 @@ docker compose down
 ## 🧪 テスト
 
 ```bash
-python -m unittest
+python3 tests/run_unit_tests.py
+```
+
+カバレッジ計測:
+
+```bash
+coverage run --branch tests/run_unit_tests.py
+coverage report -m --omit='tests/*'
 ```
 
 ## 📜 ライセンス
