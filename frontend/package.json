@@ -2,6 +2,7 @@
   "name": "frontend",
   "private": true,
   "version": "0.0.0",
+  "description": "React + TypeScript frontend for Yorozu Madoguchi, an AI-assisted travel planning web app.",
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
