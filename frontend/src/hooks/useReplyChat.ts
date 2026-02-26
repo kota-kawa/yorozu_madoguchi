@@ -116,7 +116,7 @@ export const useReplyChat = () => {
      * EN: Declare the userMessage value.
      * JP: userMessage の値を宣言する。
      */
-    const userMessage = { id: `user-${Date.now()}`, sender: 'user', text: trimmed }
+    const userMessage: ChatMessage = { id: `user-${Date.now()}`, sender: 'user', text: trimmed }
     /**
      * EN: Declare the botMessageId value.
      * JP: botMessageId の値を宣言する。
@@ -126,7 +126,7 @@ export const useReplyChat = () => {
      * EN: Declare the botMessage value.
      * JP: botMessage の値を宣言する。
      */
-    const botMessage = {
+    const botMessage: ChatMessage = {
       id: botMessageId,
       sender: 'bot',
       text: '考えています',

@@ -32,3 +32,6 @@ No_Use/
 # ビルドディレクトリを無視
 /build/
 __pycache__/
+.coverage
+coverage.xml
+frontend/node_modules_root_backup/

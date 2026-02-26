@@ -1,5 +1,5 @@
-# ベースイメージとして軽量な Python 3.9-slim を使用
-FROM python:3.9-slim
+# ベースイメージとして軽量な Python 3.12-slim を使用
+FROM python:3.12-slim
 
 # uv を公式イメージからコピー
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv

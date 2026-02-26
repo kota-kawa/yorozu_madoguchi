@@ -24,7 +24,7 @@ jobs:
           errors = []
 
           for path in pathlib.Path('.').rglob('*.py'):
-              if any(part in skip_dirs for path in path.parts):
+              if any(part in skip_dirs for part in path.parts):
                   continue
               try:
                   source = path.read_text(encoding='utf-8')
@@ -81,6 +81,8 @@ jobs:
         run: npm ci
       - name: Run TypeScript syntax check
         run: npx tsc --noEmit
+      - name: Build frontend production bundle
+        run: npm run build
 
   frontend-lint:
     runs-on: ubuntu-latest
@@ -112,9 +114,20 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
+          script_stop: true
           script: |
+            set -euo pipefail
+
             # プロジェクトディレクトリに移動
             cd /var/www/yorozu_madoguchi
+
+            PREV_COMMIT="$(git rev-parse HEAD)"
+            rollback() {
+              echo "Deploy failed. Rolling back to ${PREV_COMMIT}"
+              git reset --hard "${PREV_COMMIT}"
+              docker compose up -d --build || true
+            }
+            trap rollback ERR
             
             # 最新のmainブランチを取得
             git fetch origin main
@@ -128,6 +141,37 @@ jobs:
             
             # コンテナのビルドと再起動
             docker compose up -d --build
+
+            # サービスの起動状態を確認
+            docker compose ps
+            for service in web frontend db redis; do
+              cid="$(docker compose ps -q "${service}")"
+              if [ -z "${cid}" ]; then
+                echo "Service ${service} container is missing."
+                exit 1
+              fi
+
+              retries=30
+              while [ "${retries}" -gt 0 ]; do
+                status="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "${cid}")"
+                if [ "${status}" = "healthy" ] || [ "${status}" = "running" ]; then
+                  echo "Service ${service} is ${status}"
+                  break
+                fi
+                if [ "${status}" = "unhealthy" ] || [ "${status}" = "exited" ] || [ "${status}" = "dead" ]; then
+                  echo "Service ${service} is ${status}"
+                  exit 1
+                fi
+                sleep 2
+                retries=$((retries - 1))
+              done
+
+              if [ "${retries}" -eq 0 ]; then
+                echo "Timed out waiting for service ${service} to become ready."
+                exit 1
+              fi
+            done
             
             # 古いイメージの削除
             docker image prune -f
+            trap - ERR
