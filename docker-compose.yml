@@ -9,25 +9,21 @@ services:
       - TOKENIZERS_PARALLELISM=false
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - REDIS_URL=redis://redis:6379/0
-    # 必要に応じてボリュームマウント（例: ローカルのコード変更を反映させる場合）
-    volumes:
-      - .:/app
     depends_on:
       - db
       - redis
 
   frontend:
-    image: node:22-slim
-    working_dir: /app
-    volumes:
-      - ./frontend:/app
-    command: sh -c "npm install && npm run dev -- --host"
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE=${VITE_API_BASE:-}
+        - VITE_BACKEND_ORIGIN=${VITE_BACKEND_ORIGIN:-http://web:5003}
     ports:
-      - "5173:5173"
+      - "5173:80"
     environment:
       - VITE_BACKEND_ORIGIN=${VITE_BACKEND_ORIGIN:-http://web:5003}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
       - web
 
