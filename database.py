@@ -98,7 +98,6 @@ def init_db() -> None:
                 logger.error("Could not connect to database after multiple attempts.")
                 raise e
 
-
 def _ensure_reservation_schema(connection) -> None:
     """
     reservation_plansテーブルのスキーマを確認し、必要なカラムを追加する
