@@ -41,6 +41,28 @@ A glimpse of planning a trip together with the user. Click a thumbnail to open t
 - **Data**: PostgreSQL, Redis
 - **Infra**: Docker, Docker Compose
 
+## 🏗️ Architecture
+
+```mermaid
+flowchart LR
+    U[User Browser]
+
+    subgraph DC[Docker Compose]
+        FE[Frontend<br/>React + Vite]
+        API[Backend API<br/>Flask]
+        PG[(PostgreSQL)]
+        RD[(Redis)]
+    end
+
+    LLM[Groq API]
+
+    U -->|HTTPS| FE
+    FE -->|/api/*| API
+    API --> PG
+    API --> RD
+    API -->|LLM calls| LLM
+```
+
 ## ▶️ Quick Start (Docker Compose only)
 
 > **Prerequisites:** Docker Desktop (or Docker Engine + Docker Compose plugin)
@@ -122,6 +144,28 @@ Apache License 2.0. See `LICENSE` for details.
 - **バックエンド**: Python (Flask)
 - **データ基盤**: PostgreSQL, Redis
 - **インフラ**: Docker, Docker Compose
+
+## 🏗️ アーキテクチャ
+
+```mermaid
+flowchart LR
+    U[ユーザーのブラウザ]
+
+    subgraph DC[Docker Compose]
+        FE[フロントエンド<br/>React + Vite]
+        API[バックエンド API<br/>Flask]
+        PG[(PostgreSQL)]
+        RD[(Redis)]
+    end
+
+    LLM[Groq API]
+
+    U -->|HTTPS| FE
+    FE -->|/api/*| API
+    API --> PG
+    API --> RD
+    API -->|LLM 呼び出し| LLM
+```
 
 ## ▶️ 実行方法（Docker Composeで一本化）
 
