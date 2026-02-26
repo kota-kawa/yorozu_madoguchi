@@ -1,6 +1,14 @@
+/**
+ * EN: Provide the InfoPanel module implementation.
+ * JP: InfoPanel モジュールの実装を定義する。
+ */
 import { createPortal } from 'react-dom'
 import './UI.css'
 
+/**
+ * EN: Define the InfoPanelProps type alias.
+ * JP: InfoPanelProps 型エイリアスを定義する。
+ */
 type InfoPanelProps = {
   isOpen: boolean
   samples: string[]
@@ -8,6 +16,10 @@ type InfoPanelProps = {
   onClose: () => void
 }
 
+/**
+ * EN: Declare the InfoPanel value.
+ * JP: InfoPanel の値を宣言する。
+ */
 const InfoPanel = ({ isOpen, samples, onSelect, onClose }: InfoPanelProps) => {
   if (!isOpen) return null
 

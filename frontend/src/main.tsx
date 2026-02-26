@@ -1,3 +1,7 @@
+/**
+ * EN: Provide the main module implementation.
+ * JP: main モジュールの実装を定義する。
+ */
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'

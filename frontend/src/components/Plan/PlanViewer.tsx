@@ -1,7 +1,15 @@
+/**
+ * EN: Provide the PlanViewer module implementation.
+ * JP: PlanViewer モジュールの実装を定義する。
+ */
 import { useMemo, useRef, useState } from 'react'
 import html2canvas from 'html2canvas'
 import './Plan.css'
 
+/**
+ * EN: Define the PlanViewerProps type alias.
+ * JP: PlanViewerProps 型エイリアスを定義する。
+ */
 type PlanViewerProps = {
   plan: string
   isSubmitting?: boolean
@@ -10,6 +18,10 @@ type PlanViewerProps = {
   className?: string
 }
 
+/**
+ * EN: Declare the PlanViewer value.
+ * JP: PlanViewer の値を宣言する。
+ */
 const PlanViewer = ({
   plan,
   isSubmitting = false,
@@ -19,23 +31,51 @@ const PlanViewer = ({
 }: PlanViewerProps) => {
   const [showSummary, setShowSummary] = useState(false)
   const [actionMessage, setActionMessage] = useState('')
+  /**
+   * EN: Declare the decisionCardRef value.
+   * JP: decisionCardRef の値を宣言する。
+   */
   const decisionCardRef = useRef<HTMLDivElement | null>(null)
+  /**
+   * EN: Declare the planLines value.
+   * JP: planLines の値を宣言する。
+   */
   const planLines = useMemo(
     () => {
       if (!plan) return []
       // Replace <br> or <br/> tags with newlines to ensure correct splitting
+      /**
+       * EN: Declare the sanitizedPlan value.
+       * JP: sanitizedPlan の値を宣言する。
+       */
       const sanitizedPlan = plan.replace(/<br\s*\/?>/gi, '\n')
       return sanitizedPlan.split('\n').map((line) => line.trim()).filter(Boolean)
     },
     [plan]
   )
 
+  /**
+   * EN: Declare the resetActionMessage value.
+   * JP: resetActionMessage の値を宣言する。
+   */
   const resetActionMessage = () => {
     setActionMessage('')
   }
 
+  /**
+   * EN: Declare the downloadBlob value.
+   * JP: downloadBlob の値を宣言する。
+   */
   const downloadBlob = (blob: Blob, filename: string) => {
+    /**
+     * EN: Declare the url value.
+     * JP: url の値を宣言する。
+     */
     const url = URL.createObjectURL(blob)
+    /**
+     * EN: Declare the link value.
+     * JP: link の値を宣言する。
+     */
     const link = document.createElement('a')
     link.href = url
     link.download = filename
@@ -45,12 +85,28 @@ const PlanViewer = ({
     URL.revokeObjectURL(url)
   }
 
+  /**
+   * EN: Declare the formatTimestamp value.
+   * JP: formatTimestamp の値を宣言する。
+   */
   const formatTimestamp = () => {
+    /**
+     * EN: Declare the now value.
+     * JP: now の値を宣言する。
+     */
     const now = new Date()
+    /**
+     * EN: Declare the pad value.
+     * JP: pad の値を宣言する。
+     */
     const pad = (value: number) => String(value).padStart(2, '0')
     return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
   }
 
+  /**
+   * EN: Declare the handleDecide value.
+   * JP: handleDecide の値を宣言する。
+   */
   const handleDecide = () => {
     if (!plan || isSubmitting) {
       return
@@ -60,13 +116,25 @@ const PlanViewer = ({
     onSubmit?.()
   }
 
+  /**
+   * EN: Declare the handleSaveImage value.
+   * JP: handleSaveImage の値を宣言する。
+   */
   const handleSaveImage = async () => {
     if (!decisionCardRef.current) return
     try {
+      /**
+       * EN: Declare the canvas value.
+       * JP: canvas の値を宣言する。
+       */
       const canvas = await html2canvas(decisionCardRef.current, {
         backgroundColor: '#ffffff',
         scale: 2
       })
+      /**
+       * EN: Declare the blob value.
+       * JP: blob の値を宣言する。
+       */
       const blob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob(resolve, 'image/png'),
       )
@@ -81,9 +149,21 @@ const PlanViewer = ({
     }
   }
 
+  /**
+   * EN: Declare the handleSaveText value.
+   * JP: handleSaveText の値を宣言する。
+   */
   const handleSaveText = () => {
     try {
+      /**
+       * EN: Declare the text value.
+       * JP: text の値を宣言する。
+       */
       const text = planLines.join('\n')
+      /**
+       * EN: Declare the blob value.
+       * JP: blob の値を宣言する。
+       */
       const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
       downloadBlob(blob, `decision-summary-${formatTimestamp()}.txt`)
       setActionMessage('テキストとして保存しました。')
@@ -93,12 +173,24 @@ const PlanViewer = ({
     }
   }
 
+  /**
+   * EN: Declare the handleCopy value.
+   * JP: handleCopy の値を宣言する。
+   */
   const handleCopy = async () => {
     try {
+      /**
+       * EN: Declare the text value.
+       * JP: text の値を宣言する。
+       */
       const text = planLines.join('\n')
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(text)
       } else {
+        /**
+         * EN: Declare the textarea value.
+         * JP: textarea の値を宣言する。
+         */
         const textarea = document.createElement('textarea')
         textarea.value = text
         textarea.style.position = 'fixed'

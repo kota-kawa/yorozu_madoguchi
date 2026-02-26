@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+"""
+EN: Provide the run unit tests module implementation.
+JP: run_unit_tests モジュールの実装を定義する。
+"""
 import os
 import pathlib
 import sys
@@ -13,6 +17,10 @@ if str(ROOT_DIR) not in sys.path:
 
 
 def _iter_test_cases(suite: unittest.TestSuite):
+    """
+    EN: Execute iter test cases processing.
+    JP: _iter_test_cases の処理を実行する。
+    """
     for item in suite:
         if isinstance(item, unittest.TestSuite):
             yield from _iter_test_cases(item)
@@ -21,6 +29,10 @@ def _iter_test_cases(suite: unittest.TestSuite):
 
 
 def _build_unit_suite() -> unittest.TestSuite:
+    """
+    EN: Execute build unit suite processing.
+    JP: _build_unit_suite の処理を実行する。
+    """
     loader = unittest.TestLoader()
     discovered = loader.discover(start_dir=str(TESTS_DIR), pattern="test_*.py")
 
@@ -35,6 +47,10 @@ def _build_unit_suite() -> unittest.TestSuite:
 
 def main() -> int:
     # Reservation-related unit tests import database.py.
+    """
+    EN: Run the main entrypoint flow.
+    JP: メインの実行フローを開始する。
+    """
     os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
 
     suite = _build_unit_suite()

@@ -1,11 +1,23 @@
+/**
+ * EN: Provide the usePlan module implementation.
+ * JP: usePlan モジュールの実装を定義する。
+ */
 import { useState } from 'react'
 import { apiUrl } from '../utils/apiBase'
 import type { PlanSummaryResponse } from '../types/api'
 
+/**
+ * EN: Declare the usePlan value.
+ * JP: usePlan の値を宣言する。
+ */
 export const usePlan = (addSystemMessage: (text: string) => void) => {
   const [currentPlan, setCurrentPlan] = useState('')
   const [submittingPlan, setSubmittingPlan] = useState(false)
 
+  /**
+   * EN: Declare the submitPlan value.
+   * JP: submitPlan の値を宣言する。
+   */
   const submitPlan = async () => {
     if (!currentPlan?.trim()) {
       return
@@ -13,6 +25,10 @@ export const usePlan = (addSystemMessage: (text: string) => void) => {
 
     setSubmittingPlan(true)
     try {
+      /**
+       * EN: Declare the response value.
+       * JP: response の値を宣言する。
+       */
       const response = await fetch(apiUrl('/travel_submit_plan'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -26,6 +42,10 @@ export const usePlan = (addSystemMessage: (text: string) => void) => {
 
       let summary: PlanSummaryResponse | null = null
       try {
+        /**
+         * EN: Declare the summaryResponse value.
+         * JP: summaryResponse の値を宣言する。
+         */
         const summaryResponse = await fetch(apiUrl('/complete'), {
           headers: { Accept: 'application/json' },
           credentials: 'include',

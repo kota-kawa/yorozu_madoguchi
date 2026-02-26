@@ -1,6 +1,14 @@
+/**
+ * EN: Provide the vite.config module implementation.
+ * JP: vite.config モジュールの実装を定義する。
+ */
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+/**
+ * EN: Declare the backendTarget value.
+ * JP: backendTarget の値を宣言する。
+ */
 const backendTarget = process.env.VITE_BACKEND_ORIGIN || 'http://localhost:5000'
 
 // https://vite.dev/config/

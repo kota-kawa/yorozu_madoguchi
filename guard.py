@@ -35,6 +35,10 @@ Return JSON only, exactly with these keys:
 
 
 def _load_guard_policy() -> str:
+    """
+    EN: Execute load guard policy processing.
+    JP: _load_guard_policy の処理を実行する。
+    """
     policy_path = os.getenv("GROQ_GUARD_POLICY_PATH")
     if policy_path:
         try:
@@ -53,6 +57,10 @@ def _load_guard_policy() -> str:
 
 
 def _try_parse_json(text: str) -> Optional[Dict[str, Any]]:
+    """
+    EN: Execute try parse json processing.
+    JP: _try_parse_json の処理を実行する。
+    """
     if not text:
         return None
     text = text.strip()
@@ -72,6 +80,10 @@ def _try_parse_json(text: str) -> Optional[Dict[str, Any]]:
 
 
 def _normalize_guard_result(raw: str) -> str:
+    """
+    EN: Execute normalize guard result processing.
+    JP: _normalize_guard_result の処理を実行する。
+    """
     parsed = _try_parse_json(raw)
     if isinstance(parsed, dict):
         verdict = str(parsed.get("verdict", "")).strip().lower()

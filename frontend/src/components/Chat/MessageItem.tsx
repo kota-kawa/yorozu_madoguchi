@@ -1,3 +1,7 @@
+/**
+ * EN: Provide the MessageItem module implementation.
+ * JP: MessageItem モジュールの実装を定義する。
+ */
 import { useEffect, useRef, memo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -5,6 +9,10 @@ import rehypeRaw from 'rehype-raw'
 import './Chat.css'
 import type { ChatMessage } from '../../types/chat'
 
+/**
+ * EN: Define the MessageItemProps type alias.
+ * JP: MessageItemProps 型エイリアスを定義する。
+ */
 type MessageItemProps = {
   message: ChatMessage
   onYesNo: (value: string) => void
@@ -13,9 +21,21 @@ type MessageItemProps = {
   scrollToBottom: (behavior?: ScrollBehavior) => void
 }
 
+/**
+ * EN: Declare the MessageItem value.
+ * JP: MessageItem の値を宣言する。
+ */
 const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }: MessageItemProps) => {
+  /**
+   * EN: Declare the dateRef value.
+   * JP: dateRef の値を宣言する。
+   */
   const dateRef = useRef<HTMLInputElement | null>(null)
 
+  /**
+   * EN: Declare the scrollRafRef value.
+   * JP: scrollRafRef の値を宣言する。
+   */
   const scrollRafRef = useRef<number | null>(null)
 
   useEffect(() => {
@@ -37,10 +57,22 @@ const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }
     }
   }, [message.text, isLast, scrollToBottom])
 
+  /**
+   * EN: Declare the handleDateSubmit value.
+   * JP: handleDateSubmit の値を宣言する。
+   */
   const handleDateSubmit = () => {
     if (dateRef.current?.value) {
+      /**
+       * EN: Declare the date value.
+       * JP: date の値を宣言する。
+       */
       const date = dateRef.current.value
       const [year, month, day] = date.split('-')
+      /**
+       * EN: Declare the formattedDate value.
+       * JP: formattedDate の値を宣言する。
+       */
       const formattedDate = `${year}年${Number(month)}月${Number(day)}日`
       onYesNo(formattedDate)
     }

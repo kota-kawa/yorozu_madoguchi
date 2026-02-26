@@ -17,6 +17,10 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 
 def _env_float(name: str, default: float) -> float:
+    """
+    EN: Execute env float processing.
+    JP: _env_float の処理を実行する。
+    """
     raw = os.getenv(name, str(default)).strip()
     try:
         return float(raw)
@@ -25,6 +29,10 @@ def _env_float(name: str, default: float) -> float:
 
 
 def _env_int(name: str, default: int) -> int:
+    """
+    EN: Execute env int processing.
+    JP: _env_int の処理を実行する。
+    """
     raw = os.getenv(name, str(default)).strip()
     try:
         return int(raw)
@@ -33,6 +41,10 @@ def _env_int(name: str, default: int) -> int:
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
+    """
+    EN: Execute env bool processing.
+    JP: _env_bool の処理を実行する。
+    """
     raw = os.getenv(name)
     if raw is None:
         return default
@@ -67,21 +79,37 @@ _memory_store: Dict[str, Tuple[str, Optional[float]]] = {}
 
 
 def _should_use_fallback() -> bool:
+    """
+    EN: Execute should use fallback processing.
+    JP: _should_use_fallback の処理を実行する。
+    """
     if REDIS_FAIL_FAST:
         return False
     return REDIS_ALLOW_FALLBACK
 
 
 def _supports_ping(client: Any) -> bool:
+    """
+    EN: Execute supports ping processing.
+    JP: _supports_ping の処理を実行する。
+    """
     return hasattr(client, "ping") and callable(getattr(client, "ping"))
 
 
 def _ping_if_available(client: Any) -> None:
+    """
+    EN: Execute ping if available processing.
+    JP: _ping_if_available の処理を実行する。
+    """
     if _supports_ping(client):
         client.ping()
 
 
 def _fail_fast(reason: str, err: Optional[Exception] = None) -> None:
+    """
+    EN: Execute fail fast processing.
+    JP: _fail_fast の処理を実行する。
+    """
     if not REDIS_FAIL_FAST:
         return
     if err is not None:
@@ -92,6 +120,10 @@ def _fail_fast(reason: str, err: Optional[Exception] = None) -> None:
 
 
 def _create_redis_client() -> Optional[Any]:
+    """
+    EN: Execute create redis client processing.
+    JP: _create_redis_client の処理を実行する。
+    """
     try:
         client = redis.from_url(
             REDIS_URL,
@@ -109,6 +141,10 @@ def _create_redis_client() -> Optional[Any]:
 
 
 def _connect_with_retries() -> Optional[Any]:
+    """
+    EN: Execute connect with retries processing.
+    JP: _connect_with_retries の処理を実行する。
+    """
     retries = max(1, REDIS_RECONNECT_RETRIES)
     delay = max(0.0, REDIS_RECONNECT_INITIAL_DELAY_SECONDS)
 
@@ -125,12 +161,20 @@ def _connect_with_retries() -> Optional[Any]:
 
 
 def _health_check_due(now: float) -> bool:
+    """
+    EN: Execute health check due processing.
+    JP: _health_check_due の処理を実行する。
+    """
     if REDIS_HEALTH_CHECK_INTERVAL <= 0:
         return False
     return now - _last_health_check >= REDIS_HEALTH_CHECK_INTERVAL
 
 
 def _mark_unhealthy(reason: str, err: Optional[Exception] = None) -> None:
+    """
+    EN: Execute mark unhealthy processing.
+    JP: _mark_unhealthy の処理を実行する。
+    """
     global redis_client, _last_health_check
     if err is not None:
         logger.error("Redis %s failed: %s", reason, err, exc_info=True)
@@ -143,6 +187,10 @@ def _mark_unhealthy(reason: str, err: Optional[Exception] = None) -> None:
 
 
 def get_redis_client() -> Optional[Any]:
+    """
+    EN: Execute get redis client processing.
+    JP: get_redis_client の処理を実行する。
+    """
     global redis_client, _last_health_check, _last_reconnect_attempt
     now = time.time()
 
@@ -176,12 +224,20 @@ def get_redis_client() -> Optional[Any]:
 
 
 def _memory_set(key: str, value: str) -> None:
+    """
+    EN: Execute memory set processing.
+    JP: _memory_set の処理を実行する。
+    """
     ttl = REDIS_SESSION_TTL_SECONDS if REDIS_SESSION_TTL_SECONDS > 0 else None
     expires_at = time.time() + ttl if ttl else None
     _memory_store[key] = (value, expires_at)
 
 
 def _memory_get(key: str) -> Optional[str]:
+    """
+    EN: Execute memory get processing.
+    JP: _memory_get の処理を実行する。
+    """
     item = _memory_store.get(key)
     if not item:
         return None
@@ -193,6 +249,10 @@ def _memory_get(key: str) -> Optional[str]:
 
 
 def _memory_delete(*keys: str) -> None:
+    """
+    EN: Execute memory delete processing.
+    JP: _memory_delete の処理を実行する。
+    """
     for key in keys:
         _memory_store.pop(key, None)
 

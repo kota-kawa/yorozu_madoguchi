@@ -1,3 +1,7 @@
+/**
+ * EN: Provide the App module implementation.
+ * JP: App モジュールの実装を定義する。
+ */
 import './App.css'
 import { Route, Routes } from 'react-router-dom'
 import TravelPage from './pages/TravelPage'
@@ -8,6 +12,10 @@ import StudyPage from './pages/StudyPage'
 import CompletePage from './pages/CompletePage'
 import UserTypeGate from './components/UserTypeGate/UserTypeGate'
 
+/**
+ * EN: Declare the App value.
+ * JP: App の値を宣言する。
+ */
 const App = () => {
   return (
     <UserTypeGate>

@@ -1,3 +1,7 @@
+"""
+EN: Provide the test limit manager module implementation.
+JP: test_limit_manager モジュールの実装を定義する。
+"""
 import sys
 import types
 import unittest
@@ -8,10 +12,22 @@ import limit_manager
 
 
 class FakeRedis:
+    """
+    EN: Define the FakeRedis class.
+    JP: FakeRedis クラスを定義する。
+    """
     def __init__(self):
+        """
+        EN: Initialize instance state.
+        JP: インスタンスの状態を初期化する。
+        """
         self.store = {}
 
     def eval(self, _script, _numkeys, *args):
+        """
+        EN: Execute eval processing.
+        JP: eval の処理を実行する。
+        """
         user_key = args[0]
         total_key = args[1]
         user_limit = int(args[2])
@@ -32,14 +48,30 @@ class FakeRedis:
         return user_val
 
     def get(self, key):
+        """
+        EN: Execute get processing.
+        JP: get の処理を実行する。
+        """
         return self.store.get(key)
 
     def set(self, key, value):
+        """
+        EN: Execute set processing.
+        JP: set の処理を実行する。
+        """
         self.store[key] = value
 
 
 class LimitManagerTests(unittest.TestCase):
+    """
+    EN: Define LimitManagerTests test cases.
+    JP: LimitManagerTests のテストケースを定義する。
+    """
     def setUp(self):
+        """
+        EN: Prepare test fixtures.
+        JP: テストの前提データを準備する。
+        """
         self.original_user_limits = dict(limit_manager.USER_TYPE_LIMITS)
         self.original_total_limit = limit_manager.TOTAL_DAILY_LIMIT
         import redis_client as redis_module
@@ -52,11 +84,19 @@ class LimitManagerTests(unittest.TestCase):
         limit_manager.TOTAL_DAILY_LIMIT = 3
 
     def tearDown(self):
+        """
+        EN: Clean up test fixtures.
+        JP: テスト後の状態をクリーンアップする。
+        """
         limit_manager.USER_TYPE_LIMITS = self.original_user_limits
         limit_manager.TOTAL_DAILY_LIMIT = self.original_total_limit
         self.redis_module.redis_client = self.original_redis_module_client
 
     def test_user_limit_enforced(self):
+        """
+        EN: Test user limit enforced behavior.
+        JP: user limit enforced の挙動を検証するテスト。
+        """
         allowed, count, limit, user_type, total_exceeded, error_code = limit_manager.check_and_increment_limit(
             "session-a",
             user_type="normal",
@@ -87,6 +127,10 @@ class LimitManagerTests(unittest.TestCase):
         self.assertIsNone(error_code)
 
     def test_total_limit_enforced(self):
+        """
+        EN: Test total limit enforced behavior.
+        JP: total limit enforced の挙動を検証するテスト。
+        """
         for index in range(3):
             allowed, count, limit, user_type, total_exceeded, error_code = limit_manager.check_and_increment_limit(
                 f"session-{index}",
@@ -105,6 +149,10 @@ class LimitManagerTests(unittest.TestCase):
         self.assertIsNone(error_code)
 
     def test_user_type_required(self):
+        """
+        EN: Test user type required behavior.
+        JP: user type required の挙動を検証するテスト。
+        """
         allowed, count, limit, user_type, total_exceeded, error_code = limit_manager.check_and_increment_limit(
             "session-missing"
         )

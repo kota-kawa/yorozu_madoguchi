@@ -1,3 +1,7 @@
+/**
+ * EN: Provide the TravelPage module implementation.
+ * JP: TravelPage モジュールの実装を定義する。
+ */
 import { useEffect, useState } from 'react'
 import type { FormEvent, KeyboardEvent, UIEvent } from 'react'
 import Header from '../components/Header/Header'
@@ -9,6 +13,10 @@ import ChatInput from '../components/Chat/ChatInput'
 import { useChat } from '../hooks/useChat'
 import { usePlan } from '../hooks/usePlan'
 
+/**
+ * EN: Declare the SAMPLE_PROMPTS value.
+ * JP: SAMPLE_PROMPTS の値を宣言する。
+ */
 const SAMPLE_PROMPTS = [
   'どこに行くのがおすすめ？',
   'どんな有名スポットがある？',
@@ -16,6 +24,10 @@ const SAMPLE_PROMPTS = [
   'ご飯に行くならどこ？',
 ]
 
+/**
+ * EN: Declare the TravelPage value.
+ * JP: TravelPage の値を宣言する。
+ */
 const TravelPage = () => {
   const [input, setInput] = useState('')
   const [infoOpen, setInfoOpen] = useState(false)
@@ -47,12 +59,28 @@ const TravelPage = () => {
     }
   }, [planFromChat, setCurrentPlan, activeTab])
 
+  /**
+   * EN: Declare the handleScroll value.
+   * JP: handleScroll の値を宣言する。
+   */
   const handleScroll = (event: UIEvent<HTMLDivElement>) => {
+    /**
+     * EN: Declare the target value.
+     * JP: target の値を宣言する。
+     */
     const target = event.currentTarget
+    /**
+     * EN: Declare the isAtBottom value.
+     * JP: isAtBottom の値を宣言する。
+     */
     const isAtBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 10
     setAutoScroll(isAtBottom)
   }
 
+  /**
+   * EN: Declare the handleKeyDown value.
+   * JP: handleKeyDown の値を宣言する。
+   */
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
@@ -60,6 +88,10 @@ const TravelPage = () => {
     }
   }
 
+  /**
+   * EN: Declare the handleSubmit value.
+   * JP: handleSubmit の値を宣言する。
+   */
   const handleSubmit = (
     event: FormEvent<HTMLFormElement> | KeyboardEvent<HTMLTextAreaElement>,
   ) => {
@@ -70,6 +102,10 @@ const TravelPage = () => {
     setInput('')
   }
 
+  /**
+   * EN: Declare the isLoading value.
+   * JP: isLoading の値を宣言する。
+   */
   const isLoading = chatLoading || submittingPlan
 
   return (

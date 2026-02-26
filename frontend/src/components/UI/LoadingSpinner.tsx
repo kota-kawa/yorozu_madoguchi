@@ -1,10 +1,22 @@
+/**
+ * EN: Provide the LoadingSpinner module implementation.
+ * JP: LoadingSpinner モジュールの実装を定義する。
+ */
 import './UI.css'
 
+/**
+ * EN: Define the LoadingSpinnerProps type alias.
+ * JP: LoadingSpinnerProps 型エイリアスを定義する。
+ */
 type LoadingSpinnerProps = {
   visible: boolean
   variant?: 'overlay' | 'inline'
 }
 
+/**
+ * EN: Declare the LoadingSpinner value.
+ * JP: LoadingSpinner の値を宣言する。
+ */
 const LoadingSpinner = ({ visible, variant = 'overlay' }: LoadingSpinnerProps) => {
   if (!visible) return null
 

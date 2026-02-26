@@ -1,5 +1,13 @@
+/**
+ * EN: Provide the streamHelper module implementation.
+ * JP: streamHelper モジュールの実装を定義する。
+ */
 import type { WorkerInputMessage, WorkerOutputMessage } from '../types/worker'
 
+/**
+ * EN: Declare the streamWithWorker value.
+ * JP: streamWithWorker の値を宣言する。
+ */
 export const streamWithWorker = (
   worker: Worker,
   text: string,
@@ -8,6 +16,10 @@ export const streamWithWorker = (
 ): void => {
   let isCompleted = false
 
+  /**
+   * EN: Declare the finalize value.
+   * JP: finalize の値を宣言する。
+   */
   const finalize = () => {
     if (isCompleted) return
     isCompleted = true
