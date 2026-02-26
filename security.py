@@ -4,12 +4,14 @@ Security helpers for CORS, CSRF, CSP, and cookie settings.
 """
 
 import os
+import logging
 from typing import Any, Dict, List
 from urllib.parse import urlparse
 from flask import Request, Response
 
 
 DEFAULT_ALLOWED_ORIGINS = ("https://chat.project-kk.com", "http://localhost:5173")
+logger = logging.getLogger(__name__)
 
 
 def get_allowed_origins() -> List[str]:
@@ -100,7 +102,17 @@ def cookie_settings(request: Request) -> Dict[str, Any]:
     HttpOnly, SameSite, Secure などのセキュリティ属性を設定します。
     Includes HttpOnly, SameSite, Secure, and related attributes.
     """
-    samesite = os.getenv("COOKIE_SAMESITE", "Lax")
+    raw_samesite = os.getenv("COOKIE_SAMESITE", "Lax").strip()
+    normalized_samesite = raw_samesite.lower()
+    if normalized_samesite == "strict":
+        samesite = "Strict"
+    elif normalized_samesite == "none":
+        samesite = "None"
+    elif normalized_samesite == "lax" or not normalized_samesite:
+        samesite = "Lax"
+    else:
+        logger.warning("Invalid COOKIE_SAMESITE value '%s'; falling back to Lax", raw_samesite)
+        samesite = "Lax"
     try:
         max_age = int(os.getenv("SESSION_COOKIE_MAX_AGE", "604800"))
     except ValueError:

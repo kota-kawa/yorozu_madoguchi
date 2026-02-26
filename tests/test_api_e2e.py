@@ -232,6 +232,15 @@ class ApiE2ETests(unittest.TestCase):
         response = self.client.post("/api/user_type", json={"user_type": "invalid"}, headers=headers)
         self.assertEqual(response.status_code, 400)
 
+    def test_api_user_type_rejects_non_string(self):
+        """
+        EN: Test api user type rejects non string behavior.
+        JP: api user type rejects non string の挙動を検証するテスト。
+        """
+        headers = {"Origin": "http://localhost:5173"}
+        response = self.client.post("/api/user_type", json={"user_type": 1}, headers=headers)
+        self.assertEqual(response.status_code, 400)
+
     def test_reply_send_message_success(self):
         """
         EN: Test reply send message success behavior.

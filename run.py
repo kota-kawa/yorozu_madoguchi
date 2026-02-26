@@ -149,8 +149,14 @@ def set_user_type() -> ResponseOrTuple:
         if not security.is_csrf_valid(request):
             return error_response("不正なリクエストです。", status=403)
 
-        data = request.get_json(silent=True) or {}
-        user_type = data.get('user_type', '').strip().lower()
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return error_response("リクエスト形式が正しくありません。", status=400)
+
+        raw_user_type = data.get('user_type', '')
+        if not isinstance(raw_user_type, str):
+            return error_response("ユーザー種別が正しくありません。", status=400)
+        user_type = raw_user_type.strip().lower()
 
         # 入力値のバリデーション
         # Validate input

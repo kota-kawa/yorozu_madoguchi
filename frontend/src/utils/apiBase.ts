@@ -7,11 +7,28 @@
  * JP: apiBase モジュールの実装を定義する。
  */
 const rawBase = (import.meta.env.VITE_API_BASE || '').trim()
+
+/**
+ * EN: Declare the resolveLocalFallbackBase value.
+ * JP: resolveLocalFallbackBase の値を宣言する。
+ */
+const resolveLocalFallbackBase = () => {
+  if (import.meta.env.DEV || typeof window === 'undefined') {
+    return ''
+  }
+
+  const { protocol, hostname } = window.location
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return `${protocol}//${hostname}:5003`
+  }
+
+  return ''
+}
 /**
  * EN: Declare the normalizedBase value.
  * JP: normalizedBase の値を宣言する。
  */
-const normalizedBase = rawBase ? rawBase.replace(/\/+$/, '') : ''
+const normalizedBase = (rawBase || resolveLocalFallbackBase()).replace(/\/+$/, '')
 
 /**
  * EN: Declare the apiUrl value.

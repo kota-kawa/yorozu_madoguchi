@@ -89,6 +89,17 @@ class SecurityTests(unittest.TestCase):
             self.assertTrue(settings["httponly"])
             self.assertEqual(settings["path"], "/")
 
+    def test_cookie_settings_invalid_samesite_falls_back_to_lax(self):
+        """
+        EN: Test cookie settings invalid samesite falls back to lax behavior.
+        JP: cookie settings invalid samesite falls back to lax の挙動を検証するテスト。
+        """
+        os.environ["COOKIE_SAMESITE"] = "invalid"
+        headers = {"Host": "localhost:5173"}
+        with self.app.test_request_context("/", headers=headers):
+            settings = security.cookie_settings(request)
+            self.assertEqual(settings["samesite"], "Lax")
+
     def test_security_headers_applied(self):
         """
         EN: Test security headers applied behavior.
