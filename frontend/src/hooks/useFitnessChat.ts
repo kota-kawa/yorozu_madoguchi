@@ -116,7 +116,7 @@ export const useFitnessChat = () => {
      * EN: Declare the userMessage value.
      * JP: userMessage の値を宣言する。
      */
-    const userMessage = { id: `user-${Date.now()}`, sender: 'user', text: trimmed }
+    const userMessage: ChatMessage = { id: `user-${Date.now()}`, sender: 'user', text: trimmed }
     /**
      * EN: Declare the loadingMessageId value.
      * JP: loadingMessageId の値を宣言する。
@@ -126,7 +126,7 @@ export const useFitnessChat = () => {
      * EN: Declare the loadingMessage value.
      * JP: loadingMessage の値を宣言する。
      */
-    const loadingMessage = {
+    const loadingMessage: ChatMessage = {
       id: loadingMessageId,
       sender: 'bot',
       text: '考えています',
