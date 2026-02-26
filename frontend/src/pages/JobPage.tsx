@@ -1,3 +1,7 @@
+/**
+ * EN: Provide the JobPage module implementation.
+ * JP: JobPage モジュールの実装を定義する。
+ */
 import { useEffect, useState } from 'react'
 import type { FormEvent, KeyboardEvent, UIEvent } from 'react'
 import Header from '../components/Header/Header'
@@ -7,6 +11,10 @@ import MessageList from '../components/Chat/MessageList'
 import ChatInput from '../components/Chat/ChatInput'
 import { useJobChat } from '../hooks/useJobChat'
 
+/**
+ * EN: Declare the SAMPLE_PROMPTS value.
+ * JP: SAMPLE_PROMPTS の値を宣言する。
+ */
 const SAMPLE_PROMPTS = [
   '自己PRを400字で作りたい。強みは継続力。',
   'ESのガクチカを添削してほしい。',
@@ -14,6 +22,10 @@ const SAMPLE_PROMPTS = [
   '面接の想定質問と回答の骨子を作って。',
 ]
 
+/**
+ * EN: Declare the JobPage value.
+ * JP: JobPage の値を宣言する。
+ */
 const JobPage = () => {
   const [input, setInput] = useState('')
   const [infoOpen, setInfoOpen] = useState(false)
@@ -38,12 +50,28 @@ const JobPage = () => {
     }
   }, [planFromChat, activeTab])
 
+  /**
+   * EN: Declare the handleScroll value.
+   * JP: handleScroll の値を宣言する。
+   */
   const handleScroll = (event: UIEvent<HTMLDivElement>) => {
+    /**
+     * EN: Declare the target value.
+     * JP: target の値を宣言する。
+     */
     const target = event.currentTarget
+    /**
+     * EN: Declare the isAtBottom value.
+     * JP: isAtBottom の値を宣言する。
+     */
     const isAtBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 10
     setAutoScroll(isAtBottom)
   }
 
+  /**
+   * EN: Declare the handleKeyDown value.
+   * JP: handleKeyDown の値を宣言する。
+   */
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
@@ -51,6 +79,10 @@ const JobPage = () => {
     }
   }
 
+  /**
+   * EN: Declare the handleSubmit value.
+   * JP: handleSubmit の値を宣言する。
+   */
   const handleSubmit = (
     event: FormEvent<HTMLFormElement> | KeyboardEvent<HTMLTextAreaElement>,
   ) => {

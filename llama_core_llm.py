@@ -57,6 +57,10 @@ def _invoke_chat_completion(
     tool_choice: Optional[str] = None,
     tools: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
+    """
+    EN: Execute invoke chat completion processing.
+    JP: _invoke_chat_completion の処理を実行する。
+    """
     client = get_groq_client()
     payload: Dict[str, Any] = {
         "model": model_name or GROQ_MODEL_NAME,
@@ -90,6 +94,10 @@ PASS_THROUGH_TOOLS = [
 
 
 def _extract_message_content(message: Any) -> str:
+    """
+    EN: Execute extract message content processing.
+    JP: _extract_message_content の処理を実行する。
+    """
     content = getattr(message, "content", None) or ""
     if content:
         return content
@@ -123,6 +131,10 @@ def _invoke_with_tool_retries(
     messages: List[Dict[str, str]],
     model_name: Optional[str] = None,
 ) -> str:
+    """
+    EN: Execute invoke with tool retries processing.
+    JP: _invoke_with_tool_retries の処理を実行する。
+    """
     try:
         return _invoke_chat_completion(messages, model_name=model_name)
     except Exception as e:
@@ -156,6 +168,10 @@ def _invoke_with_tool_retries(
     )
 
 def _is_tool_use_failed(err: Exception) -> bool:
+    """
+    EN: Execute is tool use failed processing.
+    JP: _is_tool_use_failed の処理を実行する。
+    """
     text = f"{err}"
     if "tool_use_failed" in text or "Tool choice is none" in text or "called a tool" in text:
         return True

@@ -1,7 +1,15 @@
+/**
+ * EN: Provide the ChatInput module implementation.
+ * JP: ChatInput モジュールの実装を定義する。
+ */
 import { useState, useRef, useEffect } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import './Chat.css'
 
+/**
+ * EN: Define the ChatInputProps type alias.
+ * JP: ChatInputProps 型エイリアスを定義する。
+ */
 type ChatInputProps = {
   input: string
   onInputChange: (value: string) => void
@@ -11,6 +19,10 @@ type ChatInputProps = {
   disabled: boolean
 }
 
+/**
+ * EN: Declare the ChatInput value.
+ * JP: ChatInput の値を宣言する。
+ */
 const ChatInput = ({
   input,
   onInputChange,
@@ -20,7 +32,15 @@ const ChatInput = ({
   disabled,
 }: ChatInputProps) => {
   const [isListening, setIsListening] = useState(false)
+  /**
+   * EN: Declare the recognitionRef value.
+   * JP: recognitionRef の値を宣言する。
+   */
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
+  /**
+   * EN: Declare the textareaRef value.
+   * JP: textareaRef の値を宣言する。
+   */
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -31,13 +51,25 @@ const ChatInput = ({
   }, [input])
 
   useEffect(() => {
+    /**
+     * EN: Declare the viewport value.
+     * JP: viewport の値を宣言する。
+     */
     const viewport = window.visualViewport
     if (!viewport) {
       document.documentElement.style.setProperty('--keyboard-offset', '0px')
       return
     }
 
+    /**
+     * EN: Declare the updateOffset value.
+     * JP: updateOffset の値を宣言する。
+     */
     const updateOffset = () => {
+      /**
+       * EN: Declare the offset value.
+       * JP: offset の値を宣言する。
+       */
       const offset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
       document.documentElement.style.setProperty('--keyboard-offset', `${offset}px`)
     }
@@ -55,17 +87,33 @@ const ChatInput = ({
 
   useEffect(() => {
     // ブラウザの音声認識APIの互換性チェック
+    /**
+     * EN: Declare the SpeechRecognitionConstructor value.
+     * JP: SpeechRecognitionConstructor の値を宣言する。
+     */
     const SpeechRecognitionConstructor =
       window.SpeechRecognition || window.webkitSpeechRecognition
     if (SpeechRecognitionConstructor) {
+      /**
+       * EN: Declare the recognition value.
+       * JP: recognition の値を宣言する。
+       */
       const recognition = new SpeechRecognitionConstructor()
       recognition.lang = 'ja-JP'
       recognition.continuous = false
       recognition.interimResults = false
 
       recognition.onresult = (event) => {
+        /**
+         * EN: Declare the transcript value.
+         * JP: transcript の値を宣言する。
+         */
         const transcript = event.results[0][0].transcript
         // 既存の入力がある場合はスペースを空けて追記
+        /**
+         * EN: Declare the newValue value.
+         * JP: newValue の値を宣言する。
+         */
         const newValue = input ? `${input} ${transcript}` : transcript
         onInputChange(newValue)
         setIsListening(false)
@@ -84,6 +132,10 @@ const ChatInput = ({
     }
   }, [input, onInputChange])
 
+  /**
+   * EN: Declare the handleMicClick value.
+   * JP: handleMicClick の値を宣言する。
+   */
   const handleMicClick = () => {
     if (!recognitionRef.current) {
       alert('お使いのブラウザは音声入力をサポートしていません。')

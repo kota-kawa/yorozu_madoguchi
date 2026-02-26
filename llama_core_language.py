@@ -23,6 +23,10 @@ from llama_core_constants import (
 # 言語判定・正規化のヘルパー
 # Language detection and normalization helpers
 def _normalize_language_code(language: Optional[str]) -> str:
+    """
+    EN: Execute normalize language code processing.
+    JP: _normalize_language_code の処理を実行する。
+    """
     if not language:
         return DEFAULT_LANGUAGE
     normalized = language.strip().lower().replace("_", "-")
@@ -36,6 +40,10 @@ def _normalize_language_code(language: Optional[str]) -> str:
 
 
 def _detect_language(text: str) -> Optional[str]:
+    """
+    EN: Execute detect language processing.
+    JP: _detect_language の処理を実行する。
+    """
     if not text:
         return None
     if LANGUAGE_JA_RE.search(text):
@@ -46,6 +54,10 @@ def _detect_language(text: str) -> Optional[str]:
 
 
 def _parse_accept_language(header_value: Optional[str]) -> Optional[str]:
+    """
+    EN: Execute parse accept language processing.
+    JP: _parse_accept_language の処理を実行する。
+    """
     if not header_value:
         return None
     parts = [part.strip() for part in header_value.split(",") if part.strip()]
@@ -63,6 +75,10 @@ def resolve_user_language(
     fallback: Optional[str] = None,
     accept_language: Optional[str] = None,
 ) -> str:
+    """
+    EN: Execute resolve user language processing.
+    JP: resolve_user_language の処理を実行する。
+    """
     detected = _detect_language(message)
     if detected:
         return detected
@@ -76,6 +92,10 @@ def resolve_user_language(
 
 
 def _language_instruction(language: str) -> str:
+    """
+    EN: Execute language instruction processing.
+    JP: _language_instruction の処理を実行する。
+    """
     lang = _normalize_language_code(language)
     if lang == "en":
         return "Language: English. Respond only in English."
@@ -83,6 +103,10 @@ def _language_instruction(language: str) -> str:
 
 
 def _decision_language_instruction(language: str) -> str:
+    """
+    EN: Execute decision language instruction processing.
+    JP: _decision_language_instruction の処理を実行する。
+    """
     lang = _normalize_language_code(language)
     if lang == "en":
         return "All item names and values must be in English. Do not mix languages."
@@ -90,26 +114,46 @@ def _decision_language_instruction(language: str) -> str:
 
 
 def _memo_key_for_language(language: str) -> str:
+    """
+    EN: Execute memo key for language processing.
+    JP: _memo_key_for_language の処理を実行する。
+    """
     lang = _normalize_language_code(language)
     return DECISION_MEMO_KEYS_BY_LANGUAGE.get(lang, DECISION_MEMO_KEYS_BY_LANGUAGE["ja"])
 
 
 def _decision_default_message(language: str) -> str:
+    """
+    EN: Execute decision default message processing.
+    JP: _decision_default_message の処理を実行する。
+    """
     lang = _normalize_language_code(language)
     return DECISION_DEFAULT_MESSAGES.get(lang, DECISION_DEFAULT_MESSAGES["ja"])
 
 
 def _decision_error_message(language: str) -> str:
+    """
+    EN: Execute decision error message processing.
+    JP: _decision_error_message の処理を実行する。
+    """
     lang = _normalize_language_code(language)
     return DECISION_ERROR_MESSAGES.get(lang, DECISION_ERROR_MESSAGES["ja"])
 
 
 def _decision_safety_message(language: str) -> str:
+    """
+    EN: Execute decision safety message processing.
+    JP: _decision_safety_message の処理を実行する。
+    """
     lang = _normalize_language_code(language)
     return DECISION_SAFETY_MESSAGES.get(lang, DECISION_SAFETY_MESSAGES["ja"])
 
 
 def _decision_guard_blocked_message(language: str) -> str:
+    """
+    EN: Execute decision guard blocked message processing.
+    JP: _decision_guard_blocked_message の処理を実行する。
+    """
     lang = _normalize_language_code(language)
     return DECISION_GUARD_BLOCKED_MESSAGES.get(lang, DECISION_GUARD_BLOCKED_MESSAGES["ja"])
 

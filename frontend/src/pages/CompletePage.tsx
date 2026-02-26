@@ -1,13 +1,25 @@
+/**
+ * EN: Provide the CompletePage module implementation.
+ * JP: CompletePage モジュールの実装を定義する。
+ */
 import { useEffect, useState } from 'react'
 import Header from '../components/Header/Header'
 import LoadingSpinner from '../components/UI/LoadingSpinner'
 import './CompletePage.css'
 import { apiUrl } from '../utils/apiBase'
 
+/**
+ * EN: Define the ReservationSummaryResponse type alias.
+ * JP: ReservationSummaryResponse 型エイリアスを定義する。
+ */
 type ReservationSummaryResponse = {
   reservation_data?: unknown
 }
 
+/**
+ * EN: Define the ReservationItem type alias.
+ * JP: ReservationItem 型エイリアスを定義する。
+ */
 type ReservationItem = {
   destinations?: string
   departure?: string
@@ -19,15 +31,31 @@ type ReservationItem = {
   end_date?: string
 }
 
+/**
+ * EN: Declare the CompletePage value.
+ * JP: CompletePage の値を宣言する。
+ */
 const CompletePage = () => {
   const [loading, setLoading] = useState(true)
   const [reservationData, setReservationData] = useState<string[]>([])
   const [error, setError] = useState('')
 
   useEffect(() => {
+    /**
+     * EN: Declare the controller value.
+     * JP: controller の値を宣言する。
+     */
     const controller = new AbortController()
+    /**
+     * EN: Declare the fetchSummary value.
+     * JP: fetchSummary の値を宣言する。
+     */
     const fetchSummary = async () => {
       try {
+        /**
+         * EN: Declare the response value.
+         * JP: response の値を宣言する。
+         */
         const response = await fetch(apiUrl('/complete'), {
           headers: { Accept: 'application/json' },
           credentials: 'include',
@@ -38,12 +66,28 @@ const CompletePage = () => {
           throw new Error('予約内容の取得に失敗しました。')
         }
 
+        /**
+         * EN: Declare the data value.
+         * JP: data の値を宣言する。
+         */
         const data = (await response.json()) as ReservationSummaryResponse
+        /**
+         * EN: Declare the items value.
+         * JP: items の値を宣言する。
+         */
         const items = Array.isArray(data?.reservation_data) ? data.reservation_data : []
+        /**
+         * EN: Declare the normalized value.
+         * JP: normalized の値を宣言する。
+         */
         const normalized = items.flatMap((item) => {
           if (typeof item === 'string') return [item]
           if (!item || typeof item !== 'object') return [String(item)]
 
+          /**
+           * EN: Declare the record value.
+           * JP: record の値を宣言する。
+           */
           const record = item as ReservationItem
           const fields: Array<[string, string | undefined]> = [
             ['目的地', record.destinations],
@@ -62,6 +106,10 @@ const CompletePage = () => {
 
         setReservationData(normalized)
       } catch (err) {
+        /**
+         * EN: Declare the isAbort value.
+         * JP: isAbort の値を宣言する。
+         */
         const isAbort = err instanceof DOMException && err.name === 'AbortError'
         if (!isAbort) {
           setError('予約内容の取得に失敗しました。')

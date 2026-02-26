@@ -232,6 +232,10 @@ def complete_plan(session_id: str) -> str:
 
 
 def _parse_reservation_json(content: str) -> ReservationData:
+    """
+    EN: Execute parse reservation json processing.
+    JP: _parse_reservation_json の処理を実行する。
+    """
     try:
         data = json.loads(content)
         if not isinstance(data, dict):
@@ -246,6 +250,10 @@ def _parse_reservation_json(content: str) -> ReservationData:
 
 
 def _extract_json_object(content: str) -> Dict[str, Any]:
+    """
+    EN: Execute extract json object processing.
+    JP: _extract_json_object の処理を実行する。
+    """
     start = content.find("{")
     end = content.rfind("}")
     if start == -1 or end == -1 or end <= start:
