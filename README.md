@@ -12,6 +12,8 @@
 
 **Yorozu Madoguchi** is an AI-assisted travel planning web app where users chat with an assistant and receive personalized itineraries. It is designed to demonstrate end-to-end product thinking: conversational UX, robust backend services, and a modern frontend—all orchestrated with Docker Compose for easy onboarding.
 
+👉 **Try it now: [https://chat.project-kk.com/](https://chat.project-kk.com/)**
+
 ## UI Preview
 
 <p align="center">
@@ -91,6 +93,8 @@ Apache License 2.0. See `LICENSE` for details.
 # 🌟 よろず窓口 (Yorozu Madoguchi)
 
 **「よろず窓口」** は、AIとチャットしながら旅行プランを作成できるWebアプリです。会話形式のUXと、フロントエンド・バックエンド・データ基盤を一体化した構成により、プロダクトとしての完成度と拡張性を意識して設計しています。
+
+👉 **今すぐ試す: [https://chat.project-kk.com/](https://chat.project-kk.com/)**
 
 ## UI プレビュー
 
