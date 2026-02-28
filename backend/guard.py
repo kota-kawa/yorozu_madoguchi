@@ -9,7 +9,7 @@ import logging
 import os
 from typing import Any, Dict, Optional
 
-from groq_openai_client import get_groq_client
+from backend.groq_openai_client import get_groq_client
 
 # .envファイルの読み込み
 # Load variables from .env
@@ -36,8 +36,8 @@ Return JSON only, exactly with these keys:
 
 def _load_guard_policy() -> str:
     """
-    EN: Execute load guard policy processing.
-    JP: _load_guard_policy の処理を実行する。
+    ガードポリシー文を環境変数またはファイルから読み込む
+    Load the guard policy text from environment variables or a file.
     """
     policy_path = os.getenv("GROQ_GUARD_POLICY_PATH")
     if policy_path:
@@ -58,8 +58,8 @@ def _load_guard_policy() -> str:
 
 def _try_parse_json(text: str) -> Optional[Dict[str, Any]]:
     """
-    EN: Execute try parse json processing.
-    JP: _try_parse_json の処理を実行する。
+    文字列からJSONオブジェクトを安全に抽出する
+    Safely parse and extract a JSON object from a text response.
     """
     if not text:
         return None
@@ -81,8 +81,8 @@ def _try_parse_json(text: str) -> Optional[Dict[str, Any]]:
 
 def _normalize_guard_result(raw: str) -> str:
     """
-    EN: Execute normalize guard result processing.
-    JP: _normalize_guard_result の処理を実行する。
+    ガードモデルの応答を safe / unsafe の2値に正規化する
+    Normalize guard-model output into a safe/unsafe verdict.
     """
     parsed = _try_parse_json(raw)
     if isinstance(parsed, dict):

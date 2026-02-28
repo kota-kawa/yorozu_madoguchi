@@ -1,6 +1,6 @@
 """
-フィットネス相談機能のBlueprint実装。
-Blueprint for the fitness consultation feature.
+学習アシスタント機能のBlueprint実装。
+Blueprint for the study assistant feature.
 """
 
 from flask import Blueprint, request, jsonify, redirect, make_response, Response
@@ -9,17 +9,17 @@ import os
 import uuid
 from typing import Tuple, Union
 
-import llama_core
-import limit_manager
-import redis_client
-import security
-from session_request_lock import session_request_lock
+from backend import llama_core
+from backend import limit_manager
+from backend import redis_client
+from backend import security
+from backend.session_request_lock import session_request_lock
 
 logger = logging.getLogger(__name__)
 
-# Blueprintの定義：フィットネス機能に関連するルートをまとめる
-# Blueprint definition for fitness routes
-fitness_bp = Blueprint('fitness', __name__)
+# Blueprintの定義：学習アシスタント機能に関連するルートをまとめる
+# Blueprint definition for study assistant routes
+study_bp = Blueprint('study', __name__)
 
 ResponseOrTuple = Union[Response, Tuple[Response, int]]
 
@@ -28,10 +28,9 @@ def resolve_frontend_url(path: str = "") -> str:
     """
     フロントエンドのURLを動的に解決する
     Resolve the frontend base URL dynamically.
-    
-    リクエストのHostヘッダーを確認し、本番環境、ローカル環境、または環境変数に基づいて
-    適切なフロントエンドのベースURLを返します。
-    Chooses the base URL based on host or environment configuration.
+
+    環境に応じて適切なベースURLを返します。
+    Returns the appropriate base URL depending on the environment.
     """
     host = request.headers.get('Host', '')
     if 'chat.project-kk.com' in host:
@@ -56,43 +55,31 @@ def error_response(message: str, status: int = 400) -> ResponseOrTuple:
     return jsonify({"error": message, "response": message}), status
 
 
-@fitness_bp.route('/fitness')
-def fitness_home() -> Response:
+@study_bp.route('/study')
+def study_home() -> Response:
     """
-    フィットネス機能の初期化エンドポイント
-    Initialize fitness feature and start a new session.
-    
-    新しいセッションIDを発行し、セッションデータをリセットした後、
-    フロントエンドのフィットネス画面へリダイレクトします。
-    Issues a new session ID, resets data, and redirects to the UI.
+    学習アシスタントの初期化エンドポイント
+    Initialize study assistant feature and start a new session.
+
+    新規セッションを作成し、フロントエンドの学習画面へリダイレクトします。
+    Creates a new session and redirects to the UI.
     """
     session_id = str(uuid.uuid4())
     reset_session_data(session_id)
 
-    redirect_url = resolve_frontend_url('/fitness')
+    redirect_url = resolve_frontend_url('/study')
     response = make_response(redirect(redirect_url))
     response.set_cookie('session_id', session_id, **security.cookie_settings(request))
     return response
 
 
-@fitness_bp.route('/fitness_send_message', methods=['POST'])
-def fitness_send_message() -> ResponseOrTuple:
+@study_bp.route('/study_send_message', methods=['POST'])
+def study_send_message() -> ResponseOrTuple:
     """
-    フィットネスチャットのメッセージ処理エンドポイント
-    Handle fitness chat messages.
-    
-    1. CSRFチェックとセッション検証
-    2. 利用制限（レートリミット）の確認とカウント更新
-    3. 入力メッセージの検証（空文字、文字数制限）
-    4. LLM（llama_core）への問い合わせと応答の生成
-    1) CSRF and session validation
-    2) Rate-limit check and increment
-    3) Input validation (empty/length)
-    4) LLM call and response generation
+    学習アシスタントのメッセージ処理エンドポイント
+    Handle study assistant chat messages.
     """
     try:
-        # CSRFトークンの検証
-        # Validate CSRF token
         if not security.is_csrf_valid(request):
             return error_response("不正なリクエストです。", status=403)
 
@@ -131,9 +118,6 @@ def fitness_send_message() -> ResponseOrTuple:
             prompt = data.get('message', '')
             if not prompt:
                 return error_response("メッセージを入力してください。", status=400)
-
-            # 文字数制限チェック
-            # Enforce message length limit
             if len(prompt) > 3000:
                 return error_response("入力された文字数が3000文字を超えています。短くして再度お試しください。", status=400)
 
@@ -145,13 +129,8 @@ def fitness_send_message() -> ResponseOrTuple:
             )
             redis_client.save_user_language(session_id, language)
 
-            # LLMとの対話実行 (mode="fitness")
-            # Invoke LLM for fitness mode
-            response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text = llama_core.chat_with_llama(
-                session_id,
-                prompt,
-                mode="fitness",
-                language=language,
+            response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text = (
+                llama_core.chat_with_llama(session_id, prompt, mode="study", language=language)
             )
             return jsonify({
                 'response': response,
@@ -162,5 +141,5 @@ def fitness_send_message() -> ResponseOrTuple:
                 'remaining_text': remaining_text
             })
     except Exception as e:
-        logger.error(f"Error in fitness_send_message: {e}", exc_info=True)
+        logger.error(f"Error in study_send_message: {e}", exc_info=True)
         return error_response("サーバー内部でエラーが発生しました。しばらく待ってから再試行してください。", status=500)

@@ -1,6 +1,6 @@
 """
-EN: Provide the test api e2e module implementation.
-JP: test_api_e2e モジュールの実装を定義する。
+主要APIエンドポイントのE2E挙動を検証するテスト。
+E2E tests for the application's main API endpoints.
 """
 import importlib
 import os
@@ -11,85 +11,92 @@ import unittest
 
 class _DummyRedisBackend:
     """
-    EN: Define the _DummyRedisBackend class.
-    JP: _DummyRedisBackend クラスを定義する。
+    テスト用の最小Redisバックエンド（インメモリ）実装。
+    Minimal in-memory Redis backend used for E2E stubbing.
     """
     def __init__(self):
         """
-        EN: Initialize instance state.
-        JP: インスタンスの状態を初期化する。
+        キー値保存用ストアを初期化する
+        Initialize key-value storage for the stub backend.
         """
         self.store = {}
 
     def setex(self, key, _ttl, value):
         """
-        EN: Execute setex processing.
-        JP: setex の処理を実行する。
+        TTL引数付き保存を模倣して値を保存する
+        Store a value while mimicking `setex` signature.
         """
         self.store[key] = value
 
     def set(self, key, value):
         """
-        EN: Execute set processing.
-        JP: set の処理を実行する。
+        値を保存する
+        Store a value.
         """
         self.store[key] = value
 
     def get(self, key):
         """
-        EN: Execute get processing.
-        JP: get の処理を実行する。
+        値を取得する
+        Retrieve a value.
         """
         return self.store.get(key)
 
     def delete(self, *keys):
         """
-        EN: Execute delete processing.
-        JP: delete の処理を実行する。
+        指定キーを削除する
+        Delete one or more keys.
         """
         for key in keys:
             self.store.pop(key, None)
 
     def eval(self, *_args, **_kwargs):
         """
-        EN: Execute eval processing.
-        JP: eval の処理を実行する。
+        レート制限Lua呼び出しを成功扱いで返す
+        Return a success-like value for Lua eval calls.
         """
         return 1
 
 
 class _StubRedisModule:
     """
-    EN: Define the _StubRedisModule class.
-    JP: _StubRedisModule クラスを定義する。
+    APIテスト用に呼び出し履歴を保持するRedisモジュールスタブ。
+    Redis module stub that records calls during API tests.
     """
     def __init__(self):
         """
-        EN: Initialize instance state.
-        JP: インスタンスの状態を初期化する。
+        セッション操作の記録領域を初期化する
+        Initialize storage for recorded session operations.
         """
         self.reset_sessions = []
         self.saved_user_types = {}
+        self.saved_user_languages = {}
 
     def reset_session(self, session_id):
         """
-        EN: Execute reset session processing.
-        JP: reset_session の処理を実行する。
+        リセット対象セッションを記録する
+        Record session IDs passed to reset_session.
         """
         self.reset_sessions.append(session_id)
 
     def save_user_type(self, session_id, user_type):
         """
-        EN: Execute save user type processing.
-        JP: save_user_type の処理を実行する。
+        保存要求されたユーザー種別を記録する
+        Record user types passed to save_user_type.
         """
         self.saved_user_types[session_id] = user_type
+
+    def get_user_language(self, _session_id):
+        return ""
+
+    def save_user_language(self, session_id, language):
+        self.saved_user_languages[session_id] = language
 
 
 class ApiE2ETests(unittest.TestCase):
     """
-    EN: Define ApiE2ETests test cases.
-    JP: ApiE2ETests のテストケースを定義する。
+    Flask APIのCSRF・セッション・正常系を網羅するE2Eテスト群。
+    E2E test cases covering CSRF, session handling, and success paths.
     """
     @classmethod
     def setUpClass(cls):
@@ -97,11 +104,16 @@ class ApiE2ETests(unittest.TestCase):
         EN: Prepare test fixtures.
         JP: テストの前提データを準備する。
         """
-        cls._orig_modules = {name: sys.modules.get(name) for name in ("redis", "llama_core", "reservation")}
+        os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
+        cls._orig_modules = {
+            name: sys.modules.get(name)
+            for name in ("redis", "backend.llama_core", "backend.reservation")
+        }
 
         redis_stub = types.SimpleNamespace(from_url=lambda *args, **kwargs: _DummyRedisBackend())
         llama_stub = types.SimpleNamespace(
-            chat_with_llama=lambda _session_id, _prompt, mode="travel": (
+            resolve_user_language=lambda _message, fallback=None, accept_language=None: fallback or "ja",
+            chat_with_llama=lambda _session_id, _prompt, mode="travel", language=None: (
                 f"{mode}-ok",
                 "plan",
                 None,
@@ -115,10 +127,10 @@ class ApiE2ETests(unittest.TestCase):
         )
 
         sys.modules["redis"] = redis_stub
-        sys.modules["llama_core"] = llama_stub
-        sys.modules["reservation"] = reservation_stub
+        sys.modules["backend.llama_core"] = llama_stub
+        sys.modules["backend.reservation"] = reservation_stub
 
-        import database
+        import backend.database as database
 
         cls._orig_init_db = database.init_db
         database.init_db = lambda: None
@@ -141,15 +153,16 @@ class ApiE2ETests(unittest.TestCase):
         self._env_backup = os.environ.copy()
         self.redis_stub = _StubRedisModule()
 
-        import reply.reply_main as reply_main
-        import travel.travel_main as travel_main
-        import fitness.fitness_main as fitness_main
-        import job.job_main as job_main
-        import study.study_main as study_main
-        import limit_manager
+        import backend.app as backend_app
+        import backend.routes.reply as reply_main
+        import backend.routes.travel as travel_main
+        import backend.routes.fitness as fitness_main
+        import backend.routes.job as job_main
+        import backend.routes.study as study_main
+        from backend import limit_manager
 
         self._modules = {
-            "run": self.run_module,
+            "app": backend_app,
             "reply_main": reply_main,
             "travel_main": travel_main,
             "fitness_main": fitness_main,
@@ -159,8 +172,9 @@ class ApiE2ETests(unittest.TestCase):
 
         self._originals = {}
         for key, module in self._modules.items():
-            self._originals[(key, "redis_client")] = module.redis_client
-            module.redis_client = self.redis_stub
+            if hasattr(module, "redis_client"):
+                self._originals[(key, "redis_client")] = module.redis_client
+                module.redis_client = self.redis_stub
 
         self._orig_limit_check = limit_manager.check_and_increment_limit
         limit_manager.check_and_increment_limit = lambda *_args, **_kwargs: (
@@ -181,7 +195,7 @@ class ApiE2ETests(unittest.TestCase):
         EN: Clean up test fixtures.
         JP: テスト後の状態をクリーンアップする。
         """
-        import limit_manager
+        from backend import limit_manager
         limit_manager.check_and_increment_limit = self._orig_limit_check
 
         for (key, attr), value in self._originals.items():

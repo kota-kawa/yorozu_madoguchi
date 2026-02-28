@@ -1,19 +1,19 @@
 """
-EN: Provide the test security module implementation.
-JP: test_security モジュールの実装を定義する。
+`security.py` のCSRF/Cookie/Header挙動を検証するテスト。
+Tests for CSRF, cookie settings, and security headers in `security.py`.
 """
 import os
 import unittest
 
 from flask import Flask, request
 
-import security
+from backend import security
 
 
 class SecurityTests(unittest.TestCase):
     """
-    EN: Define SecurityTests test cases.
-    JP: SecurityTests のテストケースを定義する。
+    セキュリティヘルパーの主要分岐を確認するテストケース群
+    Test cases for core branches of security helper functions.
     """
     def setUp(self):
         """

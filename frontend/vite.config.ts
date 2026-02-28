@@ -2,7 +2,7 @@
  * EN: Provide the vite.config module implementation.
  * JP: vite.config モジュールの実装を定義する。
  */
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
 /**
@@ -14,6 +14,10 @@ const backendTarget = process.env.VITE_BACKEND_ORIGIN || 'http://localhost:5000'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    include: ['src/**/*.test.{ts,tsx}'],
+  },
   server: {
     allowedHosts: ['chat.project-kk.com'],
     proxy: {

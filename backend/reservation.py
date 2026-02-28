@@ -8,14 +8,14 @@ import os
 from datetime import datetime
 from pydantic import BaseModel, Field
 from typing import Any, Dict, Optional
-import redis_client
-from database import SessionLocal
-from models import ReservationPlan
+from backend import redis_client
+from backend.database import SessionLocal
+from backend.models import ReservationPlan
 import re
 import json
 import logging
 
-from groq_openai_client import get_groq_client
+from backend.groq_openai_client import get_groq_client
 
 import warnings
 # 不要な警告を抑制
@@ -233,8 +233,8 @@ def complete_plan(session_id: str) -> str:
 
 def _parse_reservation_json(content: str) -> ReservationData:
     """
-    EN: Execute parse reservation json processing.
-    JP: _parse_reservation_json の処理を実行する。
+    LLM出力を ReservationData に安全に変換する
+    Safely convert LLM output text into a ReservationData object.
     """
     try:
         data = json.loads(content)
@@ -251,8 +251,8 @@ def _parse_reservation_json(content: str) -> ReservationData:
 
 def _extract_json_object(content: str) -> Dict[str, Any]:
     """
-    EN: Execute extract json object processing.
-    JP: _extract_json_object の処理を実行する。
+    応答文字列から最初のJSONオブジェクト候補を取り出す
+    Extract the first JSON-object candidate from a raw response string.
     """
     start = content.find("{")
     end = content.rfind("}")

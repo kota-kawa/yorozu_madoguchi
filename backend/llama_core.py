@@ -8,10 +8,10 @@ import re
 import warnings
 from typing import List, Optional, Tuple
 
-import guard
-import redis_client
+from backend import guard
+from backend import redis_client
 
-from llama_core_constants import (
+from backend.llama_core_constants import (
     DECISION_ALLOWED_KEYS_BY_MODE,
     DECISION_BULLET_PREFIX_RE,
     DECISION_DATE_LIKE_RE,
@@ -44,7 +44,7 @@ from llama_core_constants import (
     SUPPORTED_LANGUAGES,
     groq_api_key,
 )
-from llama_core_decision import (
+from backend.llama_core_decision import (
     _DECISION_ALIAS_CACHE,
     _apply_decision_patch,
     _build_memo_value,
@@ -70,7 +70,7 @@ from llama_core_decision import (
     _split_decision_lines,
     _strip_code_fences,
 )
-from llama_core_language import (
+from backend.llama_core_language import (
     _decision_default_message,
     _decision_error_message,
     _decision_guard_blocked_message,
@@ -86,7 +86,7 @@ from llama_core_language import (
     resolve_user_language,
     sanitize_llm_text,
 )
-from llama_core_llm import (
+from backend.llama_core_llm import (
     PASS_THROUGH_TOOLS,
     _build_messages,
     _extract_message_content,
@@ -95,7 +95,7 @@ from llama_core_llm import (
     _is_tool_use_failed,
     output_is_safe,
 )
-from llama_core_prompts import PROMPTS
+from backend.llama_core_prompts import PROMPTS
 
 # ロギング設定
 # Configure logging

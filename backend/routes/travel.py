@@ -9,14 +9,14 @@ import os
 import uuid
 from typing import List, Tuple, Union
 
-import llama_core
-import reservation
-from database import SessionLocal
-from models import ReservationPlan
-import limit_manager
-import redis_client
-import security
-from session_request_lock import session_request_lock
+from backend import llama_core
+from backend import reservation
+from backend.database import SessionLocal
+from backend.models import ReservationPlan
+from backend import limit_manager
+from backend import redis_client
+from backend import security
+from backend.session_request_lock import session_request_lock
 
 logger = logging.getLogger(__name__)
 

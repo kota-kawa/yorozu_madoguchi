@@ -18,8 +18,8 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 def _env_float(name: str, default: float) -> float:
     """
-    EN: Execute env float processing.
-    JP: _env_float の処理を実行する。
+    環境変数を float として読み込み、失敗時は既定値を返す
+    Read an environment variable as float, or return the default on parse failure.
     """
     raw = os.getenv(name, str(default)).strip()
     try:
@@ -30,8 +30,8 @@ def _env_float(name: str, default: float) -> float:
 
 def _env_int(name: str, default: int) -> int:
     """
-    EN: Execute env int processing.
-    JP: _env_int の処理を実行する。
+    環境変数を int として読み込み、失敗時は既定値を返す
+    Read an environment variable as int, or return the default on parse failure.
     """
     raw = os.getenv(name, str(default)).strip()
     try:
@@ -42,8 +42,8 @@ def _env_int(name: str, default: int) -> int:
 
 def _env_bool(name: str, default: bool = False) -> bool:
     """
-    EN: Execute env bool processing.
-    JP: _env_bool の処理を実行する。
+    環境変数を真偽値として解釈する
+    Parse an environment variable as a boolean flag.
     """
     raw = os.getenv(name)
     if raw is None:
@@ -80,8 +80,8 @@ _memory_store: Dict[str, Tuple[str, Optional[float]]] = {}
 
 def _should_use_fallback() -> bool:
     """
-    EN: Execute should use fallback processing.
-    JP: _should_use_fallback の処理を実行する。
+    Redis障害時にインメモリフォールバックを使うか判定する
+    Decide whether in-memory fallback is allowed when Redis is unavailable.
     """
     if REDIS_FAIL_FAST:
         return False
@@ -90,16 +90,16 @@ def _should_use_fallback() -> bool:
 
 def _supports_ping(client: Any) -> bool:
     """
-    EN: Execute supports ping processing.
-    JP: _supports_ping の処理を実行する。
+    クライアントが ping をサポートしているか確認する
+    Check whether the client object supports ping().
     """
     return hasattr(client, "ping") and callable(getattr(client, "ping"))
 
 
 def _ping_if_available(client: Any) -> None:
     """
-    EN: Execute ping if available processing.
-    JP: _ping_if_available の処理を実行する。
+    ping が使えるクライアントに対して疎通確認を行う
+    Run a connectivity ping when the client supports it.
     """
     if _supports_ping(client):
         client.ping()
@@ -107,8 +107,8 @@ def _ping_if_available(client: Any) -> None:
 
 def _fail_fast(reason: str, err: Optional[Exception] = None) -> None:
     """
-    EN: Execute fail fast processing.
-    JP: _fail_fast の処理を実行する。
+    fail-fast 設定時に致命ログを出してプロセスを終了する
+    Log a critical error and terminate the process when fail-fast is enabled.
     """
     if not REDIS_FAIL_FAST:
         return
@@ -121,8 +121,8 @@ def _fail_fast(reason: str, err: Optional[Exception] = None) -> None:
 
 def _create_redis_client() -> Optional[Any]:
     """
-    EN: Execute create redis client processing.
-    JP: _create_redis_client の処理を実行する。
+    Redisクライアントを生成し、初回 ping で接続確認する
+    Create a Redis client and verify connectivity with an initial ping.
     """
     try:
         client = redis.from_url(
@@ -142,8 +142,8 @@ def _create_redis_client() -> Optional[Any]:
 
 def _connect_with_retries() -> Optional[Any]:
     """
-    EN: Execute connect with retries processing.
-    JP: _connect_with_retries の処理を実行する。
+    指定回数までバックオフしながらRedis再接続を試みる
+    Attempt Redis reconnection with bounded retries and backoff.
     """
     retries = max(1, REDIS_RECONNECT_RETRIES)
     delay = max(0.0, REDIS_RECONNECT_INITIAL_DELAY_SECONDS)
@@ -162,8 +162,8 @@ def _connect_with_retries() -> Optional[Any]:
 
 def _health_check_due(now: float) -> bool:
     """
-    EN: Execute health check due processing.
-    JP: _health_check_due の処理を実行する。
+    ヘルスチェック実行間隔を満たしたか判定する
+    Determine whether the configured health-check interval has elapsed.
     """
     if REDIS_HEALTH_CHECK_INTERVAL <= 0:
         return False
@@ -172,8 +172,8 @@ def _health_check_due(now: float) -> bool:
 
 def _mark_unhealthy(reason: str, err: Optional[Exception] = None) -> None:
     """
-    EN: Execute mark unhealthy processing.
-    JP: _mark_unhealthy の処理を実行する。
+    Redis状態を不健康としてマークし、クライアントを破棄する
+    Mark Redis as unhealthy and clear the active client reference.
     """
     global redis_client, _last_health_check
     if err is not None:
@@ -188,8 +188,8 @@ def _mark_unhealthy(reason: str, err: Optional[Exception] = None) -> None:
 
 def get_redis_client() -> Optional[Any]:
     """
-    EN: Execute get redis client processing.
-    JP: get_redis_client の処理を実行する。
+    利用可能なRedisクライアントを返し、必要なら再接続する
+    Return a usable Redis client, reconnecting when needed.
     """
     global redis_client, _last_health_check, _last_reconnect_attempt
     now = time.time()
@@ -225,8 +225,8 @@ def get_redis_client() -> Optional[Any]:
 
 def _memory_set(key: str, value: str) -> None:
     """
-    EN: Execute memory set processing.
-    JP: _memory_set の処理を実行する。
+    フォールバック用メモリストアにTTL付きで値を保存する
+    Save a value in the fallback in-memory store with TTL metadata.
     """
     ttl = REDIS_SESSION_TTL_SECONDS if REDIS_SESSION_TTL_SECONDS > 0 else None
     expires_at = time.time() + ttl if ttl else None
@@ -235,8 +235,8 @@ def _memory_set(key: str, value: str) -> None:
 
 def _memory_get(key: str) -> Optional[str]:
     """
-    EN: Execute memory get processing.
-    JP: _memory_get の処理を実行する。
+    フォールバック用メモリストアから値を取得し期限切れを処理する
+    Read a value from fallback memory and evict it if expired.
     """
     item = _memory_store.get(key)
     if not item:
@@ -250,8 +250,8 @@ def _memory_get(key: str) -> Optional[str]:
 
 def _memory_delete(*keys: str) -> None:
     """
-    EN: Execute memory delete processing.
-    JP: _memory_delete の処理を実行する。
+    フォールバック用メモリストアから指定キーを削除する
+    Delete one or more keys from the fallback in-memory store.
     """
     for key in keys:
         _memory_store.pop(key, None)

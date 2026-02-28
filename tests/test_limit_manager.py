@@ -1,6 +1,6 @@
 """
-EN: Provide the test limit manager module implementation.
-JP: test_limit_manager モジュールの実装を定義する。
+`limit_manager` の日次制限ロジックを検証するテスト。
+Tests for daily rate-limit behavior in `limit_manager`.
 """
 import sys
 import types
@@ -8,25 +8,25 @@ import unittest
 
 sys.modules.setdefault("redis", types.SimpleNamespace(from_url=lambda *args, **kwargs: None))
 
-import limit_manager
+from backend import limit_manager
 
 
 class FakeRedis:
     """
-    EN: Define the FakeRedis class.
-    JP: FakeRedis クラスを定義する。
+    Redis `eval/get/set` の最小挙動を再現するテスト用スタブ。
+    Minimal Redis stub that emulates `eval/get/set` behavior for tests.
     """
     def __init__(self):
         """
-        EN: Initialize instance state.
-        JP: インスタンスの状態を初期化する。
+        内部カウンタ用のストアを初期化する
+        Initialize in-memory state for counters.
         """
         self.store = {}
 
     def eval(self, _script, _numkeys, *args):
         """
-        EN: Execute eval processing.
-        JP: eval の処理を実行する。
+        Lua相当のカウント更新を簡易再現する
+        Simulate atomic counter updates equivalent to the Lua script.
         """
         user_key = args[0]
         total_key = args[1]
@@ -49,23 +49,23 @@ class FakeRedis:
 
     def get(self, key):
         """
-        EN: Execute get processing.
-        JP: get の処理を実行する。
+        ストアから値を取得する
+        Get a value from the stub store.
         """
         return self.store.get(key)
 
     def set(self, key, value):
         """
-        EN: Execute set processing.
-        JP: set の処理を実行する。
+        ストアへ値を保存する
+        Set a value in the stub store.
         """
         self.store[key] = value
 
 
 class LimitManagerTests(unittest.TestCase):
     """
-    EN: Define LimitManagerTests test cases.
-    JP: LimitManagerTests のテストケースを定義する。
+    `limit_manager.check_and_increment_limit` の振る舞いを検証する
+    Validate behavior of `limit_manager.check_and_increment_limit`.
     """
     def setUp(self):
         """
@@ -74,7 +74,7 @@ class LimitManagerTests(unittest.TestCase):
         """
         self.original_user_limits = dict(limit_manager.USER_TYPE_LIMITS)
         self.original_total_limit = limit_manager.TOTAL_DAILY_LIMIT
-        import redis_client as redis_module
+        from backend import redis_client as redis_module
         self.redis_module = redis_module
         self.original_redis_module_client = redis_module.redis_client
 

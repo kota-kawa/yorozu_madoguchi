@@ -7,10 +7,10 @@ import json
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
-import guard
+from backend import guard
 
-from groq_openai_client import get_groq_client
-from llama_core_constants import (
+from backend.groq_openai_client import get_groq_client
+from backend.llama_core_constants import (
     GROQ_FALLBACK_MODEL_NAME,
     GROQ_MODEL_NAME,
     OUTPUT_GUARD_ENABLED,
@@ -58,8 +58,8 @@ def _invoke_chat_completion(
     tools: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     """
-    EN: Execute invoke chat completion processing.
-    JP: _invoke_chat_completion の処理を実行する。
+    指定メッセージでチャット補完APIを呼び出して本文を返す
+    Call the chat-completions API and return extracted assistant content.
     """
     client = get_groq_client()
     payload: Dict[str, Any] = {
@@ -95,8 +95,8 @@ PASS_THROUGH_TOOLS = [
 
 def _extract_message_content(message: Any) -> str:
     """
-    EN: Execute extract message content processing.
-    JP: _extract_message_content の処理を実行する。
+    通常本文または tool_call 引数から応答テキストを取り出す
+    Extract response text from message content or tool-call arguments.
     """
     content = getattr(message, "content", None) or ""
     if content:
@@ -132,8 +132,8 @@ def _invoke_with_tool_retries(
     model_name: Optional[str] = None,
 ) -> str:
     """
-    EN: Execute invoke with tool retries processing.
-    JP: _invoke_with_tool_retries の処理を実行する。
+    tool_use_failed 発生時にフォールバック条件で再試行する
+    Retry with fallback options when the model fails due to tool-use errors.
     """
     try:
         return _invoke_chat_completion(messages, model_name=model_name)
@@ -169,8 +169,8 @@ def _invoke_with_tool_retries(
 
 def _is_tool_use_failed(err: Exception) -> bool:
     """
-    EN: Execute is tool use failed processing.
-    JP: _is_tool_use_failed の処理を実行する。
+    例外内容が tool_use_failed 系かどうかを判定する
+    Detect whether an exception represents a tool-use failure case.
     """
     text = f"{err}"
     if "tool_use_failed" in text or "Tool choice is none" in text or "called a tool" in text:

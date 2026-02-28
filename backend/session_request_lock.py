@@ -1,5 +1,6 @@
 """
-Session-scoped in-process lock utilities.
+セッション単位で同時リクエストを防ぐロックユーティリティ。
+In-process lock utilities to prevent concurrent requests per session.
 """
 
 from contextlib import contextmanager
@@ -13,9 +14,11 @@ _locks_guard = threading.Lock()
 
 def acquire_session_lock(session_id: str) -> bool:
     """
+    セッションID単位でノンブロッキングロック取得を試みる
     Try to acquire a non-blocking lock for the given session.
 
-    Returns True when lock is acquired, False when another request is in progress.
+    ロック取得成功時は True、処理中リクエストがある場合は False を返します。
+    Returns True when acquired, False if another request is already in progress.
     """
     if not session_id:
         return False
@@ -31,7 +34,8 @@ def acquire_session_lock(session_id: str) -> bool:
 
 def release_session_lock(session_id: str) -> None:
     """
-    Release the lock for the given session if held and cleanup unused entries.
+    セッションロックを解放し、不要になったロック参照を掃除する
+    Release the session lock and clean up unused lock entries.
     """
     if not session_id:
         return
@@ -57,7 +61,8 @@ def release_session_lock(session_id: str) -> None:
 @contextmanager
 def session_request_lock(session_id: str) -> Iterator[bool]:
     """
-    Context manager that acquires/releases a session lock safely.
+    セッションロックを安全に取得・解放するコンテキストマネージャ
+    Context manager that safely acquires and releases a session lock.
     """
     acquired = acquire_session_lock(session_id)
     try:

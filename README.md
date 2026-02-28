@@ -41,6 +41,14 @@ A glimpse of planning a trip together with the user. Click a thumbnail to open t
 - **Data**: PostgreSQL, Redis
 - **Infra**: Docker, Docker Compose
 
+## 🧭 Design Decisions
+
+- **Why Flask**: Lightweight and explicit API structure was a good fit for a chat-first backend, with fast iteration and clear route-level control.
+- **Why Redis for session state**: Chat history and decision context require low-latency read/write access; Redis provides simple key-based storage with TTL support.
+- **Why PostgreSQL for reservation data**: Finalized plans are relational and persistent; PostgreSQL offers reliability, indexing, and straightforward queryability.
+- **Why React + Vite**: React gives composable UI state management, while Vite keeps frontend feedback loops fast during frequent UX iteration.
+- **Why Docker Compose**: Keeps local setup reproducible across frontend, backend, DB, and cache, mirroring production-like service boundaries.
+
 ## 🏗️ Architecture
 
 ```mermaid
@@ -144,6 +152,14 @@ Apache License 2.0. See `LICENSE` for details.
 - **バックエンド**: Python (Flask)
 - **データ基盤**: PostgreSQL, Redis
 - **インフラ**: Docker, Docker Compose
+
+## 🧭 技術的な意思決定（Design Decisions）
+
+- **なぜ Flask を選んだか**: 軽量で構造が明快なため、チャット中心APIの実装と高速な改善サイクルに適しているためです。
+- **なぜ Redis をセッション管理に使ったか**: チャット履歴や意思決定コンテキストを低遅延で読み書きでき、TTLで期限管理もしやすいためです。
+- **なぜ PostgreSQL を使ったか**: 確定した予約情報は永続化と整合性が重要で、リレーショナルな検索・拡張に強いためです。
+- **なぜ React + Vite を使ったか**: ReactでUI状態を分割管理しやすく、Viteで試行錯誤時の開発体験を高速化できるためです。
+- **なぜ Docker Compose を使ったか**: フロント・API・DB・Redisを同じ手順で再現でき、環境差分を減らせるためです。
 
 ## 🏗️ アーキテクチャ
 
