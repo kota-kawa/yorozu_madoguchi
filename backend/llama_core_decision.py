@@ -7,7 +7,7 @@ import json
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
-from llama_core_constants import (
+from backend.llama_core_constants import (
     DECISION_ALLOWED_KEYS_BY_MODE,
     DECISION_BULLET_PREFIX_RE,
     DECISION_DATE_LIKE_RE,
@@ -26,7 +26,7 @@ from llama_core_constants import (
     DECISION_YES_NO_TOKENS,
     MAX_DECISION_CHARS,
 )
-from llama_core_language import (
+from backend.llama_core_language import (
     _decision_default_message,
     _memo_key_for_language,
     _normalize_language_code,
@@ -37,8 +37,8 @@ from llama_core_language import (
 # Decision text parsing and normalization
 def _normalize_decision_line(line: str) -> str:
     """
-    EN: Execute normalize decision line processing.
-    JP: _normalize_decision_line の処理を実行する。
+    箇条書き記号や余分な空白を除去して1行を正規化する
+    Normalize one decision line by removing bullets and collapsing spaces.
     """
     cleaned = DECISION_BULLET_PREFIX_RE.sub("", line.strip())
     cleaned = re.sub(r"\s+", " ", cleaned)
@@ -47,8 +47,8 @@ def _normalize_decision_line(line: str) -> str:
 
 def _split_decision_lines(text: Optional[str]) -> List[str]:
     """
-    EN: Execute split decision lines processing.
-    JP: _split_decision_lines の処理を実行する。
+    決定事項テキストを有効な行リストへ分解する
+    Split raw decision text into cleaned, non-ignored lines.
     """
     if not text:
         return []
@@ -63,8 +63,8 @@ def _split_decision_lines(text: Optional[str]) -> List[str]:
 
 def _parse_decision_key_value(line: str) -> Optional[Tuple[str, str]]:
     """
-    EN: Execute parse decision key value processing.
-    JP: _parse_decision_key_value の処理を実行する。
+    `項目: 値` 形式の1行をキーと値に分解する
+    Parse a `key: value` style line into key/value components.
     """
     parts = DECISION_KV_SEPARATOR_RE.split(line, maxsplit=1)
     if len(parts) != 2:
@@ -77,8 +77,8 @@ def _parse_decision_key_value(line: str) -> Optional[Tuple[str, str]]:
 
 def _normalize_user_value(text: Optional[str]) -> str:
     """
-    EN: Execute normalize user value processing.
-    JP: _normalize_user_value の処理を実行する。
+    ユーザー入力値の制御文字と余分な空白を除去する
+    Normalize user-provided text by stripping control chars and extra spaces.
     """
     if not text:
         return ""
@@ -89,8 +89,8 @@ def _normalize_user_value(text: Optional[str]) -> str:
 
 def _is_date_like(text: str) -> bool:
     """
-    EN: Execute is date like processing.
-    JP: _is_date_like の処理を実行する。
+    文字列が日付・時期を示す表現かどうかを判定する
+    Check whether a text looks like a date or time-period expression.
     """
     if not text:
         return False
@@ -108,8 +108,8 @@ def _is_date_like(text: str) -> bool:
 
 def _extract_kv_map(decision_text: Optional[str]) -> Dict[str, str]:
     """
-    EN: Execute extract kv map processing.
-    JP: _extract_kv_map の処理を実行する。
+    決定事項テキストから `キー -> 値` マップを抽出する
+    Extract a `key -> value` map from decision text items.
     """
     items, _, _ = _parse_decision_items(decision_text)
     result: Dict[str, str] = {}
@@ -121,8 +121,8 @@ def _extract_kv_map(decision_text: Optional[str]) -> Dict[str, str]:
 
 def _extract_slot_value(slot: str, text: str) -> Optional[str]:
     """
-    EN: Execute extract slot value processing.
-    JP: _extract_slot_value の処理を実行する。
+    スロット別の正規表現でユーザー文から値候補を抽出する
+    Extract a slot value candidate from user text via slot-specific patterns.
     """
     if not text:
         return None
@@ -138,8 +138,8 @@ def _extract_slot_value(slot: str, text: str) -> Optional[str]:
 
 def _is_valid_slot_value(slot: str, text: str) -> bool:
     """
-    EN: Execute is valid slot value processing.
-    JP: _is_valid_slot_value の処理を実行する。
+    スロットに対して値が有効か（曖昧/YesNo除外など）を判定する
+    Validate whether a candidate value is usable for the given slot.
     """
     cleaned = _normalize_user_value(text)
     if not cleaned:
@@ -159,8 +159,8 @@ def _derive_decision_patch_from_history(
     previous_text: Optional[str],
 ) -> Optional[Dict[str, Any]]:
     """
-    EN: Execute derive decision patch from history processing.
-    JP: _derive_decision_patch_from_history の処理を実行する。
+    直近の会話履歴から add/update 差分パッチを推定する
+    Infer an add/update decision patch from recent chat history.
     """
     if not chat_history:
         return None
@@ -215,8 +215,8 @@ def _derive_decision_patch_from_history(
 # JSON extraction and patch normalization
 def _strip_code_fences(text: str) -> str:
     """
-    EN: Execute strip code fences processing.
-    JP: _strip_code_fences の処理を実行する。
+    ``` で囲まれたコードフェンスを除去する
+    Remove surrounding triple-backtick code fences from text.
     """
     stripped = text.strip()
     if not stripped.startswith("```"):
@@ -229,8 +229,8 @@ def _strip_code_fences(text: str) -> str:
 
 def _extract_json_object(text: Optional[str]) -> Optional[Dict[str, Any]]:
     """
-    EN: Execute extract json object processing.
-    JP: _extract_json_object の処理を実行する。
+    文字列からJSONオブジェクトを抽出して返す
+    Parse and return a JSON object from free-form response text.
     """
     if not text:
         return None
@@ -254,8 +254,8 @@ def _extract_json_object(text: Optional[str]) -> Optional[Dict[str, Any]]:
 
 def _normalize_decision_patch(patch: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """
-    EN: Execute normalize decision patch processing.
-    JP: _normalize_decision_patch の処理を実行する。
+    LLMが返したパッチJSONを許可形式へ正規化する
+    Normalize an LLM patch object into the allowed patch schema.
     """
     if not patch or not isinstance(patch, dict):
         return None
@@ -263,8 +263,8 @@ def _normalize_decision_patch(patch: Optional[Dict[str, Any]]) -> Optional[Dict[
 
     def normalize_map(value: Any) -> Dict[str, str]:
         """
-        EN: Execute normalize map processing.
-        JP: normalize_map の処理を実行する。
+        add/update 用のマップを文字列キー/値へ整形する
+        Normalize add/update maps into clean string key/value pairs.
         """
         if not isinstance(value, dict):
             return {}
@@ -278,8 +278,8 @@ def _normalize_decision_patch(patch: Optional[Dict[str, Any]]) -> Optional[Dict[
 
     def normalize_remove(value: Any) -> List[str]:
         """
-        EN: Execute normalize remove processing.
-        JP: normalize_remove の処理を実行する。
+        remove 指定をキー名リストへ正規化する
+        Normalize remove targets into a list of non-empty keys.
         """
         if isinstance(value, list):
             items = value
@@ -307,8 +307,8 @@ def _normalize_decision_patch(patch: Optional[Dict[str, Any]]) -> Optional[Dict[
 # Decision itemization and key normalization
 def _parse_decision_items(text: Optional[str]) -> Tuple[List[Dict[str, str]], Dict[str, int], set]:
     """
-    EN: Execute parse decision items processing.
-    JP: _parse_decision_items の処理を実行する。
+    決定事項テキストを kv/plain の内部アイテムへ変換する
+    Convert decision text into internal `kv`/`plain` item structures.
     """
     items: List[Dict[str, str]] = []
     key_index: Dict[str, int] = {}
@@ -332,8 +332,8 @@ def _parse_decision_items(text: Optional[str]) -> Tuple[List[Dict[str, str]], Di
 
 def _normalize_key_alias(key: str) -> str:
     """
-    EN: Execute normalize key alias processing.
-    JP: _normalize_key_alias の処理を実行する。
+    キー比較用に記号・区切り・大文字小文字差を吸収する
+    Normalize key aliases by removing separators and case differences.
     """
     cleaned = key.strip().lower()
     cleaned = re.sub(r"[\s_\-./]+", "", cleaned)
@@ -346,8 +346,8 @@ _DECISION_ALIAS_CACHE: Dict[str, Dict[str, str]] = {}
 
 def _get_decision_alias_lookup(mode: str) -> Dict[str, str]:
     """
-    EN: Execute get decision alias lookup processing.
-    JP: _get_decision_alias_lookup の処理を実行する。
+    モード別の別名→正規キー変換表を構築・キャッシュする
+    Build and cache alias-to-canonical-key lookup for each mode.
     """
     if mode in _DECISION_ALIAS_CACHE:
         return _DECISION_ALIAS_CACHE[mode]
@@ -368,8 +368,8 @@ def _get_decision_alias_lookup(mode: str) -> Dict[str, str]:
 
 def _canonicalize_decision_key(key: str, mode: str) -> Optional[str]:
     """
-    EN: Execute canonicalize decision key processing.
-    JP: _canonicalize_decision_key の処理を実行する。
+    入力キー名をモード定義の正規キーへ変換する
+    Convert an input key label into the mode-specific canonical key.
     """
     if not key:
         return None
@@ -379,8 +379,8 @@ def _canonicalize_decision_key(key: str, mode: str) -> Optional[str]:
 
 def _label_for_canonical_key(mode: str, language: str, canonical: str) -> str:
     """
-    EN: Execute label for canonical key processing.
-    JP: _label_for_canonical_key の処理を実行する。
+    正規キーに対応する表示ラベル（言語別）を返す
+    Resolve the display label for a canonical key in the target language.
     """
     labels_by_lang = DECISION_KEY_LABELS_BY_MODE.get(mode, {})
     lang = _normalize_language_code(language)
@@ -390,8 +390,8 @@ def _label_for_canonical_key(mode: str, language: str, canonical: str) -> str:
 
 def _is_memo_key(key: str) -> bool:
     """
-    EN: Execute is memo key processing.
-    JP: _is_memo_key の処理を実行する。
+    キーがメモ項目（自由記述欄）かどうかを判定する
+    Check whether a key represents the memo/free-notes field.
     """
     normalized = _normalize_key_alias(key)
     for memo_key in DECISION_MEMO_KEYS_BY_LANGUAGE.values():
@@ -402,8 +402,8 @@ def _is_memo_key(key: str) -> bool:
 
 def _build_memo_value(entries: List[str]) -> str:
     """
-    EN: Execute build memo value processing.
-    JP: _build_memo_value の処理を実行する。
+    メモ候補を整形して1つの連結文字列にまとめる
+    Normalize memo entries and combine them into one memo string.
     """
     normalized: List[str] = []
     for entry in entries:
@@ -415,8 +415,8 @@ def _build_memo_value(entries: List[str]) -> str:
 
 def _enforce_decision_policy(text: Optional[str], mode: str, language: str) -> str:
     """
-    EN: Execute enforce decision policy processing.
-    JP: _enforce_decision_policy の処理を実行する。
+    モード制約に沿って決定事項を整形・上限調整して返す
+    Enforce mode policy on decisions (allowed keys, limits, memo handling).
     """
     items, _, _ = _parse_decision_items(text)
     if not items:
@@ -467,8 +467,8 @@ def _enforce_decision_policy(text: Optional[str], mode: str, language: str) -> s
     if DECISION_MAX_ITEMS > 0:
         def total_items() -> int:
             """
-            EN: Execute total items processing.
-            JP: total_items の処理を実行する。
+            出力予定の総項目数を数える
+            Count total output items including memo when present.
             """
             return len(ordered_items) + (1 if memo_entries else 0)
 
@@ -505,8 +505,8 @@ def _enforce_decision_policy(text: Optional[str], mode: str, language: str) -> s
 
 def _decision_items_to_text(items: List[Dict[str, str]]) -> str:
     """
-    EN: Execute decision items to text processing.
-    JP: _decision_items_to_text の処理を実行する。
+    内部アイテム配列を表示用テキストへ変換する
+    Convert internal decision items into user-facing text lines.
     """
     if not items:
         return DECISION_DEFAULT_MESSAGE
@@ -521,8 +521,8 @@ def _decision_items_to_text(items: List[Dict[str, str]]) -> str:
 
 def _apply_decision_patch(prev_text: Optional[str], patch: Dict[str, Any]) -> str:
     """
-    EN: Execute apply decision patch processing.
-    JP: _apply_decision_patch の処理を実行する。
+    既存決定事項へ add/update/remove パッチを適用する
+    Apply add/update/remove patch operations to existing decisions.
     """
     add = patch.get("add") or {}
     update = patch.get("update") or {}
@@ -545,8 +545,8 @@ def _apply_decision_patch(prev_text: Optional[str], patch: Dict[str, Any]) -> st
 
     def apply_map(value_map: Dict[str, str]) -> None:
         """
-        EN: Execute apply map processing.
-        JP: apply_map の処理を実行する。
+        マップ項目を既存リストへ上書きまたは追加する
+        Upsert key/value entries into the current decision item list.
         """
         for key, value in value_map.items():
             if key in remove_set:
@@ -567,8 +567,8 @@ def _apply_decision_patch(prev_text: Optional[str], patch: Dict[str, Any]) -> st
 
 def _merge_decision_text(prev_text: Optional[str], new_text: Optional[str]) -> str:
     """
-    EN: Execute merge decision text processing.
-    JP: _merge_decision_text の処理を実行する。
+    新しい決定事項テキストを既存内容に重複なくマージする
+    Merge new decision lines into previous text without duplicating items.
     """
     prev_lines = _split_decision_lines(prev_text)
     new_lines = _split_decision_lines(new_text)

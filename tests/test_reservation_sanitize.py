@@ -1,16 +1,16 @@
 """
-EN: Provide the test reservation sanitize module implementation.
-JP: test_reservation_sanitize モジュールの実装を定義する。
+`reservation.py` の文字列サニタイズ・日付正規化を検証するテスト。
+Tests for sanitization and date normalization helpers in `reservation.py`.
 """
 import unittest
 
-import reservation
+from backend import reservation
 
 
 class ReservationSanitizeTests(unittest.TestCase):
     """
-    EN: Define ReservationSanitizeTests test cases.
-    JP: ReservationSanitizeTests のテストケースを定義する。
+    sanitize_field / normalize_date の入力補正挙動を確認する
+    Validate input-cleaning behavior of sanitize_field and normalize_date.
     """
     def test_sanitize_field_trims_and_removes_control_chars(self):
         """

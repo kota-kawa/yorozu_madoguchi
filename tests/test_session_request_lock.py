@@ -1,16 +1,20 @@
 """
-EN: Provide the test session request lock module implementation.
-JP: test_session_request_lock モジュールの実装を定義する。
+`session_request_lock` の排他制御を検証するテスト。
+Tests for session-scoped locking behavior in `session_request_lock`.
 """
 import unittest
 
-from session_request_lock import acquire_session_lock, release_session_lock, session_request_lock
+from backend.session_request_lock import (
+    acquire_session_lock,
+    release_session_lock,
+    session_request_lock,
+)
 
 
 class SessionRequestLockTests(unittest.TestCase):
     """
-    EN: Define SessionRequestLockTests test cases.
-    JP: SessionRequestLockTests のテストケースを定義する。
+    セッションロックの取得・解放・コンテキスト管理を確認する
+    Verify acquire/release semantics and context-manager behavior.
     """
     def test_acquire_and_release(self):
         """

@@ -4,20 +4,20 @@ Blueprint for the reply support feature.
 """
 
 from flask import Blueprint, request, jsonify, redirect, make_response, Response
-import llama_core
-import reservation
-from database import SessionLocal
-from models import ReservationPlan
+from backend import llama_core
+from backend import reservation
+from backend.database import SessionLocal
+from backend.models import ReservationPlan
 import uuid
-import redis_client
+from backend import redis_client
 import logging
 import os
-import security
+from backend import security
 from typing import Tuple, Union
-from session_request_lock import session_request_lock
+from backend.session_request_lock import session_request_lock
 
 ResponseOrTuple = Union[Response, Tuple[Response, int]]
-import limit_manager
+from backend import limit_manager
 
 logger = logging.getLogger(__name__)
 

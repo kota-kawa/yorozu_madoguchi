@@ -4,7 +4,7 @@ SQLAlchemy model definitions.
 """
 
 from sqlalchemy import Column, Integer, String
-from database import Base
+from backend.database import Base
 
 class ReservationPlan(Base):
     """

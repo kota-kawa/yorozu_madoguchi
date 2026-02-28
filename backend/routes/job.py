@@ -1,6 +1,6 @@
 """
-学習アシスタント機能のBlueprint実装。
-Blueprint for the study assistant feature.
+就活アシスタント機能のBlueprint実装。
+Blueprint for the job-hunting assistant feature.
 """
 
 from flask import Blueprint, request, jsonify, redirect, make_response, Response
@@ -9,17 +9,17 @@ import os
 import uuid
 from typing import Tuple, Union
 
-import llama_core
-import limit_manager
-import redis_client
-import security
-from session_request_lock import session_request_lock
+from backend import llama_core
+from backend import limit_manager
+from backend import redis_client
+from backend import security
+from backend.session_request_lock import session_request_lock
 
 logger = logging.getLogger(__name__)
 
-# Blueprintの定義：学習アシスタント機能に関連するルートをまとめる
-# Blueprint definition for study assistant routes
-study_bp = Blueprint('study', __name__)
+# Blueprintの定義：就活アシスタント機能に関連するルートをまとめる
+# Blueprint definition for job assistant routes
+job_bp = Blueprint('job', __name__)
 
 ResponseOrTuple = Union[Response, Tuple[Response, int]]
 
@@ -55,29 +55,29 @@ def error_response(message: str, status: int = 400) -> ResponseOrTuple:
     return jsonify({"error": message, "response": message}), status
 
 
-@study_bp.route('/study')
-def study_home() -> Response:
+@job_bp.route('/job')
+def job_home() -> Response:
     """
-    学習アシスタントの初期化エンドポイント
-    Initialize study assistant feature and start a new session.
+    就活アシスタントの初期化エンドポイント
+    Initialize job assistant feature and start a new session.
 
-    新規セッションを作成し、フロントエンドの学習画面へリダイレクトします。
+    新規セッションを作成し、フロントエンドの就活画面へリダイレクトします。
     Creates a new session and redirects to the UI.
     """
     session_id = str(uuid.uuid4())
     reset_session_data(session_id)
 
-    redirect_url = resolve_frontend_url('/study')
+    redirect_url = resolve_frontend_url('/job')
     response = make_response(redirect(redirect_url))
     response.set_cookie('session_id', session_id, **security.cookie_settings(request))
     return response
 
 
-@study_bp.route('/study_send_message', methods=['POST'])
-def study_send_message() -> ResponseOrTuple:
+@job_bp.route('/job_send_message', methods=['POST'])
+def job_send_message() -> ResponseOrTuple:
     """
-    学習アシスタントのメッセージ処理エンドポイント
-    Handle study assistant chat messages.
+    就活チャットのメッセージ処理エンドポイント
+    Handle job assistant chat messages.
     """
     try:
         if not security.is_csrf_valid(request):
@@ -130,7 +130,7 @@ def study_send_message() -> ResponseOrTuple:
             redis_client.save_user_language(session_id, language)
 
             response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text = (
-                llama_core.chat_with_llama(session_id, prompt, mode="study", language=language)
+                llama_core.chat_with_llama(session_id, prompt, mode="job", language=language)
             )
             return jsonify({
                 'response': response,
@@ -141,5 +141,5 @@ def study_send_message() -> ResponseOrTuple:
                 'remaining_text': remaining_text
             })
     except Exception as e:
-        logger.error(f"Error in study_send_message: {e}", exc_info=True)
+        logger.error(f"Error in job_send_message: {e}", exc_info=True)
         return error_response("サーバー内部でエラーが発生しました。しばらく待ってから再試行してください。", status=500)

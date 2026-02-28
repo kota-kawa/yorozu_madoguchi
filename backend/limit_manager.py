@@ -6,7 +6,7 @@ Module for enforcing rate limits per user and globally.
 import datetime
 import logging
 from typing import Any, Optional, Tuple
-import redis_client
+from backend import redis_client
 
 logger = logging.getLogger(__name__)
 

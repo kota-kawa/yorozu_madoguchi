@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-EN: Provide the run unit tests module implementation.
-JP: run_unit_tests モジュールの実装を定義する。
+E2Eを除いたユニットテストを実行するランナー。
+Runner script for unit tests (excluding E2E tests).
 """
 import os
 import pathlib
@@ -18,8 +18,8 @@ if str(ROOT_DIR) not in sys.path:
 
 def _iter_test_cases(suite: unittest.TestSuite):
     """
-    EN: Execute iter test cases processing.
-    JP: _iter_test_cases の処理を実行する。
+    ネストされた TestSuite を再帰的に展開してテストケースを列挙する
+    Recursively flatten nested TestSuite objects into individual test cases.
     """
     for item in suite:
         if isinstance(item, unittest.TestSuite):
@@ -30,8 +30,8 @@ def _iter_test_cases(suite: unittest.TestSuite):
 
 def _build_unit_suite() -> unittest.TestSuite:
     """
-    EN: Execute build unit suite processing.
-    JP: _build_unit_suite の処理を実行する。
+    ディスカバリ結果から除外対象を外したユニットテストスイートを作る
+    Build a filtered unit-test suite by excluding configured modules.
     """
     loader = unittest.TestLoader()
     discovered = loader.discover(start_dir=str(TESTS_DIR), pattern="test_*.py")
@@ -46,7 +46,7 @@ def _build_unit_suite() -> unittest.TestSuite:
 
 
 def main() -> int:
-    # Reservation-related unit tests import database.py.
+    # Reservation-related unit tests import backend.database.
     """
     EN: Run the main entrypoint flow.
     JP: メインの実行フローを開始する。
