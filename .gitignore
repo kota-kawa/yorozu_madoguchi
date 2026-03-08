@@ -20,10 +20,6 @@
 Thumbs.db
 .vscode/
 
-chat_history.txt
-decision.txt
-ssh.txt
-
 cut.py
 excel_test.py
 csv_test.py
