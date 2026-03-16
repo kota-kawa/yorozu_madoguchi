@@ -131,12 +131,14 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
+          envs: DEPLAY_PATH
           script_stop: true
           script: |
             set -euo pipefail
 
             # プロジェクトディレクトリに移動
-            cd /var/www/yorozu_madoguchi
+            : "${DEPLAY_PATH:?GitHub secret DEPLAY_PATH is not set}"
+            cd "${DEPLAY_PATH}"
 
             PREV_COMMIT="$(git rev-parse HEAD)"
             rollback() {
