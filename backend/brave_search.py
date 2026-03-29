@@ -13,6 +13,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from backend import limit_manager
+
 logger = logging.getLogger(__name__)
 
 BRAVE_SEARCH_ENDPOINT = "https://api.search.brave.com/res/v1/web/search"
@@ -32,6 +34,21 @@ def search_web(query: str, count: int | None = None) -> List[Dict[str, str]]:
     normalized_query = (query or "").strip()
     token = os.getenv("BRAVE_SEARCH_API", "").strip()
     if not token or not normalized_query:
+        return []
+
+    allowed, current_count, limit, error_code = limit_manager.check_and_increment_web_search_limit()
+    if not allowed:
+        if error_code:
+            logger.warning(
+                "Skipping Brave search because monthly-limit check failed: %s",
+                error_code,
+            )
+        else:
+            logger.info(
+                "Skipping Brave search because monthly limit reached: %s/%s",
+                current_count,
+                limit,
+            )
         return []
 
     result_count = _resolve_result_count(count)
@@ -124,4 +141,3 @@ def _normalize_results(payload: Dict[str, Any]) -> List[Dict[str, str]]:
             }
         )
     return normalized
-

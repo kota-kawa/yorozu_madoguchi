@@ -28,6 +28,17 @@ class FakeRedis:
         Lua相当のカウント更新を簡易再現する
         Simulate atomic counter updates equivalent to the Lua script.
         """
+        if _numkeys == 1:
+            monthly_key = args[0]
+            monthly_limit = int(args[1])
+            monthly_val = self.store.get(monthly_key, 0) + 1
+            self.store[monthly_key] = monthly_val
+
+            if monthly_val > monthly_limit:
+                self.store[monthly_key] = self.store.get(monthly_key, 0) - 1
+                return -1
+            return monthly_val
+
         user_key = args[0]
         total_key = args[1]
         user_limit = int(args[2])
@@ -74,6 +85,7 @@ class LimitManagerTests(unittest.TestCase):
         """
         self.original_user_limits = dict(limit_manager.USER_TYPE_LIMITS)
         self.original_total_limit = limit_manager.TOTAL_DAILY_LIMIT
+        self.original_web_search_monthly_limit = limit_manager.WEB_SEARCH_MONTHLY_LIMIT
         from backend import redis_client as redis_module
         self.redis_module = redis_module
         self.original_redis_module_client = redis_module.redis_client
@@ -82,6 +94,7 @@ class LimitManagerTests(unittest.TestCase):
         redis_module.redis_client = fake_redis
         limit_manager.USER_TYPE_LIMITS = {"normal": 2, "premium": 5}
         limit_manager.TOTAL_DAILY_LIMIT = 3
+        limit_manager.WEB_SEARCH_MONTHLY_LIMIT = 2
 
     def tearDown(self):
         """
@@ -90,6 +103,7 @@ class LimitManagerTests(unittest.TestCase):
         """
         limit_manager.USER_TYPE_LIMITS = self.original_user_limits
         limit_manager.TOTAL_DAILY_LIMIT = self.original_total_limit
+        limit_manager.WEB_SEARCH_MONTHLY_LIMIT = self.original_web_search_monthly_limit
         self.redis_module.redis_client = self.original_redis_module_client
 
     def test_user_limit_enforced(self):
@@ -159,6 +173,29 @@ class LimitManagerTests(unittest.TestCase):
         self.assertFalse(allowed)
         self.assertEqual(user_type, "")
         self.assertFalse(total_exceeded)
+        self.assertIsNone(error_code)
+
+    def test_web_search_monthly_limit_enforced(self):
+        """
+        EN: Test web search monthly limit enforced behavior.
+        JP: web search monthly limit enforced の挙動を検証するテスト。
+        """
+        allowed, count, limit, error_code = limit_manager.check_and_increment_web_search_limit()
+        self.assertTrue(allowed)
+        self.assertEqual(count, 1)
+        self.assertEqual(limit, 2)
+        self.assertIsNone(error_code)
+
+        allowed, count, limit, error_code = limit_manager.check_and_increment_web_search_limit()
+        self.assertTrue(allowed)
+        self.assertEqual(count, 2)
+        self.assertEqual(limit, 2)
+        self.assertIsNone(error_code)
+
+        allowed, count, limit, error_code = limit_manager.check_and_increment_web_search_limit()
+        self.assertFalse(allowed)
+        self.assertEqual(count, 2)
+        self.assertEqual(limit, 2)
         self.assertIsNone(error_code)
 
 

@@ -21,6 +21,8 @@ class BraveSearchTests(unittest.TestCase):
         JP: テスト前の状態を準備する。
         """
         self._env_backup = os.environ.copy()
+        self._original_limit_check = brave_search.limit_manager.check_and_increment_web_search_limit
+        self._original_urlopen = brave_search.urlopen
 
     def tearDown(self):
         """
@@ -29,6 +31,8 @@ class BraveSearchTests(unittest.TestCase):
         """
         os.environ.clear()
         os.environ.update(self._env_backup)
+        brave_search.limit_manager.check_and_increment_web_search_limit = self._original_limit_check
+        brave_search.urlopen = self._original_urlopen
 
     def test_is_configured_false_when_token_missing(self):
         """
@@ -77,7 +81,21 @@ class BraveSearchTests(unittest.TestCase):
             ],
         )
 
+    def test_search_web_skips_api_call_when_monthly_limit_reached(self):
+        """
+        EN: Test monthly limit prevents outbound API request.
+        JP: 月次上限到達時に外部API呼び出しを行わないことを検証する。
+        """
+        os.environ["BRAVE_SEARCH_API"] = "dummy-token"
+        brave_search.limit_manager.check_and_increment_web_search_limit = lambda: (False, 1000, 1000, None)
+
+        def fail_urlopen(*_args, **_kwargs):
+            raise AssertionError("urlopen should not be called when monthly limit is reached")
+
+        brave_search.urlopen = fail_urlopen
+        results = brave_search.search_web("latest ai news")
+        self.assertEqual(results, [])
+
 
 if __name__ == "__main__":
     unittest.main()
-
