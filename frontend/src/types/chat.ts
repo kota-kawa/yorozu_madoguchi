@@ -13,6 +13,7 @@ export type ChatSender = 'user' | 'bot'
  * JP: ChatMessageType 型エイリアスを定義する。
  */
 export type ChatMessageType = 'loading' | 'yesno' | 'selection' | 'date_selection'
+export type LoadingVariant = 'thinking' | 'web_search'
 
 /**
  * EN: Define the ChatMessage type alias.
@@ -23,6 +24,7 @@ export type ChatMessage = {
   sender: ChatSender
   text?: string
   type?: ChatMessageType
+  loading_variant?: LoadingVariant
   pending?: boolean
   choices?: string[]
 }

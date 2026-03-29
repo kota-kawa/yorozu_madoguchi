@@ -79,13 +79,20 @@ const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }
   }
 
   if (message.type === 'loading') {
+    const isWebSearchLoading = message.loading_variant === 'web_search'
     return (
       <div className={`chat-message ${message.sender} loading-message`} aria-live="polite">
-        <div className="loading-content">
-          <span className="loading-stars" aria-hidden="true">
-            <span className="loading-star star-main" />
-            <span className="loading-star star-secondary" />
-          </span>
+        <div className={`loading-content${isWebSearchLoading ? ' is-web-search' : ''}`}>
+          {isWebSearchLoading ? (
+            <span className="loading-globe" aria-hidden="true">
+              <i className="bi bi-globe-americas" />
+            </span>
+          ) : (
+            <span className="loading-stars" aria-hidden="true">
+              <span className="loading-star star-main" />
+              <span className="loading-star star-secondary" />
+            </span>
+          )}
           <span className="loading-text">{message.text ?? ''}</span>
         </div>
       </div>

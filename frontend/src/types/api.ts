@@ -12,6 +12,7 @@ export type ChatApiResponse = {
   yes_no_phrase?: string
   choices?: string[] | null
   is_date_select?: boolean
+  used_web_search?: boolean
   current_plan?: string | null
   error?: string
 }

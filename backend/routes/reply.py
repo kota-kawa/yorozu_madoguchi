@@ -248,7 +248,7 @@ def reply_send_message() -> ResponseOrTuple:
 
         # LLMとの対話実行 (mode="reply")
         # Invoke LLM for reply mode
-        response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text = (
+        response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text, used_web_search = (
             llama_core.chat_with_llama(session_id, prompt, mode="reply", language=language)
         )
         return jsonify({
@@ -257,7 +257,8 @@ def reply_send_message() -> ResponseOrTuple:
             'yes_no_phrase': yes_no_phrase,
             'choices': choices,
             'is_date_select': is_date_select,
-            'remaining_text': remaining_text
+            'remaining_text': remaining_text,
+            'used_web_search': used_web_search,
         })
 
 @reply_bp.route('/reply_submit_plan', methods=['POST'])

@@ -129,7 +129,7 @@ def job_send_message() -> ResponseOrTuple:
             )
             redis_client.save_user_language(session_id, language)
 
-            response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text = (
+            response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text, used_web_search = (
                 llama_core.chat_with_llama(session_id, prompt, mode="job", language=language)
             )
             return jsonify({
@@ -138,7 +138,8 @@ def job_send_message() -> ResponseOrTuple:
                 'yes_no_phrase': yes_no_phrase,
                 'choices': choices,
                 'is_date_select': is_date_select,
-                'remaining_text': remaining_text
+                'remaining_text': remaining_text,
+                'used_web_search': used_web_search,
             })
     except Exception as e:
         logger.error(f"Error in job_send_message: {e}", exc_info=True)

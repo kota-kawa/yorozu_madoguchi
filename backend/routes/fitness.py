@@ -147,7 +147,15 @@ def fitness_send_message() -> ResponseOrTuple:
 
             # LLMとの対話実行 (mode="fitness")
             # Invoke LLM for fitness mode
-            response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text = llama_core.chat_with_llama(
+            (
+                response,
+                current_plan,
+                yes_no_phrase,
+                choices,
+                is_date_select,
+                remaining_text,
+                used_web_search,
+            ) = llama_core.chat_with_llama(
                 session_id,
                 prompt,
                 mode="fitness",
@@ -159,7 +167,8 @@ def fitness_send_message() -> ResponseOrTuple:
                 'yes_no_phrase': yes_no_phrase,
                 'choices': choices,
                 'is_date_select': is_date_select,
-                'remaining_text': remaining_text
+                'remaining_text': remaining_text,
+                'used_web_search': used_web_search,
             })
     except Exception as e:
         logger.error(f"Error in fitness_send_message: {e}", exc_info=True)

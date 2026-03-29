@@ -132,6 +132,7 @@ export const useJobChat = () => {
       sender: 'bot',
       text: '考えています',
       type: 'loading',
+      loading_variant: 'thinking',
       pending: true,
     }
 
@@ -168,6 +169,7 @@ export const useJobChat = () => {
       if (data?.error) {
         throw new Error(data.response || 'API Error')
       }
+      const usedWebSearch = Boolean(data?.used_web_search)
 
       /**
        * EN: Declare the remainingText value.
@@ -220,7 +222,12 @@ export const useJobChat = () => {
       }
 
       if (remainingTextValue !== null) {
-        updateMessageMeta(loadingMessageId, { text: '', type: undefined, pending: false })
+        updateMessageMeta(loadingMessageId, {
+          text: '',
+          type: 'loading',
+          loading_variant: usedWebSearch ? 'web_search' : 'thinking',
+          pending: false,
+        })
 
         if (typeof Worker !== 'undefined') {
             /**
@@ -274,6 +281,7 @@ export const useJobChat = () => {
                   flushTimeoutId = null
                 }
                 flushBufferedText()
+                updateMessageMeta(loadingMessageId, { type: undefined, loading_variant: undefined })
                 finishSending()
                 workerRef.current?.terminate()
                 workerRef.current = null
@@ -282,7 +290,12 @@ export const useJobChat = () => {
             )
         } else {
             // Worker fallback
-            updateMessageMeta(loadingMessageId, { text: remainingTextValue, type: undefined, pending: false })
+            updateMessageMeta(loadingMessageId, {
+              text: remainingTextValue,
+              type: undefined,
+              loading_variant: undefined,
+              pending: false,
+            })
             finishSending()
             handleExtras()
         }
@@ -292,7 +305,12 @@ export const useJobChat = () => {
          * JP: botText の値を宣言する。
          */
         const botText = data?.response || ''
-        updateMessageMeta(loadingMessageId, { text: botText, type: undefined, pending: false })
+        updateMessageMeta(loadingMessageId, {
+          text: botText,
+          type: undefined,
+          loading_variant: undefined,
+          pending: false,
+        })
         finishSending()
         handleExtras()
       }

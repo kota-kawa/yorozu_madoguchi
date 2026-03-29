@@ -131,6 +131,7 @@ export const useReplyChat = () => {
       sender: 'bot',
       text: '考えています',
       type: 'loading',
+      loading_variant: 'thinking',
       pending: true,
     }
 
@@ -170,6 +171,7 @@ export const useReplyChat = () => {
       if (!response.ok) {
         throw new Error(data?.error || data?.response || `Server Error: ${response.status}`)
       }
+      const usedWebSearch = Boolean(data?.used_web_search)
 
       /**
        * EN: Declare the remainingText value.
@@ -222,7 +224,12 @@ export const useReplyChat = () => {
       }
 
       if (remainingTextValue !== null) {
-        updateMessageMeta(botMessageId, { text: '', type: undefined, pending: false })
+        updateMessageMeta(botMessageId, {
+          text: '',
+          type: 'loading',
+          loading_variant: usedWebSearch ? 'web_search' : 'thinking',
+          pending: false,
+        })
 
         if (typeof Worker !== 'undefined') {
           /**
@@ -276,6 +283,7 @@ export const useReplyChat = () => {
                 flushTimeoutId = null
               }
               flushBufferedText()
+              updateMessageMeta(botMessageId, { type: undefined, loading_variant: undefined })
               finishSending()
               workerRef.current?.terminate()
               workerRef.current = null
@@ -283,7 +291,12 @@ export const useReplyChat = () => {
             },
           )
         } else {
-          updateMessageMeta(botMessageId, { text: remainingTextValue, type: undefined, pending: false })
+          updateMessageMeta(botMessageId, {
+            text: remainingTextValue,
+            type: undefined,
+            loading_variant: undefined,
+            pending: false,
+          })
           finishSending()
           handleExtras()
         }
@@ -300,6 +313,7 @@ export const useReplyChat = () => {
                   ...message,
                   text: fallbackText,
                   type: undefined,
+                  loading_variant: undefined,
                   pending: false,
                 }
               : message,

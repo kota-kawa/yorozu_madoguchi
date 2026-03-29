@@ -21,7 +21,7 @@ services:
         - VITE_API_BASE=${VITE_API_BASE:-}
         - VITE_BACKEND_ORIGIN=${VITE_BACKEND_ORIGIN:-http://web:5003}
     ports:
-      - "5173:80"
+      - "5174:80"
     environment:
       - VITE_BACKEND_ORIGIN=${VITE_BACKEND_ORIGIN:-http://web:5003}
     depends_on:
@@ -35,8 +35,8 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
 
   redis:
     image: redis:7-alpine

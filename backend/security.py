@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 from flask import Request, Response
 
 
-DEFAULT_ALLOWED_ORIGINS = ("https://chat.project-kk.com", "http://localhost:5173")
+DEFAULT_ALLOWED_ORIGINS = ("https://chat.project-kk.com", "http://localhost:5173", "http://localhost:5174")
 logger = logging.getLogger(__name__)
 
 

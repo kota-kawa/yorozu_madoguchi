@@ -120,6 +120,7 @@ class ApiE2ETests(unittest.TestCase):
                 None,
                 False,
                 "remaining",
+                False,
             )
         )
         reservation_stub = types.SimpleNamespace(
@@ -271,6 +272,7 @@ class ApiE2ETests(unittest.TestCase):
         payload = response.get_json()
         self.assertEqual(payload["response"], "reply-ok")
         self.assertEqual(payload["remaining_text"], "remaining")
+        self.assertFalse(payload["used_web_search"])
 
     def test_travel_send_message_requires_session(self):
         """

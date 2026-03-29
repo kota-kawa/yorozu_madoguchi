@@ -207,7 +207,15 @@ def send_message() -> ResponseOrTuple:
 
             # LLMとの対話実行（デフォルトモード=travel）
             # Invoke LLM (default mode=travel)
-            response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text = llama_core.chat_with_llama(
+            (
+                response,
+                current_plan,
+                yes_no_phrase,
+                choices,
+                is_date_select,
+                remaining_text,
+                used_web_search,
+            ) = llama_core.chat_with_llama(
                 session_id,
                 prompt,
                 mode="travel",
@@ -219,7 +227,8 @@ def send_message() -> ResponseOrTuple:
                 'yes_no_phrase': yes_no_phrase,
                 'choices': choices,
                 'is_date_select': is_date_select,
-                'remaining_text': remaining_text
+                'remaining_text': remaining_text,
+                'used_web_search': used_web_search,
             })
 
     except Exception as e:
