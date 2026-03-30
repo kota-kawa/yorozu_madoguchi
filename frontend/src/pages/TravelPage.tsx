@@ -2,8 +2,7 @@
  * EN: Provide the TravelPage module implementation.
  * JP: TravelPage モジュールの実装を定義する。
  */
-import { useEffect, useState } from 'react'
-import type { FormEvent, KeyboardEvent, UIEvent } from 'react'
+import { useEffect } from 'react'
 import Header from '../components/Header/Header'
 import LoadingSpinner from '../components/UI/LoadingSpinner'
 import InfoPanel from '../components/UI/InfoPanel'
@@ -12,6 +11,7 @@ import MessageList from '../components/Chat/MessageList'
 import ChatInput from '../components/Chat/ChatInput'
 import { useChat } from '../hooks/useChat'
 import { usePlan } from '../hooks/usePlan'
+import { useChatPageState } from '../hooks/useChatPageState'
 
 /**
  * EN: Declare the SAMPLE_PROMPTS value.
@@ -29,12 +29,6 @@ const SAMPLE_PROMPTS = [
  * JP: TravelPage の値を宣言する。
  */
 const TravelPage = () => {
-  const [input, setInput] = useState('')
-  const [infoOpen, setInfoOpen] = useState(false)
-  const [autoScroll, setAutoScroll] = useState(true)
-  const [activeTab, setActiveTab] = useState<'chat' | 'plan'>('chat')
-  const [hasNewPlan, setHasNewPlan] = useState(false)
-
   const {
     messages,
     loading: chatLoading,
@@ -48,7 +42,32 @@ const TravelPage = () => {
     setCurrentPlan,
     submittingPlan,
     submitPlan
-  } = usePlan(addSystemMessage)
+  } = usePlan({
+    submitEndpoint: '/travel_submit_plan',
+    addSystemMessage,
+    fetchSummaryAfterSubmit: true,
+  })
+
+  const isLoading = chatLoading || submittingPlan
+
+  const {
+    input,
+    setInput,
+    infoOpen,
+    setInfoOpen,
+    autoScroll,
+    activeTab,
+    hasNewPlan,
+    setHasNewPlan,
+    handleScroll,
+    handleKeyDown,
+    handleSubmit,
+    openChatTab,
+    openPlanTab,
+  } = useChatPageState({
+    isSending: isLoading,
+    sendMessage,
+  })
 
   useEffect(() => {
     if (planFromChat) {
@@ -57,56 +76,7 @@ const TravelPage = () => {
         setHasNewPlan(true)
       }
     }
-  }, [planFromChat, setCurrentPlan, activeTab])
-
-  /**
-   * EN: Declare the handleScroll value.
-   * JP: handleScroll の値を宣言する。
-   */
-  const handleScroll = (event: UIEvent<HTMLDivElement>) => {
-    /**
-     * EN: Declare the target value.
-     * JP: target の値を宣言する。
-     */
-    const target = event.currentTarget
-    /**
-     * EN: Declare the isAtBottom value.
-     * JP: isAtBottom の値を宣言する。
-     */
-    const isAtBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 10
-    setAutoScroll(isAtBottom)
-  }
-
-  /**
-   * EN: Declare the handleKeyDown value.
-   * JP: handleKeyDown の値を宣言する。
-   */
-  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault()
-      handleSubmit(event)
-    }
-  }
-
-  /**
-   * EN: Declare the handleSubmit value.
-   * JP: handleSubmit の値を宣言する。
-   */
-  const handleSubmit = (
-    event: FormEvent<HTMLFormElement> | KeyboardEvent<HTMLTextAreaElement>,
-  ) => {
-    event.preventDefault()
-    if (chatLoading || submittingPlan) return
-    if (!input.trim()) return
-    sendMessage(input)
-    setInput('')
-  }
-
-  /**
-   * EN: Declare the isLoading value.
-   * JP: isLoading の値を宣言する。
-   */
-  const isLoading = chatLoading || submittingPlan
+  }, [planFromChat, setCurrentPlan, activeTab, setHasNewPlan])
 
   return (
     <div className="app theme-travel">
@@ -115,16 +85,13 @@ const TravelPage = () => {
       <div className="mobile-tab-nav">
         <button
           className={`tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
-          onClick={() => setActiveTab('chat')}
+          onClick={openChatTab}
         >
           チャット
         </button>
         <button
           className={`tab-btn ${activeTab === 'plan' ? 'active' : ''}`}
-          onClick={() => {
-            setActiveTab('plan')
-            setHasNewPlan(false)
-          }}
+          onClick={openPlanTab}
         >
           決定内容
           {hasNewPlan && <span className="notification-dot" />}

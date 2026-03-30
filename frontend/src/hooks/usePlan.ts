@@ -6,11 +6,25 @@ import { useState } from 'react'
 import { apiUrl } from '../utils/apiBase'
 import type { PlanSummaryResponse } from '../types/api'
 
+type UsePlanOptions = {
+  submitEndpoint: string
+  addSystemMessage?: (text: string) => void
+  fetchSummaryAfterSubmit?: boolean
+  onSuccess?: () => void
+  onError?: (error: unknown) => void
+}
+
 /**
  * EN: Declare the usePlan value.
  * JP: usePlan の値を宣言する。
  */
-export const usePlan = (addSystemMessage: (text: string) => void) => {
+export const usePlan = ({
+  submitEndpoint,
+  addSystemMessage,
+  fetchSummaryAfterSubmit = false,
+  onSuccess,
+  onError,
+}: UsePlanOptions) => {
   const [currentPlan, setCurrentPlan] = useState('')
   const [submittingPlan, setSubmittingPlan] = useState(false)
 
@@ -19,9 +33,7 @@ export const usePlan = (addSystemMessage: (text: string) => void) => {
    * JP: submitPlan の値を宣言する。
    */
   const submitPlan = async () => {
-    if (!currentPlan?.trim()) {
-      return
-    }
+    if (!currentPlan?.trim() || submittingPlan) return
 
     setSubmittingPlan(true)
     try {
@@ -29,7 +41,7 @@ export const usePlan = (addSystemMessage: (text: string) => void) => {
        * EN: Declare the response value.
        * JP: response の値を宣言する。
        */
-      const response = await fetch(apiUrl('/travel_submit_plan'), {
+      const response = await fetch(apiUrl(submitEndpoint), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan: currentPlan }),
@@ -41,30 +53,39 @@ export const usePlan = (addSystemMessage: (text: string) => void) => {
       }
 
       let summary: PlanSummaryResponse | null = null
-      try {
-        /**
-         * EN: Declare the summaryResponse value.
-         * JP: summaryResponse の値を宣言する。
-         */
-        const summaryResponse = await fetch(apiUrl('/complete'), {
-          headers: { Accept: 'application/json' },
-          credentials: 'include',
-        })
-        if (summaryResponse.ok) {
-          summary = (await summaryResponse.json()) as PlanSummaryResponse
+      if (fetchSummaryAfterSubmit) {
+        try {
+          /**
+           * EN: Declare the summaryResponse value.
+           * JP: summaryResponse の値を宣言する。
+           */
+          const summaryResponse = await fetch(apiUrl('/complete'), {
+            headers: { Accept: 'application/json' },
+            credentials: 'include',
+          })
+          if (summaryResponse.ok) {
+            summary = (await summaryResponse.json()) as PlanSummaryResponse
+          }
+        } catch (error) {
+          console.warn('Failed to fetch summary:', error)
         }
-      } catch (error) {
-        console.warn("Failed to fetch summary:", error)
       }
 
-      addSystemMessage('決定したプランを保存しました。')
+      if (addSystemMessage) {
+        addSystemMessage('決定したプランを保存しました。')
 
-      if (summary?.reservation_data?.length) {
-        addSystemMessage(summary.reservation_data.join(' / '))
+        if (summary?.reservation_data?.length) {
+          addSystemMessage(summary.reservation_data.join(' / '))
+        }
       }
+
+      onSuccess?.()
     } catch (error) {
-      console.error("SubmitPlan Error:", error)
-      addSystemMessage('プランの保存に失敗しました。')
+      console.error('SubmitPlan Error:', error)
+      if (addSystemMessage) {
+        addSystemMessage('プランの保存に失敗しました。')
+      }
+      onError?.(error)
     } finally {
       setSubmittingPlan(false)
     }
@@ -74,6 +95,6 @@ export const usePlan = (addSystemMessage: (text: string) => void) => {
     currentPlan,
     setCurrentPlan,
     submittingPlan,
-    submitPlan
+    submitPlan,
   }
 }

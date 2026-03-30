@@ -6,14 +6,21 @@
  * EN: Provide the api module implementation.
  * JP: api モジュールの実装を定義する。
  */
-export type ChatApiResponse = {
-  response?: string
+/**
+ * EN: Define shared chat response payload fields.
+ * JP: チャット応答の共通ペイロード項目を定義する。
+ */
+export type ChatResponsePayload = {
+  response?: string | null
   remaining_text?: string | null
-  yes_no_phrase?: string
+  yes_no_phrase?: string | null
   choices?: string[] | null
   is_date_select?: boolean
-  used_web_search?: boolean
   current_plan?: string | null
+}
+
+export type ChatApiResponse = ChatResponsePayload & {
+  used_web_search?: boolean
   error?: string
 }
 
@@ -27,15 +34,9 @@ export type ChatStreamDeltaEvent = {
   content?: string
 }
 
-export type ChatStreamFinalEvent = {
+export type ChatStreamFinalEvent = ChatResponsePayload & {
   type: 'final'
-  response?: string | null
-  remaining_text?: string | null
-  yes_no_phrase?: string | null
-  choices?: string[] | null
-  is_date_select?: boolean
   used_web_search?: boolean
-  current_plan?: string | null
 }
 
 export type ChatStreamEvent = ChatStreamMetaEvent | ChatStreamDeltaEvent | ChatStreamFinalEvent
