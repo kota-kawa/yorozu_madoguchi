@@ -11,7 +11,6 @@ from backend.models import ReservationPlan
 import uuid
 from backend import redis_client
 import logging
-import os
 from backend import security
 from typing import Generator, Tuple, Union
 from backend.session_request_lock import (
@@ -22,33 +21,13 @@ from backend.session_request_lock import (
 
 ResponseOrTuple = Union[Response, Tuple[Response, int]]
 from backend import limit_manager
+from backend.routes.common import resolve_frontend_url
 
 logger = logging.getLogger(__name__)
 
 # Blueprintの定義: メッセージ返信機能（reply）のルートを管理
 # Blueprint definition for reply routes
 reply_bp = Blueprint('reply', __name__)
-
-def resolve_frontend_url(path: str = "") -> str:
-    """
-    フロントエンドのURLを動的に解決する
-    Resolve the frontend base URL dynamically.
-    
-    環境（本番、ローカル、Dockerなど）に応じて適切なベースURLを決定し、
-    リダイレクト先やリンク生成に使用します。
-    Chooses a base URL based on the environment for redirects and links.
-    """
-    host = request.headers.get('Host', '')
-    if 'chat.project-kk.com' in host:
-        base_url = "https://chat.project-kk.com"
-    elif 'localhost' in host or '127.0.0.1' in host:
-        base_url = "http://localhost:5173"
-    else:
-        base_url = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
-
-    if path and not path.startswith("/"):
-        path = f"/{path}"
-    return f"{base_url}{path}"
 
 # ホームのチャット画面
 # Home chat screen
@@ -68,7 +47,9 @@ def reply_home() -> Response:
     except Exception as e:
         logger.error(f"Failed to reset session for {session_id}: {e}")
         
-    response = make_response(redirect(resolve_frontend_url('/reply')))
+    response = make_response(
+        redirect(resolve_frontend_url('/reply', default_origin="http://localhost:5173"))
+    )
     response.set_cookie('session_id', session_id, **security.cookie_settings(request))
     return response
 
@@ -129,7 +110,7 @@ def reply_complete() -> ResponseOrTuple:
     # Log results for diagnostics
     for item in reservation_data:
         logger.info(f"Reservation Data: {item}")
-    return redirect(resolve_frontend_url('/complete'))
+    return redirect(resolve_frontend_url('/complete', default_origin="http://localhost:5173"))
 
 
 # メッセージを受け取り、レスポンスを返すエンドポイント

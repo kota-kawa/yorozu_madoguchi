@@ -5,7 +5,6 @@ Blueprint for the study assistant feature.
 
 from flask import Blueprint, request, jsonify, redirect, make_response, Response, stream_with_context
 import logging
-import os
 import uuid
 from typing import Generator, Tuple, Union
 
@@ -18,6 +17,7 @@ from backend.session_request_lock import (
     release_session_lock,
     session_request_lock,
 )
+from backend.routes.common import error_response, reset_session_data, resolve_frontend_url
 
 logger = logging.getLogger(__name__)
 
@@ -26,37 +26,6 @@ logger = logging.getLogger(__name__)
 study_bp = Blueprint('study', __name__)
 
 ResponseOrTuple = Union[Response, Tuple[Response, int]]
-
-
-def resolve_frontend_url(path: str = "") -> str:
-    """
-    フロントエンドのURLを動的に解決する
-    Resolve the frontend base URL dynamically.
-
-    環境に応じて適切なベースURLを返します。
-    Returns the appropriate base URL depending on the environment.
-    """
-    host = request.headers.get('Host', '')
-    if 'chat.project-kk.com' in host:
-        base_url = "https://chat.project-kk.com"
-    elif 'localhost' in host or '127.0.0.1' in host:
-        base_url = "http://localhost:5173"
-    else:
-        base_url = os.getenv("FRONTEND_ORIGIN", "https://chat.project-kk.com")
-
-    if path and not path.startswith("/"):
-        path = f"/{path}"
-    return f"{base_url}{path}"
-
-
-def reset_session_data(session_id: str) -> None:
-    """Redisのセッションデータをリセットする / Reset session data in Redis."""
-    redis_client.reset_session(session_id)
-
-
-def error_response(message: str, status: int = 400) -> ResponseOrTuple:
-    """エラーレスポンスを返すヘルパー関数 / Helper to return JSON error responses."""
-    return jsonify({"error": message, "response": message}), status
 
 
 @study_bp.route('/study')
