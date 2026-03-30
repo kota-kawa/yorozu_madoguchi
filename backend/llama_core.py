@@ -3,10 +3,11 @@ LLM対話ロジックと決定事項管理のコア実装。
 Core logic for LLM chat flows and decision tracking.
 """
 
+import json
 import logging
 import re
 import warnings
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Generator, List, Optional, Tuple
 
 from backend import brave_search
 from backend import guard
@@ -92,6 +93,7 @@ from backend.llama_core_llm import (
     _build_messages,
     _extract_message_content,
     _invoke_chat_completion,
+    _invoke_with_tool_retries_stream,
     _invoke_with_tool_retries,
     _is_tool_use_failed,
     output_is_safe,
@@ -313,52 +315,51 @@ def run_qa_chain(
     
     messages = _build_messages(system_prompt, chat_history, message)
     response = _invoke_with_tool_retries(messages)
-    response = sanitize_llm_text(response)
+    return _parse_response_output(response, lang)
+
+
+def _parse_response_output(
+    raw_response: str,
+    language: Optional[str],
+) -> Tuple[str, Optional[str], Optional[List[str]], bool, str]:
+    """
+    LLMの生テキストを整形し、特殊フォーマットを抽出する
+    Sanitize raw output and extract Select/Yes-No/DateSelect directives.
+    """
+    lang = _normalize_language_code(language)
+    response = sanitize_llm_text(raw_response)
 
     if not output_is_safe(response):
         safe_message = _decision_safety_message(lang)
         return safe_message, None, None, False, safe_message
 
-    # Yes/No形式の抽出ロジック
-    # Extract Yes/No format
     yes_no_phrase = None
     choices = None
     is_date_select = False
     remaining_text = response
 
-    # Select: [...] 形式の抽出 (正規表現)
-    # Extract Select [...] via regex
     select_match = re.search(r'Select\s*[:：]\s*[\[\［](.*?)[\]\］]', response, re.DOTALL)
     if select_match:
         choices_str = select_match.group(1)
-        # カンマ区切り（全角・半角）でリスト化し、引用符などを除去
-        # Split by commas and strip quotes
         parts = re.split(r'[,、，]', choices_str)
         choices = [c.strip().strip('"\'') for c in parts if c.strip()]
-        # Select部分を除去してremaining_textを更新
-        # Remove Select segment from remaining_text
         remaining_text = remaining_text.replace(select_match.group(0), "").strip()
 
-    # DateSelect: true 形式の抽出
-    # Extract DateSelect: true
     date_match = re.search(r'DateSelect\s*[:：]\s*true', remaining_text, re.IGNORECASE)
     if date_match:
         is_date_select = True
         remaining_text = remaining_text.replace(date_match.group(0), "").strip()
 
-    # Yes/No形式の抽出 (Selectが見つからなかった場合、または共存する場合)
-    # Extract Yes/No when Select isn't present (or coexists)
     if not choices and not is_date_select and "Yes/No" in remaining_text:
         start = remaining_text.find('Yes/No:')
         if start != -1:
             q_full = remaining_text.find('？', start)
             q_half = remaining_text.find('?', start)
             q_pos = q_full if q_full != -1 else q_half
-            
             if q_pos != -1:
                 yes_no_phrase = remaining_text[start + len('Yes/No:'):q_pos + 1]
                 remaining_text = remaining_text[:start] + remaining_text[q_pos + 1:]
-                
+
     remaining_text = sanitize_llm_text(remaining_text)
     if not remaining_text.strip():
         remaining_text = "Empty"
@@ -489,3 +490,112 @@ def chat_with_llama(
     current_plan = write_decision(session_id, chat_history, mode=mode, language=lang)
     
     return response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text, used_web_search
+
+
+def stream_chat_with_llama(
+    session_id: str,
+    prompt: str,
+    mode: str = "travel",
+    language: Optional[str] = None,
+) -> Generator[str, None, None]:
+    """
+    LLM応答をストリーミングしつつ、終了時に決定事項まで更新する
+    Stream LLM response chunks and persist chat/decision state at completion.
+    """
+    lang = _normalize_language_code(language or redis_client.get_user_language(session_id))
+    result = guard.content_checker(prompt)
+    if "unsafe" in result:
+        fallback_decision = redis_client.get_decision(session_id) or _decision_safety_message(lang)
+        payload = {
+            "type": "final",
+            "response": None,
+            "current_plan": fallback_decision,
+            "yes_no_phrase": None,
+            "choices": None,
+            "is_date_select": False,
+            "remaining_text": _decision_guard_blocked_message(lang),
+            "used_web_search": False,
+        }
+        yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+        return
+
+    chat_history = redis_client.get_chat_history(session_id)
+    decision_text = redis_client.get_decision(session_id)
+    decision_text = _enforce_decision_policy(decision_text, mode, lang)
+
+    used_web_search, web_results = _run_web_search_if_needed(
+        prompt,
+        chat_history,
+        mode=mode,
+        language=lang,
+    )
+    yield f"data: {json.dumps({'type': 'meta', 'used_web_search': used_web_search}, ensure_ascii=False)}\n\n"
+
+    system_prompt = (
+        _language_instruction(lang)
+        + "\n"
+        + PROMPTS.get(mode, PROMPTS["travel"])["system"]
+        + "\n"
+        + current_datetime_line(lang)
+    )
+    if decision_text:
+        if lang == "en":
+            system_prompt += (
+                "\n\n## Decisions so far\n"
+                f"{decision_text}\n"
+                "- Do not ask again about already decided items. Ask for the next missing info."
+            )
+        else:
+            system_prompt += (
+                "\n\n## 既に決定している情報\n"
+                f"{decision_text}\n"
+                "- 既に決定している内容は繰り返し質問せず、次に必要な情報を確認してください。"
+            )
+    web_context = _build_web_context(web_results, lang) if web_results else None
+    if web_context:
+        if lang == "en":
+            system_prompt += (
+                "\n\nUse the web context only for factual support and avoid fabricating facts.\n"
+                "Do not mention internal reasoning.\n"
+                f"{web_context}"
+            )
+        else:
+            system_prompt += (
+                "\n\nWeb検索コンテキストは事実確認にのみ使い、推測で事実を作らないでください。\n"
+                "内部推論は出力しないでください。\n"
+                f"{web_context}"
+            )
+
+    messages = _build_messages(system_prompt, chat_history, prompt)
+    chunks: List[str] = []
+
+    for delta in _invoke_with_tool_retries_stream(messages):
+        if not delta:
+            continue
+        chunks.append(delta)
+        payload = {"type": "delta", "content": delta}
+        yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+    raw_response = "".join(chunks)
+    response, yes_no_phrase, choices, is_date_select, remaining_text = _parse_response_output(raw_response, lang)
+
+    if web_results and remaining_text != "Empty":
+        response = _append_sources(response, web_results, lang)
+        remaining_text = _append_sources(remaining_text, web_results, lang)
+
+    chat_history.append(("human", prompt))
+    chat_history.append(("assistant", response))
+    redis_client.save_chat_history(session_id, chat_history)
+    current_plan = write_decision(session_id, chat_history, mode=mode, language=lang)
+
+    payload = {
+        "type": "final",
+        "response": response,
+        "current_plan": current_plan,
+        "yes_no_phrase": yes_no_phrase,
+        "choices": choices,
+        "is_date_select": is_date_select,
+        "remaining_text": remaining_text,
+        "used_web_search": used_web_search,
+    }
+    yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"

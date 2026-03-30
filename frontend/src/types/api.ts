@@ -17,6 +17,29 @@ export type ChatApiResponse = {
   error?: string
 }
 
+export type ChatStreamMetaEvent = {
+  type: 'meta'
+  used_web_search?: boolean
+}
+
+export type ChatStreamDeltaEvent = {
+  type: 'delta'
+  content?: string
+}
+
+export type ChatStreamFinalEvent = {
+  type: 'final'
+  response?: string | null
+  remaining_text?: string | null
+  yes_no_phrase?: string | null
+  choices?: string[] | null
+  is_date_select?: boolean
+  used_web_search?: boolean
+  current_plan?: string | null
+}
+
+export type ChatStreamEvent = ChatStreamMetaEvent | ChatStreamDeltaEvent | ChatStreamFinalEvent
+
 /**
  * EN: Define the PlanSummaryResponse type alias.
  * JP: PlanSummaryResponse 型エイリアスを定義する。

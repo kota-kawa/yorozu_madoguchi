@@ -41,7 +41,7 @@
 }
 
 .loading-content.is-web-search .loading-text {
-  color: var(--secondary-color);
+  color: inherit;
 }
 
 .loading-stars {
@@ -90,8 +90,53 @@
 
 .loading-text {
   font-weight: 600;
-  color: var(--primary-color);
+  color: inherit;
   letter-spacing: 0.02em;
+}
+
+.streaming-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  opacity: 0.9;
+}
+
+.streaming-indicator .bi {
+  font-size: 0.95rem;
+}
+
+.streaming-indicator.is-web-search .bi {
+  color: var(--secondary-color);
+}
+
+.streaming-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--primary-color);
+  animation: streamingPulse 1s ease-in-out infinite;
+}
+
+.streaming-label {
+  letter-spacing: 0.02em;
+}
+
+@keyframes streamingPulse {
+  0% {
+    opacity: 0.45;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.45;
+    transform: scale(0.9);
+  }
 }
 
 @keyframes starFloat {

@@ -44,39 +44,6 @@ const MessageList = ({
    */
   const listRef = useRef<HTMLDivElement | null>(null)
   /**
-   * EN: Declare the autoScrollingRef value.
-   * JP: autoScrollingRef の値を宣言する。
-   */
-  const autoScrollingRef = useRef(false)
-  /**
-   * EN: Declare the autoScrollTimeoutRef value.
-   * JP: autoScrollTimeoutRef の値を宣言する。
-   */
-  const autoScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    return () => {
-      if (autoScrollTimeoutRef.current) {
-        clearTimeout(autoScrollTimeoutRef.current)
-      }
-    }
-  }, [])
-
-  /**
-   * EN: Declare the markAutoScrolling value.
-   * JP: markAutoScrolling の値を宣言する。
-   */
-  const markAutoScrolling = () => {
-    autoScrollingRef.current = true
-    if (autoScrollTimeoutRef.current) {
-      clearTimeout(autoScrollTimeoutRef.current)
-    }
-    autoScrollTimeoutRef.current = setTimeout(() => {
-      autoScrollingRef.current = false
-    }, 120)
-  }
-
-  /**
    * EN: Declare the scrollToBottom value.
    * JP: scrollToBottom の値を宣言する。
    */
@@ -88,7 +55,6 @@ const MessageList = ({
      * JP: target の値を宣言する。
      */
     const target = listRef.current
-    markAutoScrolling()
     if (behavior === 'smooth') {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
       return
@@ -132,16 +98,7 @@ const MessageList = ({
 
   useEffect(() => {
     if (!autoScroll || !isStreaming) return
-
-    /**
-     * EN: Declare the intervalId value.
-     * JP: intervalId の値を宣言する。
-     */
-    const intervalId = setInterval(() => {
-      scrollToBottom('auto')
-    }, 1500)
-
-    return () => clearInterval(intervalId)
+    scrollToBottom('auto')
   }, [autoScroll, isStreaming])
 
   /**
@@ -149,7 +106,6 @@ const MessageList = ({
    * JP: handleScroll の値を宣言する。
    */
   const handleScroll = (event: UIEvent<HTMLDivElement>) => {
-    if (autoScrollingRef.current) return
     if (onScroll) onScroll(event)
   }
 

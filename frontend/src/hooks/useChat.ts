@@ -5,8 +5,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { apiUrl } from '../utils/apiBase'
 import { getStoredUserType } from '../utils/userType'
-import { streamWithWorker } from '../utils/streamHelper'
-import type { ChatApiResponse } from '../types/api'
+import { consumeChatSse } from '../utils/sseChatStream'
+import type { ChatApiResponse, ChatStreamFinalEvent } from '../types/api'
 import type { ChatMessage, ChatMessageUpdate } from '../types/chat'
 
 const initialMessage: ChatMessage = {
@@ -24,11 +24,6 @@ export const useChat = () => {
   const [loading, setLoading] = useState(false)
   const [planFromChat, setPlanFromChat] = useState('')
   /**
-   * EN: Declare the workerRef value.
-   * JP: workerRef の値を宣言する。
-   */
-  const workerRef = useRef<Worker | null>(null)
-  /**
    * EN: Declare the inFlightRef value.
    * JP: inFlightRef の値を宣言する。
    */
@@ -45,12 +40,6 @@ export const useChat = () => {
       () => {},
     )
     return () => controller.abort()
-  }, [])
-
-  useEffect(() => {
-    return () => {
-      workerRef.current?.terminate()
-    }
   }, [])
 
   /**
@@ -110,8 +99,6 @@ export const useChat = () => {
     }
 
     inFlightRef.current = true
-    workerRef.current?.terminate()
-    workerRef.current = null
 
     /**
      * EN: Declare the userMessage value.
@@ -146,174 +133,123 @@ export const useChat = () => {
        */
       const response = await fetch(apiUrl('/travel_send_message'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: trimmed, user_type: getStoredUserType() }),
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'text/event-stream',
+        },
+        body: JSON.stringify({ message: trimmed, user_type: getStoredUserType(), stream: true }),
         credentials: 'include',
       })
-
-      /**
-       * EN: Declare the data value.
-       * JP: data の値を宣言する。
-       */
-      const data = (await response.json().catch(() => null)) as ChatApiResponse | null
-
+      const contentType = response.headers.get('content-type') || ''
       if (!response.ok) {
-        /**
-         * EN: Declare the serverMessage value.
-         * JP: serverMessage の値を宣言する。
-         */
-        const serverMessage = data?.response
+        const data = (await response.json().catch(() => null)) as ChatApiResponse | null
+        const serverMessage = data?.response || data?.error
         throw new Error(serverMessage || `Server Error: ${response.status}`)
       }
-
-      if (data?.error) {
-         throw new Error(data.response || 'API Error')
+      if (!contentType.includes('text/event-stream')) {
+        throw new Error('ストリーミング応答の受信に失敗しました。')
       }
-      const usedWebSearch = Boolean(data?.used_web_search)
 
-      /**
-       * EN: Declare the remainingText value.
-       * JP: remainingText の値を宣言する。
-       */
-      const remainingText = data?.remaining_text
-      /**
-       * EN: Declare the remainingTextValue value.
-       * JP: remainingTextValue の値を宣言する。
-       */
+      const streamFlushIntervalMs = 30
+      let bufferedText = ''
+      let flushTimeoutId: ReturnType<typeof setTimeout> | null = null
+      let finalEvent: ChatStreamFinalEvent | null = null
+      let streamUsedWebSearch = false
+
+      updateMessageMeta(loadingMessageId, {
+        text: '',
+        type: 'loading',
+        loading_variant: 'thinking',
+        pending: false,
+      })
+
+      const flushBufferedText = () => {
+        if (!bufferedText) return
+        const chunkToAppend = bufferedText
+        bufferedText = ''
+        updateMessageText(loadingMessageId, (prevText) => `${prevText}${chunkToAppend}`)
+      }
+
+      await consumeChatSse(response, (event) => {
+        if (event.type === 'meta') {
+          streamUsedWebSearch = Boolean(event.used_web_search)
+          updateMessageMeta(loadingMessageId, {
+            loading_variant: streamUsedWebSearch ? 'web_search' : 'thinking',
+          })
+          return
+        }
+        if (event.type === 'delta') {
+          if (typeof event.content === 'string' && event.content) {
+            bufferedText += event.content
+            if (!flushTimeoutId) {
+              flushTimeoutId = setTimeout(() => {
+                flushTimeoutId = null
+                flushBufferedText()
+              }, streamFlushIntervalMs)
+            }
+          }
+          return
+        }
+        if (event.type === 'final') {
+          finalEvent = event
+        }
+      })
+
+      if (flushTimeoutId) {
+        clearTimeout(flushTimeoutId)
+        flushTimeoutId = null
+      }
+      flushBufferedText()
+
+      if (!finalEvent) {
+        throw new Error('ストリーミングが途中で終了しました。')
+      }
+
+      if (finalEvent.current_plan !== undefined) {
+        setPlanFromChat(finalEvent.current_plan ?? '')
+      }
+
+      const remainingText = finalEvent.remaining_text
       const remainingTextValue =
         typeof remainingText === 'string' && remainingText !== 'Empty' ? remainingText : null
-      
-      if (data?.current_plan !== undefined) {
-        setPlanFromChat(data.current_plan ?? '')
-      }
+      const finalText = remainingTextValue ?? finalEvent.response ?? ''
 
-      /**
-       * EN: Declare the handleExtras value.
-       * JP: handleExtras の値を宣言する。
-       */
-      const handleExtras = () => {
-        const updates: ChatMessage[] = []
-        if (data?.yes_no_phrase) {
-            updates.push({
-            id: `yesno-${Date.now()}`,
-            sender: 'bot',
-            text: data.yes_no_phrase,
-            type: 'yesno',
-            })
-        }
-        if (data?.choices && Array.isArray(data.choices) && data.choices.length > 0) {
-            updates.push({
-            id: `selection-${Date.now()}`,
-            sender: 'bot',
-            choices: data.choices,
-            type: 'selection',
-            })
-        }
-        if (data?.is_date_select) {
-            updates.push({
-            id: `date-selection-${Date.now()}`,
-            sender: 'bot',
-            type: 'date_selection',
-            })
-        }
-        if (updates.length > 0) {
-            setMessages((prev) => [...prev, ...updates])
-        }
-      }
+      updateMessageMeta(loadingMessageId, {
+        text: finalText,
+        type: undefined,
+        loading_variant: undefined,
+        pending: false,
+      })
 
-      if (remainingTextValue !== null) {
-        updateMessageMeta(loadingMessageId, {
-          text: '',
-          type: 'loading',
-          loading_variant: usedWebSearch ? 'web_search' : 'thinking',
-          pending: false,
+      const updates: ChatMessage[] = []
+      if (finalEvent.yes_no_phrase) {
+        updates.push({
+          id: `yesno-${Date.now()}`,
+          sender: 'bot',
+          text: finalEvent.yes_no_phrase,
+          type: 'yesno',
         })
-
-        if (typeof Worker !== 'undefined') {
-            /**
-             * EN: Declare the worker value.
-             * JP: worker の値を宣言する。
-             */
-            const worker = new Worker(
-              new URL('../workers/textGeneratorWorker.ts', import.meta.url),
-              { type: 'module' },
-            )
-            workerRef.current = worker
-  
-            /**
-             * EN: Declare the streamFlushIntervalMs value.
-             * JP: streamFlushIntervalMs の値を宣言する。
-             */
-            const streamFlushIntervalMs = 30
-            let bufferedText = ''
-            let flushTimeoutId: ReturnType<typeof setTimeout> | null = null
-  
-            /**
-             * EN: Declare the flushBufferedText value.
-             * JP: flushBufferedText の値を宣言する。
-             */
-            const flushBufferedText = () => {
-              if (!bufferedText) return
-              /**
-               * EN: Declare the chunkToAppend value.
-               * JP: chunkToAppend の値を宣言する。
-               */
-              const chunkToAppend = bufferedText
-              bufferedText = ''
-              updateMessageText(loadingMessageId, (prevText) => `${prevText}${chunkToAppend}`)
-            }
-  
-            streamWithWorker(
-              worker,
-              remainingTextValue,
-              (chunk) => {
-                bufferedText += chunk
-                if (!flushTimeoutId) {
-                  flushTimeoutId = setTimeout(() => {
-                    flushTimeoutId = null
-                    flushBufferedText()
-                  }, streamFlushIntervalMs)
-                }
-              },
-              () => {
-                if (flushTimeoutId) {
-                  clearTimeout(flushTimeoutId)
-                  flushTimeoutId = null
-                }
-                flushBufferedText()
-                updateMessageMeta(loadingMessageId, { type: undefined, loading_variant: undefined })
-                finishSending()
-                workerRef.current?.terminate()
-                workerRef.current = null
-                handleExtras()
-              },
-            )
-        } else {
-            // Worker fallback
-            updateMessageMeta(loadingMessageId, {
-              text: remainingTextValue,
-              type: undefined,
-              loading_variant: undefined,
-              pending: false,
-            })
-            finishSending()
-            handleExtras()
-        }
-      } else {
-        /**
-         * EN: Declare the botText value.
-         * JP: botText の値を宣言する。
-         */
-        const botText = data?.response || ''
-        updateMessageMeta(loadingMessageId, {
-          text: botText,
-          type: undefined,
-          loading_variant: undefined,
-          pending: false,
-        })
-        finishSending()
-        handleExtras()
       }
+      if (finalEvent.choices && Array.isArray(finalEvent.choices) && finalEvent.choices.length > 0) {
+        updates.push({
+          id: `selection-${Date.now()}`,
+          sender: 'bot',
+          choices: finalEvent.choices,
+          type: 'selection',
+        })
+      }
+      if (finalEvent.is_date_select) {
+        updates.push({
+          id: `date-selection-${Date.now()}`,
+          sender: 'bot',
+          type: 'date_selection',
+        })
+      }
+      if (updates.length > 0) {
+        setMessages((prev) => [...prev, ...updates])
+      }
+
+      finishSending()
 
     } catch (error) {
       console.error("SendMessage Error:", error)

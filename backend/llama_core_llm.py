@@ -5,7 +5,7 @@ Output guardrails and LLM invocation helpers for llama_core.
 
 import json
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 from backend import guard
 
@@ -72,6 +72,37 @@ def _invoke_chat_completion(
         payload["tools"] = tools
     completion = client.chat.completions.create(**payload)
     return _extract_message_content(completion.choices[0].message)
+
+
+def _invoke_chat_completion_stream(
+    messages: List[Dict[str, str]],
+    model_name: Optional[str] = None,
+    tool_choice: Optional[str] = None,
+    tools: Optional[List[Dict[str, Any]]] = None,
+) -> Iterator[str]:
+    """
+    指定メッセージでチャット補完APIをストリーミング呼び出しする
+    Call the chat-completions API in streaming mode and yield text deltas.
+    """
+    client = get_groq_client()
+    payload: Dict[str, Any] = {
+        "model": model_name or GROQ_MODEL_NAME,
+        "messages": messages,
+        "stream": True,
+    }
+    if tool_choice:
+        payload["tool_choice"] = tool_choice
+    if tools is not None:
+        payload["tools"] = tools
+    stream = client.chat.completions.create(**payload)
+    for chunk in stream:
+        choices = getattr(chunk, "choices", None) or []
+        if not choices:
+            continue
+        delta = getattr(choices[0], "delta", None)
+        content = getattr(delta, "content", None) if delta is not None else None
+        if content:
+            yield str(content)
 
 
 PASS_THROUGH_TOOLS = [
@@ -161,6 +192,53 @@ def _invoke_with_tool_retries(
 
     logger.warning("Groq tool_use_failed; retrying with tool_choice=auto")
     return _invoke_chat_completion(
+        messages,
+        model_name=model_name,
+        tool_choice="auto",
+        tools=PASS_THROUGH_TOOLS,
+    )
+
+
+def _invoke_with_tool_retries_stream(
+    messages: List[Dict[str, str]],
+    model_name: Optional[str] = None,
+) -> Iterator[str]:
+    """
+    tool_use_failed 発生時にフォールバック条件で再試行しつつストリーミングする
+    Stream responses with fallback retries when tool-use errors occur.
+    """
+    try:
+        yield from _invoke_chat_completion_stream(messages, model_name=model_name)
+        return
+    except Exception as e:
+        if not _is_tool_use_failed(e):
+            raise
+
+    if GROQ_FALLBACK_MODEL_NAME:
+        logger.warning(
+            "Groq tool_use_failed; retrying stream with fallback model: %s",
+            GROQ_FALLBACK_MODEL_NAME,
+        )
+        try:
+            yield from _invoke_chat_completion_stream(
+                messages,
+                model_name=GROQ_FALLBACK_MODEL_NAME,
+            )
+            return
+        except Exception as retry_err:
+            if _is_tool_use_failed(retry_err):
+                logger.warning("Groq tool_use_failed on fallback stream; retrying with tool_choice=auto")
+                yield from _invoke_chat_completion_stream(
+                    messages,
+                    model_name=GROQ_FALLBACK_MODEL_NAME,
+                    tool_choice="auto",
+                    tools=PASS_THROUGH_TOOLS,
+                )
+                return
+            raise
+
+    logger.warning("Groq tool_use_failed; retrying stream with tool_choice=auto")
+    yield from _invoke_chat_completion_stream(
         messages,
         model_name=model_name,
         tool_choice="auto",

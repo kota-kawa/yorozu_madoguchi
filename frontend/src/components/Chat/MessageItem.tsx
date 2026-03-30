@@ -80,6 +80,29 @@ const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }
 
   if (message.type === 'loading') {
     const isWebSearchLoading = message.loading_variant === 'web_search'
+    const loadingText = message.text ?? ''
+    const hasStreamingText = loadingText.trim().length > 0 && loadingText.trim() !== '考えています'
+
+    if (hasStreamingText) {
+      return (
+        <div className={`chat-message ${message.sender}`} aria-live="polite">
+          <div className="markdown-content">
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+              {loadingText}
+            </ReactMarkdown>
+          </div>
+          <div className={`streaming-indicator${isWebSearchLoading ? ' is-web-search' : ''}`} aria-hidden="true">
+            {isWebSearchLoading ? (
+              <i className="bi bi-globe-americas" />
+            ) : (
+              <span className="streaming-dot" />
+            )}
+            <span className="streaming-label">生成中</span>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className={`chat-message ${message.sender} loading-message`} aria-live="polite">
         <div className={`loading-content${isWebSearchLoading ? ' is-web-search' : ''}`}>
@@ -93,7 +116,7 @@ const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }
               <span className="loading-star star-secondary" />
             </span>
           )}
-          <span className="loading-text">{message.text ?? ''}</span>
+          <span className="loading-text">{loadingText}</span>
         </div>
       </div>
     )

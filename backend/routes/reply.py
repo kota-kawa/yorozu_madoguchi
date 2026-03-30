@@ -3,7 +3,7 @@
 Blueprint for the reply support feature.
 """
 
-from flask import Blueprint, request, jsonify, redirect, make_response, Response
+from flask import Blueprint, request, jsonify, redirect, make_response, Response, stream_with_context
 from backend import llama_core
 from backend import reservation
 from backend.database import SessionLocal
@@ -13,8 +13,12 @@ from backend import redis_client
 import logging
 import os
 from backend import security
-from typing import Tuple, Union
-from backend.session_request_lock import session_request_lock
+from typing import Generator, Tuple, Union
+from backend.session_request_lock import (
+    acquire_session_lock,
+    release_session_lock,
+    session_request_lock,
+)
 
 ResponseOrTuple = Union[Response, Tuple[Response, int]]
 from backend import limit_manager
@@ -147,7 +151,99 @@ def reply_send_message() -> ResponseOrTuple:
     if not session_id:
         return jsonify({'error': 'セッションが無効です。ページをリロードしてください。'}), 400
 
-    with session_request_lock(session_id) as lock_acquired:
+    data = request.get_json(silent=True)
+    if data is None:
+        return jsonify({
+            'error': 'リクエストの形式が正しくありません（JSONを送信してください）。',
+            'response': 'リクエストの形式が正しくありません（JSONを送信してください）。',
+            'current_plan': "",
+            'yes_no_phrase': "",
+            'choices': None,
+            'is_date_select': False,
+            'remaining_text': ""
+        }), 400
+
+    # 利用制限のチェック
+    # Check rate limits
+    is_allowed, count, limit, user_type, total_exceeded, error_code = (
+        limit_manager.check_and_increment_limit(session_id, user_type=data.get("user_type"))
+    )
+    if error_code == "redis_unavailable":
+        return jsonify({
+            'error': "利用状況を確認できません。しばらく待ってから再試行してください。",
+            'response': "利用状況を確認できません。しばらく待ってから再試行してください。",
+            'current_plan': "",
+            'yes_no_phrase': "",
+            'choices': None,
+            'is_date_select': False,
+            'remaining_text': ""
+        }), 503
+    if not user_type:
+        return jsonify({
+            'error': "ユーザー種別を選択してください。",
+            'response': "ユーザー種別を選択してください。",
+            'current_plan': "",
+            'yes_no_phrase': "",
+            'choices': None,
+            'is_date_select': False,
+            'remaining_text': ""
+        }), 400
+    if total_exceeded:
+        return jsonify({
+            'response': "今日の上限に達しました。明日またご利用ください。",
+            'current_plan': "",
+            'yes_no_phrase': "",
+            'choices': None,
+            'is_date_select': False,
+            'remaining_text': ""
+        }), 429
+    if not is_allowed:
+        return jsonify({
+            'response': f"申し訳ありませんが、本日の利用制限（{limit}回）に達しました。明日またご利用ください。",
+            'current_plan': "",
+            'yes_no_phrase': "",
+            'choices': None,
+            'is_date_select': False,
+            'remaining_text': ""
+        }), 429
+
+    prompt = data.get('message')
+
+    # 文字数制限のチェック
+    # Enforce message length limit
+    if not prompt:
+        return jsonify({
+            'response': "メッセージを入力してください。",
+            'current_plan': "",
+            'yes_no_phrase': "",
+            'choices': None,
+            'is_date_select': False,
+            'remaining_text': ""
+        }), 400
+    if len(prompt) > 3000:
+        return jsonify({
+            'response': "入力された文字数が3000文字を超えています。短くして再度お試しください。",
+            'current_plan': "",
+            'yes_no_phrase': "",
+            'choices': None,
+            'is_date_select': False,
+            'remaining_text': ""
+        }), 400
+
+    stored_language = redis_client.get_user_language(session_id)
+    language = llama_core.resolve_user_language(
+        prompt,
+        fallback=stored_language,
+        accept_language=request.headers.get("Accept-Language"),
+    )
+    redis_client.save_user_language(session_id, language)
+
+    wants_stream = bool(data.get("stream")) or (
+        request.accept_mimetypes.get("text/event-stream", 0)
+        > request.accept_mimetypes.get("application/json", 0)
+    )
+    if wants_stream:
+        lock_acquired = acquire_session_lock(session_id)
         if not lock_acquired:
             return jsonify({
                 'error': "前のメッセージを処理中です。応答が返るまでお待ちください。",
@@ -159,92 +255,34 @@ def reply_send_message() -> ResponseOrTuple:
                 'remaining_text': ""
             }), 409
 
-        data = request.get_json(silent=True)
-        if data is None:
-            return jsonify({
-                'error': 'リクエストの形式が正しくありません（JSONを送信してください）。',
-                'response': 'リクエストの形式が正しくありません（JSONを送信してください）。',
-                'current_plan': "",
-                'yes_no_phrase': "",
-                'choices': None,
-                'is_date_select': False,
-                'remaining_text': ""
-            }), 400
+        def generate() -> Generator[str, None, None]:
+            try:
+                for chunk in llama_core.stream_chat_with_llama(
+                    session_id,
+                    prompt,
+                    mode="reply",
+                    language=language,
+                ):
+                    yield chunk
+            finally:
+                release_session_lock(session_id)
 
-        # 利用制限のチェック
-        # Check rate limits
-        is_allowed, count, limit, user_type, total_exceeded, error_code = (
-            limit_manager.check_and_increment_limit(session_id, user_type=data.get("user_type"))
-        )
-        if error_code == "redis_unavailable":
-            return jsonify({
-                'error': "利用状況を確認できません。しばらく待ってから再試行してください。",
-                'response': "利用状況を確認できません。しばらく待ってから再試行してください。",
-                'current_plan': "",
-                'yes_no_phrase': "",
-                'choices': None,
-                'is_date_select': False,
-                'remaining_text': ""
-            }), 503
-        if not user_type:
-            return jsonify({
-                'error': "ユーザー種別を選択してください。",
-                'response': "ユーザー種別を選択してください。",
-                'current_plan': "",
-                'yes_no_phrase': "",
-                'choices': None,
-                'is_date_select': False,
-                'remaining_text': ""
-            }), 400
-        if total_exceeded:
-            return jsonify({
-                'response': "今日の上限に達しました。明日またご利用ください。",
-                'current_plan': "",
-                'yes_no_phrase': "",
-                'choices': None,
-                'is_date_select': False,
-                'remaining_text': ""
-            }), 429
-        if not is_allowed:
-            return jsonify({
-                'response': f"申し訳ありませんが、本日の利用制限（{limit}回）に達しました。明日またご利用ください。",
-                'current_plan': "",
-                'yes_no_phrase': "",
-                'choices': None,
-                'is_date_select': False,
-                'remaining_text': ""
-            }), 429
+        response = Response(stream_with_context(generate()), mimetype="text/event-stream")
+        response.headers["Cache-Control"] = "no-cache"
+        response.headers["X-Accel-Buffering"] = "no"
+        return response
 
-        prompt = data.get('message')
-
-        # 文字数制限のチェック
-        # Enforce message length limit
-        if not prompt:
+    with session_request_lock(session_id) as lock_acquired:
+        if not lock_acquired:
             return jsonify({
-                'response': "メッセージを入力してください。",
+                'error': "前のメッセージを処理中です。応答が返るまでお待ちください。",
+                'response': "前のメッセージを処理中です。応答が返るまでお待ちください。",
                 'current_plan': "",
                 'yes_no_phrase': "",
                 'choices': None,
                 'is_date_select': False,
                 'remaining_text': ""
-            }), 400
-        if len(prompt) > 3000:
-            return jsonify({
-                'response': "入力された文字数が3000文字を超えています。短くして再度お試しください。",
-                'current_plan': "",
-                'yes_no_phrase': "",
-                'choices': None,
-                'is_date_select': False,
-                'remaining_text': ""
-            }), 400
-
-        stored_language = redis_client.get_user_language(session_id)
-        language = llama_core.resolve_user_language(
-            prompt,
-            fallback=stored_language,
-            accept_language=request.headers.get("Accept-Language"),
-        )
-        redis_client.save_user_language(session_id, language)
+            }), 409
 
         # LLMとの対話実行 (mode="reply")
         # Invoke LLM for reply mode
