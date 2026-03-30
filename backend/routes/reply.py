@@ -3,7 +3,7 @@
 Blueprint for the reply support feature.
 """
 
-from flask import Blueprint, request, jsonify, redirect, make_response, Response, stream_with_context
+from flask import Blueprint, request, jsonify, redirect, make_response, Response
 from backend import llama_core
 from backend import reservation
 from backend.database import SessionLocal
@@ -12,16 +12,18 @@ import uuid
 from backend import redis_client
 import logging
 from backend import security
-from typing import Generator, Tuple, Union
-from backend.session_request_lock import (
-    acquire_session_lock,
-    release_session_lock,
-    session_request_lock,
+from typing import Tuple, Union
+
+from backend import limit_manager
+from backend.routes.common import (
+    handle_chat_send_message,
+    handle_submit_plan,
+    resolve_frontend_url,
+    rich_chat_error_response,
+    submit_plan_error_response,
 )
 
 ResponseOrTuple = Union[Response, Tuple[Response, int]]
-from backend import limit_manager
-from backend.routes.common import resolve_frontend_url
 
 logger = logging.getLogger(__name__)
 
@@ -125,160 +127,22 @@ def reply_send_message() -> ResponseOrTuple:
     CSRFチェック、セッション検証、利用制限チェックを含みます。
     Includes CSRF, session, and rate-limit checks.
     """
-    if not security.is_csrf_valid(request):
-        return jsonify({'error': '不正なリクエストです。', 'response': '不正なリクエストです。'}), 403
-
-    session_id = request.cookies.get('session_id')
-    if not session_id:
-        return jsonify({'error': 'セッションが無効です。ページをリロードしてください。'}), 400
-
-    data = request.get_json(silent=True)
-    if data is None:
-        return jsonify({
-            'error': 'リクエストの形式が正しくありません（JSONを送信してください）。',
-            'response': 'リクエストの形式が正しくありません（JSONを送信してください）。',
-            'current_plan': "",
-            'yes_no_phrase': "",
-            'choices': None,
-            'is_date_select': False,
-            'remaining_text': ""
-        }), 400
-
-    # 利用制限のチェック
-    # Check rate limits
-    is_allowed, count, limit, user_type, total_exceeded, error_code = (
-        limit_manager.check_and_increment_limit(session_id, user_type=data.get("user_type"))
+    return handle_chat_send_message(
+        request,
+        mode="reply",
+        error_responder=rich_chat_error_response,
+        check_and_increment_limit=limit_manager.check_and_increment_limit,
+        resolve_user_language=llama_core.resolve_user_language,
+        get_user_language=redis_client.get_user_language,
+        save_user_language=redis_client.save_user_language,
+        chat_with_llama=llama_core.chat_with_llama,
+        stream_chat_with_llama=lambda *args, **kwargs: llama_core.stream_chat_with_llama(
+            *args, **kwargs
+        ),
+        limit_exceeded_message_builder=lambda limit: (
+            f"申し訳ありませんが、本日の利用制限（{limit}回）に達しました。明日またご利用ください。"
+        ),
     )
-    if error_code == "redis_unavailable":
-        return jsonify({
-            'error': "利用状況を確認できません。しばらく待ってから再試行してください。",
-            'response': "利用状況を確認できません。しばらく待ってから再試行してください。",
-            'current_plan': "",
-            'yes_no_phrase': "",
-            'choices': None,
-            'is_date_select': False,
-            'remaining_text': ""
-        }), 503
-    if not user_type:
-        return jsonify({
-            'error': "ユーザー種別を選択してください。",
-            'response': "ユーザー種別を選択してください。",
-            'current_plan': "",
-            'yes_no_phrase': "",
-            'choices': None,
-            'is_date_select': False,
-            'remaining_text': ""
-        }), 400
-    if total_exceeded:
-        return jsonify({
-            'response': "今日の上限に達しました。明日またご利用ください。",
-            'current_plan': "",
-            'yes_no_phrase': "",
-            'choices': None,
-            'is_date_select': False,
-            'remaining_text': ""
-        }), 429
-    if not is_allowed:
-        return jsonify({
-            'response': f"申し訳ありませんが、本日の利用制限（{limit}回）に達しました。明日またご利用ください。",
-            'current_plan': "",
-            'yes_no_phrase': "",
-            'choices': None,
-            'is_date_select': False,
-            'remaining_text': ""
-        }), 429
-
-    prompt = data.get('message')
-
-    # 文字数制限のチェック
-    # Enforce message length limit
-    if not prompt:
-        return jsonify({
-            'response': "メッセージを入力してください。",
-            'current_plan': "",
-            'yes_no_phrase': "",
-            'choices': None,
-            'is_date_select': False,
-            'remaining_text': ""
-        }), 400
-    if len(prompt) > 3000:
-        return jsonify({
-            'response': "入力された文字数が3000文字を超えています。短くして再度お試しください。",
-            'current_plan': "",
-            'yes_no_phrase': "",
-            'choices': None,
-            'is_date_select': False,
-            'remaining_text': ""
-        }), 400
-
-    stored_language = redis_client.get_user_language(session_id)
-    language = llama_core.resolve_user_language(
-        prompt,
-        fallback=stored_language,
-        accept_language=request.headers.get("Accept-Language"),
-    )
-    redis_client.save_user_language(session_id, language)
-
-    wants_stream = bool(data.get("stream")) or (
-        request.accept_mimetypes.get("text/event-stream", 0)
-        > request.accept_mimetypes.get("application/json", 0)
-    )
-    if wants_stream:
-        lock_acquired = acquire_session_lock(session_id)
-        if not lock_acquired:
-            return jsonify({
-                'error': "前のメッセージを処理中です。応答が返るまでお待ちください。",
-                'response': "前のメッセージを処理中です。応答が返るまでお待ちください。",
-                'current_plan': "",
-                'yes_no_phrase': "",
-                'choices': None,
-                'is_date_select': False,
-                'remaining_text': ""
-            }), 409
-
-        def generate() -> Generator[str, None, None]:
-            try:
-                for chunk in llama_core.stream_chat_with_llama(
-                    session_id,
-                    prompt,
-                    mode="reply",
-                    language=language,
-                ):
-                    yield chunk
-            finally:
-                release_session_lock(session_id)
-
-        response = Response(stream_with_context(generate()), mimetype="text/event-stream")
-        response.headers["Cache-Control"] = "no-cache"
-        response.headers["X-Accel-Buffering"] = "no"
-        return response
-
-    with session_request_lock(session_id) as lock_acquired:
-        if not lock_acquired:
-            return jsonify({
-                'error': "前のメッセージを処理中です。応答が返るまでお待ちください。",
-                'response': "前のメッセージを処理中です。応答が返るまでお待ちください。",
-                'current_plan': "",
-                'yes_no_phrase': "",
-                'choices': None,
-                'is_date_select': False,
-                'remaining_text': ""
-            }), 409
-
-        # LLMとの対話実行 (mode="reply")
-        # Invoke LLM for reply mode
-        response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text, used_web_search = (
-            llama_core.chat_with_llama(session_id, prompt, mode="reply", language=language)
-        )
-        return jsonify({
-            'response': response,
-            'current_plan': current_plan,
-            'yes_no_phrase': yes_no_phrase,
-            'choices': choices,
-            'is_date_select': is_date_select,
-            'remaining_text': remaining_text,
-            'used_web_search': used_web_search,
-        })
 
 @reply_bp.route('/reply_submit_plan', methods=['POST'])
 def reply_submit_plan() -> ResponseOrTuple:
@@ -289,12 +153,8 @@ def reply_submit_plan() -> ResponseOrTuple:
     現在のセッションでの決定事項を解析し、データベースに保存します。
     Parses decisions for the session and persists to the database.
     """
-    if not security.is_csrf_valid(request):
-        return jsonify({'error': '不正なリクエストです。'}), 403
-
-    session_id = request.cookies.get('session_id')
-    if not session_id:
-        return jsonify({'error': 'セッションが無効です。'}), 400
-        
-    compile = reservation.complete_plan(session_id)
-    return jsonify({'compile': compile})
+    return handle_submit_plan(
+        request,
+        complete_plan=reservation.complete_plan,
+        error_responder=submit_plan_error_response,
+    )

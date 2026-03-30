@@ -3,21 +3,21 @@
 Blueprint for the job-hunting assistant feature.
 """
 
-from flask import Blueprint, request, jsonify, redirect, make_response, Response, stream_with_context
+from flask import Blueprint, request, redirect, make_response, Response
 import logging
 import uuid
-from typing import Generator, Tuple, Union
+from typing import Tuple, Union
 
 from backend import llama_core
 from backend import limit_manager
 from backend import redis_client
 from backend import security
-from backend.session_request_lock import (
-    acquire_session_lock,
-    release_session_lock,
-    session_request_lock,
+from backend.routes.common import (
+    error_response,
+    handle_chat_send_message,
+    reset_session_data,
+    resolve_frontend_url,
 )
-from backend.routes.common import error_response, reset_session_data, resolve_frontend_url
 
 logger = logging.getLogger(__name__)
 
@@ -53,96 +53,19 @@ def job_send_message() -> ResponseOrTuple:
     Handle job assistant chat messages.
     """
     try:
-        if not security.is_csrf_valid(request):
-            return error_response("不正なリクエストです。", status=403)
-
-        session_id = request.cookies.get('session_id')
-        if not session_id:
-            return error_response("セッションが無効です。ページをリロードしてください。", status=400)
-
-        data = request.get_json(silent=True)
-        if data is None:
-            return error_response("リクエストの形式が正しくありません（JSONを送信してください）。", status=400)
-
-        # 利用制限のチェック
-        # Check rate limits
-        is_allowed, count, limit, user_type, total_exceeded, error_code = (
-            limit_manager.check_and_increment_limit(session_id, user_type=data.get("user_type"))
+        return handle_chat_send_message(
+            request,
+            mode="job",
+            error_responder=error_response,
+            check_and_increment_limit=limit_manager.check_and_increment_limit,
+            resolve_user_language=llama_core.resolve_user_language,
+            get_user_language=redis_client.get_user_language,
+            save_user_language=redis_client.save_user_language,
+            chat_with_llama=llama_core.chat_with_llama,
+            stream_chat_with_llama=lambda *args, **kwargs: llama_core.stream_chat_with_llama(
+                *args, **kwargs
+            ),
         )
-        if error_code == "redis_unavailable":
-            return error_response("利用状況を確認できません。しばらく待ってから再試行してください。", status=503)
-        if not user_type:
-            return error_response("ユーザー種別を選択してください。", status=400)
-        if total_exceeded:
-            return error_response("今日の上限に達しました。明日またご利用ください。", status=429)
-        if not is_allowed:
-            return error_response(
-                f"本日の利用制限（{limit}回）に達しました。明日またご利用ください。",
-                status=429
-            )
-
-        prompt = data.get('message', '')
-        if not prompt:
-            return error_response("メッセージを入力してください。", status=400)
-        if len(prompt) > 3000:
-            return error_response("入力された文字数が3000文字を超えています。短くして再度お試しください。", status=400)
-
-        stored_language = redis_client.get_user_language(session_id)
-        language = llama_core.resolve_user_language(
-            prompt,
-            fallback=stored_language,
-            accept_language=request.headers.get("Accept-Language"),
-        )
-        redis_client.save_user_language(session_id, language)
-
-        wants_stream = bool(data.get("stream")) or (
-            request.accept_mimetypes.get("text/event-stream", 0)
-            > request.accept_mimetypes.get("application/json", 0)
-        )
-        if wants_stream:
-            lock_acquired = acquire_session_lock(session_id)
-            if not lock_acquired:
-                return error_response(
-                    "前のメッセージを処理中です。応答が返るまでお待ちください。",
-                    status=409,
-                )
-
-            def generate() -> Generator[str, None, None]:
-                try:
-                    for chunk in llama_core.stream_chat_with_llama(
-                        session_id,
-                        prompt,
-                        mode="job",
-                        language=language,
-                    ):
-                        yield chunk
-                finally:
-                    release_session_lock(session_id)
-
-            response = Response(stream_with_context(generate()), mimetype="text/event-stream")
-            response.headers["Cache-Control"] = "no-cache"
-            response.headers["X-Accel-Buffering"] = "no"
-            return response
-
-        with session_request_lock(session_id) as lock_acquired:
-            if not lock_acquired:
-                return error_response(
-                    "前のメッセージを処理中です。応答が返るまでお待ちください。",
-                    status=409,
-                )
-
-            response, current_plan, yes_no_phrase, choices, is_date_select, remaining_text, used_web_search = (
-                llama_core.chat_with_llama(session_id, prompt, mode="job", language=language)
-            )
-            return jsonify({
-                'response': response,
-                'current_plan': current_plan,
-                'yes_no_phrase': yes_no_phrase,
-                'choices': choices,
-                'is_date_select': is_date_select,
-                'remaining_text': remaining_text,
-                'used_web_search': used_web_search,
-            })
     except Exception as e:
         logger.error(f"Error in job_send_message: {e}", exc_info=True)
         return error_response("サーバー内部でエラーが発生しました。しばらく待ってから再試行してください。", status=500)
