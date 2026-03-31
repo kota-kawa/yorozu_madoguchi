@@ -5,13 +5,18 @@ Output guardrails and LLM invocation helpers for llama_core.
 
 import json
 import logging
+import time
 from typing import Any, Dict, Iterator, List, Optional, Tuple
+
+import openai
 
 from backend import guard
 
 from backend.groq_openai_client import get_groq_client
 from backend.llama_core_constants import (
+    GROQ_API_TIMEOUT,
     GROQ_FALLBACK_MODEL_NAME,
+    GROQ_MAX_RETRIES,
     GROQ_MODEL_NAME,
     OUTPUT_GUARD_ENABLED,
 )
@@ -51,6 +56,18 @@ def _build_messages(
     return messages
 
 
+def _is_transient_error(err: Exception) -> bool:
+    """
+    一時的なエラー（タイムアウト・接続エラー・レート制限・5xx）かどうかを判定する
+    Return True for errors that are safe to retry (timeout, connection, rate-limit, 5xx).
+    """
+    if isinstance(err, (openai.APITimeoutError, openai.APIConnectionError)):
+        return True
+    if isinstance(err, openai.APIStatusError) and err.status_code in (429, 500, 502, 503, 504):
+        return True
+    return False
+
+
 def _invoke_chat_completion(
     messages: List[Dict[str, str]],
     model_name: Optional[str] = None,
@@ -58,20 +75,35 @@ def _invoke_chat_completion(
     tools: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     """
-    指定メッセージでチャット補完APIを呼び出して本文を返す
+    指定メッセージでチャット補完APIを呼び出して本文を返す。
+    一時的なエラー時は指数バックオフで再試行する。
     Call the chat-completions API and return extracted assistant content.
+    Retries with exponential backoff on transient errors.
     """
     client = get_groq_client()
     payload: Dict[str, Any] = {
         "model": model_name or GROQ_MODEL_NAME,
         "messages": messages,
+        "timeout": GROQ_API_TIMEOUT,
     }
     if tool_choice:
         payload["tool_choice"] = tool_choice
     if tools is not None:
         payload["tools"] = tools
-    completion = client.chat.completions.create(**payload)
-    return _extract_message_content(completion.choices[0].message)
+    for attempt in range(GROQ_MAX_RETRIES):
+        try:
+            completion = client.chat.completions.create(**payload)
+            return _extract_message_content(completion.choices[0].message)
+        except Exception as e:
+            if not _is_transient_error(e) or attempt == GROQ_MAX_RETRIES - 1:
+                raise
+            wait = 2 ** attempt
+            logger.warning(
+                "Groq API transient error (attempt %d/%d): %s; retrying in %ds",
+                attempt + 1, GROQ_MAX_RETRIES, e, wait,
+            )
+            time.sleep(wait)
+    raise RuntimeError("Unreachable")
 
 
 def _invoke_chat_completion_stream(
@@ -81,28 +113,43 @@ def _invoke_chat_completion_stream(
     tools: Optional[List[Dict[str, Any]]] = None,
 ) -> Iterator[str]:
     """
-    指定メッセージでチャット補完APIをストリーミング呼び出しする
+    指定メッセージでチャット補完APIをストリーミング呼び出しする。
+    接続確立時の一時的なエラーは指数バックオフで再試行する。
     Call the chat-completions API in streaming mode and yield text deltas.
+    Retries with exponential backoff on transient errors during connection setup.
     """
     client = get_groq_client()
     payload: Dict[str, Any] = {
         "model": model_name or GROQ_MODEL_NAME,
         "messages": messages,
         "stream": True,
+        "timeout": GROQ_API_TIMEOUT,
     }
     if tool_choice:
         payload["tool_choice"] = tool_choice
     if tools is not None:
         payload["tools"] = tools
-    stream = client.chat.completions.create(**payload)
-    for chunk in stream:
-        choices = getattr(chunk, "choices", None) or []
-        if not choices:
-            continue
-        delta = getattr(choices[0], "delta", None)
-        content = getattr(delta, "content", None) if delta is not None else None
-        if content:
-            yield str(content)
+    for attempt in range(GROQ_MAX_RETRIES):
+        try:
+            stream = client.chat.completions.create(**payload)
+            for chunk in stream:
+                choices = getattr(chunk, "choices", None) or []
+                if not choices:
+                    continue
+                delta = getattr(choices[0], "delta", None)
+                content = getattr(delta, "content", None) if delta is not None else None
+                if content:
+                    yield str(content)
+            return
+        except Exception as e:
+            if not _is_transient_error(e) or attempt == GROQ_MAX_RETRIES - 1:
+                raise
+            wait = 2 ** attempt
+            logger.warning(
+                "Groq API transient error on stream (attempt %d/%d): %s; retrying in %ds",
+                attempt + 1, GROQ_MAX_RETRIES, e, wait,
+            )
+            time.sleep(wait)
 
 
 PASS_THROUGH_TOOLS = [

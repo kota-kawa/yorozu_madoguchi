@@ -25,6 +25,8 @@ DECISION_MEMO_KEYS_BY_LANGUAGE = {
 # Groq model configuration
 GROQ_MODEL_NAME = os.getenv("GROQ_MODEL_NAME", "openai/gpt-oss-20b")
 GROQ_FALLBACK_MODEL_NAME = os.getenv("GROQ_FALLBACK_MODEL_NAME")
+GROQ_API_TIMEOUT = float(os.getenv("GROQ_API_TIMEOUT", "30"))
+GROQ_MAX_RETRIES = int(os.getenv("GROQ_MAX_RETRIES", "3"))
 # 出力ガードレールの有効化設定
 # Toggle output guardrails
 OUTPUT_GUARD_ENABLED = os.getenv("OUTPUT_GUARD_ENABLED", "true").lower() in ("1", "true", "yes")
