@@ -126,17 +126,22 @@ export const useGenericChat = ({
       }
 
       updateMessageMeta(loadingMessageId, {
-        text: '',
         type: 'loading',
         loading_variant: 'thinking',
         pending: false,
       })
 
+      let hasReceivedFirstChunk = false
       const flushBufferedText = () => {
         if (!bufferedText) return
         const chunkToAppend = bufferedText
         bufferedText = ''
-        updateMessageText(loadingMessageId, (prevText) => `${prevText}${chunkToAppend}`)
+        if (!hasReceivedFirstChunk) {
+          hasReceivedFirstChunk = true
+          updateMessageText(loadingMessageId, () => chunkToAppend)
+        } else {
+          updateMessageText(loadingMessageId, (prevText) => `${prevText}${chunkToAppend}`)
+        }
       }
 
       await consumeChatSse(response, (event) => {
