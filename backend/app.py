@@ -13,6 +13,13 @@ from backend.database import init_db
 import uuid
 from backend import redis_client
 from backend import security
+from backend.errors import (
+    ForbiddenError,
+    PayloadTooLargeError,
+    ValidationError,
+    classify_backend_exception,
+    json_error_response,
+)
 from werkzeug.exceptions import RequestEntityTooLarge
 from backend.routes.reply import reply_bp
 from backend.routes.travel import travel_bp
@@ -68,7 +75,12 @@ def reset_session_data(session_id: str) -> None:
     """
     redis_client.reset_session(session_id)
 
-def error_response(message: str, status: int = 400) -> Tuple[Response, int]:
+def error_response(
+    message: str,
+    status: int = 400,
+    *,
+    error_type: str | None = None,
+) -> Tuple[Response, int]:
     """
     エラーレスポンスを返すヘルパー関数
     Helper to return a consistent JSON error response.
@@ -76,7 +88,7 @@ def error_response(message: str, status: int = 400) -> Tuple[Response, int]:
     一貫した形式でJSONエラーメッセージを生成します。
     Generates JSON error messages in a uniform format.
     """
-    return jsonify({"error": message, "response": message}), status
+    return json_error_response(message, status=status, error_type=error_type)
 
 @app.after_request
 def apply_security_headers(response: Response) -> Response:
@@ -96,7 +108,12 @@ def handle_request_too_large(error: RequestEntityTooLarge) -> Tuple[Response, in
     リクエストサイズ超過エラーのハンドリング
     Handle request payloads that exceed the configured size limit.
     """
-    return error_response("リクエストサイズが大きすぎます。", status=413)
+    typed_error = PayloadTooLargeError("リクエストサイズが大きすぎます。", cause=error)
+    return error_response(
+        typed_error.message,
+        status=typed_error.status_code,
+        error_type=typed_error.error_type,
+    )
 
 @app.route('/api/reset', methods=['POST'])
 def reset() -> ResponseOrTuple:
@@ -111,7 +128,7 @@ def reset() -> ResponseOrTuple:
         # CSRFトークンの検証
         # Validate CSRF token
         if not security.is_csrf_valid(request):
-            return error_response("不正なリクエストです。", status=403)
+            raise ForbiddenError("不正なリクエストです。")
 
         session_id = request.cookies.get('session_id')
         if not session_id:
@@ -130,9 +147,22 @@ def reset() -> ResponseOrTuple:
              response.set_cookie('session_id', session_id, **security.cookie_settings(request))
              
         return response
-    except Exception as e:
-        logger.error(f"Reset endpoint failed: {e}")
-        return jsonify({"error": "Reset failed"}), 500
+    except Exception as error:
+        backend_error = classify_backend_exception(
+            error,
+            default_message="セッションのリセットに失敗しました。",
+        )
+        logger.error(
+            "Reset endpoint failed (%s): %s",
+            backend_error.error_type,
+            backend_error,
+            exc_info=True,
+        )
+        return error_response(
+            backend_error.message,
+            status=backend_error.status_code,
+            error_type=backend_error.error_type,
+        )
 
 @app.route('/api/user_type', methods=['POST'])
 def set_user_type() -> ResponseOrTuple:
@@ -147,21 +177,21 @@ def set_user_type() -> ResponseOrTuple:
         # CSRFトークンの検証
         # Validate CSRF token
         if not security.is_csrf_valid(request):
-            return error_response("不正なリクエストです。", status=403)
+            raise ForbiddenError("不正なリクエストです。")
 
         data = request.get_json(silent=True)
         if not isinstance(data, dict):
-            return error_response("リクエスト形式が正しくありません。", status=400)
+            raise ValidationError("リクエスト形式が正しくありません。")
 
         raw_user_type = data.get('user_type', '')
         if not isinstance(raw_user_type, str):
-            return error_response("ユーザー種別が正しくありません。", status=400)
+            raise ValidationError("ユーザー種別が正しくありません。")
         user_type = raw_user_type.strip().lower()
 
         # 入力値のバリデーション
         # Validate input
         if user_type not in ['normal', 'premium']:
-            return error_response("ユーザー種別が正しくありません。", status=400)
+            raise ValidationError("ユーザー種別が正しくありません。")
 
         session_id = request.cookies.get('session_id')
         if not session_id:
@@ -176,9 +206,22 @@ def set_user_type() -> ResponseOrTuple:
         if not request.cookies.get('session_id'):
             response.set_cookie('session_id', session_id, **security.cookie_settings(request))
         return response
-    except Exception as e:
-        logger.error(f"User type endpoint failed: {e}")
-        return jsonify({"error": "ユーザー種別の登録に失敗しました。"}), 500
+    except Exception as error:
+        backend_error = classify_backend_exception(
+            error,
+            default_message="ユーザー種別の登録に失敗しました。",
+        )
+        logger.error(
+            "User type endpoint failed (%s): %s",
+            backend_error.error_type,
+            backend_error,
+            exc_info=True,
+        )
+        return error_response(
+            backend_error.message,
+            status=backend_error.status_code,
+            error_type=backend_error.error_type,
+        )
 
 
 if __name__ == '__main__':

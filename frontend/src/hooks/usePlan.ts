@@ -4,14 +4,16 @@
  */
 import { useState } from 'react'
 import { apiUrl } from '../utils/apiBase'
-import type { PlanSummaryResponse } from '../types/api'
+import type { ApiErrorResponse, PlanSummaryResponse } from '../types/api'
+import type { AppError } from '../types/error'
+import { normalizeAppError, toFrontendAppError } from '../utils/errorHandling'
 
 type UsePlanOptions = {
   submitEndpoint: string
   addSystemMessage?: (text: string) => void
   fetchSummaryAfterSubmit?: boolean
   onSuccess?: () => void
-  onError?: (error: unknown) => void
+  onError?: (error: AppError) => void
 }
 
 /**
@@ -49,7 +51,8 @@ export const usePlan = ({
       })
 
       if (!response.ok) {
-        throw new Error('Failed to submit plan')
+        const data = (await response.json().catch(() => null)) as ApiErrorResponse | null
+        throw toFrontendAppError(data, response.status, 'プランの保存に失敗しました。')
       }
 
       let summary: PlanSummaryResponse | null = null
@@ -82,10 +85,11 @@ export const usePlan = ({
       onSuccess?.()
     } catch (error) {
       console.error('SubmitPlan Error:', error)
+      const appError = normalizeAppError(error)
       if (addSystemMessage) {
-        addSystemMessage('プランの保存に失敗しました。')
+        addSystemMessage(appError.message)
       }
-      onError?.(error)
+      onError?.(appError)
     } finally {
       setSubmittingPlan(false)
     }

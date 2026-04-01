@@ -22,6 +22,15 @@ export type ChatResponsePayload = {
 export type ChatApiResponse = ChatResponsePayload & {
   used_web_search?: boolean
   error?: string
+  error_type?: string
+  error_code?: string
+}
+
+export type ApiErrorResponse = {
+  error?: string
+  response?: string
+  error_type?: string
+  error_code?: string
 }
 
 export type ChatStreamMetaEvent = {

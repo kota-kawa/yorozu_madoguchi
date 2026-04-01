@@ -22,6 +22,12 @@ from flask import (
 
 from backend import security
 from backend import redis_client
+from backend.errors import (
+    BackendError,
+    build_error_payload,
+    classify_backend_exception,
+    json_error_response,
+)
 from backend.session_request_lock import (
     acquire_session_lock,
     release_session_lock,
@@ -42,7 +48,7 @@ class ChatRequestContext:
     language: str
 
 
-ChatErrorResponder = Callable[[str, int], ResponseOrTuple]
+ChatErrorResponder = Callable[[str, int, Optional[str]], ResponseOrTuple]
 LimitChecker = Callable[[str, Optional[str]], LimitCheckResult]
 LanguageResolver = Callable[..., str]
 LanguageGetter = Callable[[str], str]
@@ -52,7 +58,7 @@ ChatResult = Tuple[Optional[str], str, Optional[str], Optional[List[str]], bool,
 ChatRunner = Callable[..., ChatResult]
 StreamChatRunner = Callable[..., Generator[str, None, None]]
 PlanCompleter = Callable[[str], str]
-ExceptionResponder = Callable[[Exception], ResponseOrTuple]
+ExceptionResponder = Callable[[BackendError], ResponseOrTuple]
 SessionResetter = Callable[[str], None]
 SessionResetErrorHandler = Callable[[str, Exception], None]
 
@@ -83,31 +89,42 @@ def reset_session_data(session_id: str) -> None:
     redis_client.reset_session(session_id)
 
 
-def error_response(message: str, status: int = 400) -> ResponseOrTuple:
+def error_response(
+    message: str,
+    status: int = 400,
+    error_type: Optional[str] = None,
+) -> ResponseOrTuple:
     """エラーレスポンスを返すヘルパー関数 / Helper to return JSON error responses."""
-    return jsonify({"error": message, "response": message}), status
+    return json_error_response(message, status=status, error_type=error_type)
 
 
-def rich_chat_error_response(message: str, status: int = 400) -> ResponseOrTuple:
+def rich_chat_error_response(
+    message: str,
+    status: int = 400,
+    error_type: Optional[str] = None,
+) -> ResponseOrTuple:
     """
     チャットUI向けの詳細エラーペイロードを返す。
     Return rich chat error payload consumed by the generic chat UI.
     """
-    return jsonify({
-        "error": message,
-        "response": message,
+    payload = build_error_payload(message, status, error_type=error_type, extra={
         "current_plan": "",
         "yes_no_phrase": "",
         "choices": None,
         "is_date_select": False,
         "remaining_text": "",
         "used_web_search": False,
-    }), status
+    })
+    return jsonify(payload), status
 
 
-def submit_plan_error_response(message: str, status: int = 400) -> ResponseOrTuple:
+def submit_plan_error_response(
+    message: str,
+    status: int = 400,
+    error_type: Optional[str] = None,
+) -> ResponseOrTuple:
     """submit_plan 向けの最小エラーレスポンス。/ Minimal error response for submit_plan."""
-    return jsonify({"error": message}), status
+    return json_error_response(message, status=status, error_type=error_type)
 
 
 def prepare_chat_request(
@@ -145,6 +162,7 @@ def prepare_chat_request(
         return error_responder(
             "利用状況を確認できません。しばらく待ってから再試行してください。",
             status=503,
+            error_type="redis_unavailable",
         )
     if not user_type:
         return error_responder("ユーザー種別を選択してください。", status=400)
@@ -433,12 +451,20 @@ def make_chat_send_message_route(
         try:
             return _run()
         except Exception as error:
-            logger.error(f"Error in {mode}_send_message: {error}", exc_info=True)
+            backend_error = classify_backend_exception(error)
+            logger.error(
+                "Error in %s_send_message (%s): %s",
+                mode,
+                backend_error.error_type,
+                backend_error,
+                exc_info=True,
+            )
             if exception_responder:
-                return exception_responder(error)
+                return exception_responder(backend_error)
             return error_responder(
-                "サーバー内部でエラーが発生しました。しばらく待ってから再試行してください。",
-                status=500,
+                backend_error.message,
+                status=backend_error.status_code,
+                error_type=backend_error.error_type,
             )
 
     return send_message
@@ -475,9 +501,20 @@ def make_submit_plan_route(
         try:
             return _run()
         except Exception as error:
-            logger.error(f"Error in {route_path.strip('/')}: {error}", exc_info=True)
+            backend_error = classify_backend_exception(error)
+            logger.error(
+                "Error in %s (%s): %s",
+                route_path.strip("/"),
+                backend_error.error_type,
+                backend_error,
+                exc_info=True,
+            )
             if exception_responder:
-                return exception_responder(error)
-            return submit_plan_error_response("プランの保存に失敗しました。", status=500)
+                return exception_responder(backend_error)
+            return submit_plan_error_response(
+                backend_error.message,
+                status=backend_error.status_code,
+                error_type=backend_error.error_type,
+            )
 
     return submit_plan

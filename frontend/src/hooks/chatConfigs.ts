@@ -1,10 +1,12 @@
 import type { ChatMessage } from '../types/chat'
+import type { AppError } from '../types/error'
 
 type ChatConfig = {
   initialMessage: ChatMessage
   messageEndpoint: string
   requestTimeoutMs?: number
   addSystemMessage?: boolean
+  onError?: (error: AppError) => void
 }
 
 export type ChatFeature = 'travel' | 'reply' | 'fitness' | 'job' | 'study'

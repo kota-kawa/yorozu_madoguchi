@@ -13,7 +13,9 @@ import logging
 from typing import Tuple, Union
 
 from backend import limit_manager
+from backend.errors import SessionError, classify_backend_exception
 from backend.routes.common import (
+    error_response,
     make_chat_send_message_route,
     make_session_init_route,
     make_submit_plan_route,
@@ -57,11 +59,11 @@ def reply_complete() -> ResponseOrTuple:
     """
     reservation_data = []
     session_id = request.cookies.get("session_id")
-    if not session_id:
-        return jsonify({"error": "セッションが無効です。ページをリロードしてください。"}), 400
-
-    db = SessionLocal()
     try:
+        if not session_id:
+            raise SessionError("セッションが無効です。ページをリロードしてください。")
+
+        db = SessionLocal()
         # DBから最新の計画を取得
         # Fetch the latest plan from DB
         plan = (
@@ -85,9 +87,24 @@ def reply_complete() -> ResponseOrTuple:
                 if value:
                     reservation_data.append(f"{key}：{value}")
     except Exception as error:
-        logger.error(f"Error loading reservation data: {error}")
+        backend_error = classify_backend_exception(
+            error,
+            default_message="完了画面データの取得に失敗しました。",
+        )
+        logger.error(
+            "Error loading reservation data (%s): %s",
+            backend_error.error_type,
+            backend_error,
+            exc_info=True,
+        )
+        return error_response(
+            backend_error.message,
+            status=backend_error.status_code,
+            error_type=backend_error.error_type,
+        )
     finally:
-        db.close()
+        if "db" in locals():
+            db.close()
 
     accepts_json = request.accept_mimetypes.get("application/json", 0)
     accepts_html = request.accept_mimetypes.get("text/html", 0)
@@ -109,7 +126,6 @@ reply_send_message = make_chat_send_message_route(
     mode="reply",
     error_responder=rich_chat_error_response,
     endpoint_name="reply_send_message",
-    catch_exceptions=False,
     check_and_increment_limit=lambda *args, **kwargs: limit_manager.check_and_increment_limit(
         *args, **kwargs
     ),
@@ -130,6 +146,5 @@ reply_submit_plan = make_submit_plan_route(
     complete_plan=lambda session_id: reservation.complete_plan(session_id),
     logger=logger,
     endpoint_name="reply_submit_plan",
-    catch_exceptions=False,
     error_responder=submit_plan_error_response,
 )

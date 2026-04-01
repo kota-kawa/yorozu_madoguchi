@@ -1,11 +1,13 @@
 import type { ChatFeature } from '../hooks/chatConfigs'
 import type { HeaderProps } from '../components/Header/Header'
+import type { AppErrorType } from '../types/error'
 
 type SubmitPlanConfig = {
   submitEndpoint: string
   fetchSummaryAfterSubmit?: boolean
   navigateToCompleteOnSuccess?: boolean
-  alertOnError?: string
+  toastOnError?: string
+  toastErrorTypes?: AppErrorType[]
   addSystemMessageOnSubmit?: boolean
 }
 
@@ -50,7 +52,7 @@ export const CHAT_PAGE_CONFIGS: Record<ChatFeature, ChatPageConfig> = {
     submitPlan: {
       submitEndpoint: '/reply_submit_plan',
       navigateToCompleteOnSuccess: true,
-      alertOnError: 'プランの保存に失敗しました。',
+      toastOnError: 'プランの保存に失敗しました。',
     },
   },
   fitness: {
