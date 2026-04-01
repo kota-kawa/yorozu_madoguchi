@@ -2,14 +2,21 @@ import { useEffect, useRef, useState } from 'react'
 import { apiUrl } from '../utils/apiBase'
 import { getStoredUserType } from '../utils/userType'
 import { consumeChatSse } from '../utils/sseChatStream'
-import type { ChatApiResponse, ChatStreamFinalEvent } from '../types/api'
+import type { ApiErrorResponse, ChatStreamFinalEvent } from '../types/api'
 import type { ChatMessage, ChatMessageUpdate } from '../types/chat'
+import type { AppError } from '../types/error'
+import {
+  makeClientValidationError,
+  normalizeAppError,
+  toFrontendAppError,
+} from '../utils/errorHandling'
 
 type UseGenericChatOptions = {
   initialMessage: ChatMessage
   messageEndpoint: string
   requestTimeoutMs?: number
   addSystemMessage?: boolean
+  onError?: (error: AppError) => void
 }
 
 export type UseGenericChatResult = {
@@ -20,13 +27,12 @@ export type UseGenericChatResult = {
   addSystemMessage: (text: string) => void
 }
 
-const FALLBACK_ERROR_MESSAGE = 'サーバーからの応答に失敗しました。時間をおいて再試行してください。'
-
 export const useGenericChat = ({
   initialMessage,
   messageEndpoint,
   requestTimeoutMs,
   addSystemMessage = false,
+  onError,
 }: UseGenericChatOptions): UseGenericChatResult => {
   const [messages, setMessages] = useState<ChatMessage[]>([initialMessage])
   const [loading, setLoading] = useState(false)
@@ -36,7 +42,9 @@ export const useGenericChat = ({
   useEffect(() => {
     const controller = new AbortController()
     fetch(apiUrl('/api/reset'), { method: 'POST', signal: controller.signal, credentials: 'include' }).catch(
-      () => {},
+      (error) => {
+        console.warn('Session reset failed:', error)
+      },
     )
     return () => controller.abort()
   }, [])
@@ -69,7 +77,13 @@ export const useGenericChat = ({
     if (!trimmed) return
 
     if (trimmed.length > 3000) {
-      alert('入力された文字数が3000文字を超えています。3000文字以内で入力してください。')
+      onError?.(
+        normalizeAppError(
+          makeClientValidationError(
+            '入力された文字数が3000文字を超えています。3000文字以内で入力してください。',
+          ),
+        ),
+      )
       return
     }
 
@@ -109,12 +123,11 @@ export const useGenericChat = ({
 
       const contentType = response.headers.get('content-type') || ''
       if (!response.ok) {
-        const data = (await response.json().catch(() => null)) as ChatApiResponse | null
-        const serverMessage = data?.response || data?.error
-        throw new Error(serverMessage || `Server Error: ${response.status}`)
+        const data = (await response.json().catch(() => null)) as ApiErrorResponse | null
+        throw toFrontendAppError(data, response.status)
       }
       if (!contentType.includes('text/event-stream')) {
-        throw new Error('ストリーミング応答の受信に失敗しました。')
+        throw makeClientValidationError('ストリーミング応答の受信に失敗しました。')
       }
 
       const streamFlushIntervalMs = 30
@@ -226,19 +239,15 @@ export const useGenericChat = ({
 
       finishSending()
     } catch (error) {
-      const isAbort = error instanceof DOMException && error.name === 'AbortError'
-      const errMessage = error instanceof Error ? error.message : ''
-      const message = isAbort
-        ? 'サーバーからの応答がありません。もう一度お試しください。'
-        : errMessage && errMessage !== 'Failed to fetch'
-          ? errMessage
-          : FALLBACK_ERROR_MESSAGE
+      const appError = normalizeAppError(error)
+      const message = appError.message
 
       setMessages((prev) =>
         prev
           .filter((messageItem) => messageItem.id !== loadingMessageId)
           .concat({ id: `error-${Date.now()}`, sender: 'bot', text: message }),
       )
+      onError?.(appError)
       finishSending()
     } finally {
       if (timeoutId) {

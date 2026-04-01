@@ -13,6 +13,7 @@ from backend.database import SessionLocal
 from backend.models import ReservationPlan
 from backend import limit_manager
 from backend import redis_client
+from backend.errors import SessionError, classify_backend_exception
 from backend.routes.common import (
     error_response,
     make_chat_send_message_route,
@@ -90,7 +91,7 @@ def complete() -> ResponseOrTuple:
     try:
         session_id = request.cookies.get("session_id")
         if not session_id:
-            return error_response("セッションが無効です。ページをリロードしてください。", status=400)
+            raise SessionError("セッションが無効です。ページをリロードしてください。")
 
         reservation_data = load_reservation_data(session_id)
         accepts_json = request.accept_mimetypes.get("application/json", 0)
@@ -104,8 +105,21 @@ def complete() -> ResponseOrTuple:
             logger.info(f"Reservation Data: {item}")
         return redirect(resolve_frontend_url("/complete"))
     except Exception as error:
-        logger.error(f"Complete endpoint failed: {error}")
-        return "サーバー内部エラーが発生しました。", 500
+        backend_error = classify_backend_exception(
+            error,
+            default_message="完了画面データの取得に失敗しました。",
+        )
+        logger.error(
+            "Complete endpoint failed (%s): %s",
+            backend_error.error_type,
+            backend_error,
+            exc_info=True,
+        )
+        return error_response(
+            backend_error.message,
+            status=backend_error.status_code,
+            error_type=backend_error.error_type,
+        )
 
 
 send_message = make_chat_send_message_route(
@@ -131,8 +145,14 @@ submit_plan = make_submit_plan_route(
     complete_plan=lambda session_id: reservation.complete_plan(session_id),
     logger=logger,
     endpoint_name="submit_plan",
-    error_responder=lambda message, status: (
-        error_response(message, status) if status == 403 else submit_plan_error_response(message, status)
+    error_responder=lambda message, status, error_type=None: (
+        error_response(message, status, error_type=error_type)
+        if status == 403
+        else submit_plan_error_response(message, status, error_type=error_type)
     ),
-    exception_responder=lambda _error: (jsonify({"error": "プランの保存に失敗しました。"}), 500),
+    exception_responder=lambda error: submit_plan_error_response(
+        error.message,
+        status=error.status_code,
+        error_type=error.error_type,
+    ),
 )

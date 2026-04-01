@@ -5,6 +5,8 @@
 import { useState, useRef, useEffect } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import './Chat.css'
+import type { AppError } from '../../types/error'
+import { makeClientUnsupportedError, normalizeAppError } from '../../utils/errorHandling'
 
 /**
  * EN: Define the ChatInputProps type alias.
@@ -16,6 +18,7 @@ type ChatInputProps = {
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   onToggleInfo: () => void
+  onError?: (error: AppError) => void
   disabled: boolean
 }
 
@@ -29,6 +32,7 @@ const ChatInput = ({
   onKeyDown,
   onSubmit,
   onToggleInfo,
+  onError,
   disabled,
 }: ChatInputProps) => {
   const [isListening, setIsListening] = useState(false)
@@ -138,7 +142,11 @@ const ChatInput = ({
    */
   const handleMicClick = () => {
     if (!recognitionRef.current) {
-      alert('お使いのブラウザは音声入力をサポートしていません。')
+      onError?.(
+        normalizeAppError(
+          makeClientUnsupportedError('お使いのブラウザは音声入力をサポートしていません。'),
+        ),
+      )
       return
     }
 

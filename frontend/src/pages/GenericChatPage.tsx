@@ -1,8 +1,9 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../components/Header/Header'
 import LoadingSpinner from '../components/UI/LoadingSpinner'
 import InfoPanel from '../components/UI/InfoPanel'
+import ErrorToast from '../components/UI/ErrorToast'
 import PlanViewer from '../components/Plan/PlanViewer'
 import MessageList from '../components/Chat/MessageList'
 import ChatInput from '../components/Chat/ChatInput'
@@ -10,6 +11,7 @@ import { useFeatureChat } from '../hooks/useFeatureChat'
 import { usePlan } from '../hooks/usePlan'
 import { useChatPageState } from '../hooks/useChatPageState'
 import type { ChatPageConfig } from './chatPageConfigs'
+import type { AppError, AppErrorType } from '../types/error'
 
 type GenericChatPageProps = {
   config: ChatPageConfig
@@ -17,8 +19,41 @@ type GenericChatPageProps = {
 
 const GenericChatPage = ({ config }: GenericChatPageProps) => {
   const navigate = useNavigate()
+  const [toastMessage, setToastMessage] = useState('')
+  const [isToastVisible, setIsToastVisible] = useState(false)
+
+  const showToast = useCallback((message: string) => {
+    const trimmed = message.trim()
+    if (!trimmed) return
+    setToastMessage(trimmed)
+    setIsToastVisible(true)
+  }, [])
+
+  const hideToast = useCallback(() => {
+    setIsToastVisible(false)
+  }, [])
+
+  const shouldShowSubmitErrorToast = useCallback(
+    (errorType: AppErrorType): boolean => {
+      const submitPlanConfig = config.submitPlan
+      if (!submitPlanConfig) return false
+      const filter = submitPlanConfig.toastErrorTypes
+      if (!filter || filter.length === 0) return true
+      return filter.includes(errorType)
+    },
+    [config.submitPlan],
+  )
+
+  const handleChatError = useCallback(
+    (error: AppError) => {
+      showToast(error.message)
+    },
+    [showToast],
+  )
+
   const { messages, loading: chatLoading, planFromChat, sendMessage, addSystemMessage } = useFeatureChat(
     config.feature,
+    { onError: handleChatError },
   )
 
   const submitPlanConfig = config.submitPlan
@@ -33,12 +68,11 @@ const GenericChatPage = ({ config }: GenericChatPageProps) => {
     addSystemMessage: submitPlanConfig?.addSystemMessageOnSubmit ? addSystemMessage : undefined,
     fetchSummaryAfterSubmit: Boolean(submitPlanConfig?.fetchSummaryAfterSubmit),
     onSuccess: submitPlanConfig?.navigateToCompleteOnSuccess ? () => navigate('/complete') : undefined,
-    onError: submitPlanConfig?.alertOnError
-      ? (error) => {
-          console.error(`${config.feature} submit failed:`, error)
-          alert(submitPlanConfig.alertOnError)
-        }
-      : undefined,
+    onError: (error) => {
+      console.error(`${config.feature} submit failed:`, error)
+      if (!shouldShowSubmitErrorToast(error.type)) return
+      showToast(submitPlanConfig?.toastOnError || error.message)
+    },
   })
 
   const isLoading = chatLoading || (hasSubmitPlan && submittingPlan)
@@ -111,6 +145,7 @@ const GenericChatPage = ({ config }: GenericChatPageProps) => {
               onKeyDown={handleKeyDown}
               onSubmit={handleSubmit}
               onToggleInfo={() => setInfoOpen((prev) => !prev)}
+              onError={handleChatError}
               disabled={isLoading}
             />
           </div>
@@ -133,6 +168,7 @@ const GenericChatPage = ({ config }: GenericChatPageProps) => {
       </div>
 
       {hasSubmitPlan ? <LoadingSpinner visible={submittingPlan} /> : null}
+      <ErrorToast message={toastMessage} visible={isToastVisible} onClose={hideToast} />
     </div>
   )
 }
