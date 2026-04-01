@@ -111,6 +111,26 @@ coverage run --branch tests/run_unit_tests.py
 coverage report -m --omit='tests/*'
 ```
 
+## 🗃️ Database Migrations (Alembic)
+
+Apply the latest schema version:
+
+```bash
+alembic upgrade head
+```
+
+Rollback one revision:
+
+```bash
+alembic downgrade -1
+```
+
+Check current revision:
+
+```bash
+alembic current
+```
+
 ## 📜 License
 
 Apache License 2.0. See `LICENSE` for details.
