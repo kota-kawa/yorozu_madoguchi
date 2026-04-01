@@ -4,10 +4,21 @@ Shared helper utilities for route modules.
 """
 
 from dataclasses import dataclass
+import logging
 import os
 from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Union
+import uuid
 
-from flask import Request, Response, jsonify, request, stream_with_context
+from flask import (
+    Blueprint,
+    Request,
+    Response,
+    jsonify,
+    make_response,
+    redirect,
+    request,
+    stream_with_context,
+)
 
 from backend import security
 from backend import redis_client
@@ -41,6 +52,9 @@ ChatResult = Tuple[Optional[str], str, Optional[str], Optional[List[str]], bool,
 ChatRunner = Callable[..., ChatResult]
 StreamChatRunner = Callable[..., Generator[str, None, None]]
 PlanCompleter = Callable[[str], str]
+ExceptionResponder = Callable[[Exception], ResponseOrTuple]
+SessionResetter = Callable[[str], None]
+SessionResetErrorHandler = Callable[[str, Exception], None]
 
 
 def resolve_frontend_url(
@@ -339,3 +353,131 @@ def handle_submit_plan(
 
     result = complete_plan(session_id)
     return jsonify({"compile": result})
+
+
+def make_session_init_route(
+    *,
+    blueprint: Blueprint,
+    route_path: str,
+    frontend_path: str,
+    default_frontend_origin: str = "https://chat.project-kk.com",
+    endpoint_name: Optional[str] = None,
+    reset_session: SessionResetter = reset_session_data,
+    on_reset_error: Optional[SessionResetErrorHandler] = None,
+) -> Callable[[], Response]:
+    """
+    初期化＋リダイレクト用の home ルートを生成して Blueprint に登録する。
+    Create and register a home route that initializes session and redirects.
+    """
+
+    @blueprint.route(route_path, endpoint=endpoint_name)
+    def home() -> Response:
+        session_id = str(uuid.uuid4())
+        try:
+            reset_session(session_id)
+        except Exception as error:
+            if on_reset_error:
+                on_reset_error(session_id, error)
+            else:
+                raise
+        redirect_url = resolve_frontend_url(frontend_path, default_origin=default_frontend_origin)
+        response = make_response(redirect(redirect_url))
+        response.set_cookie("session_id", session_id, **security.cookie_settings(request))
+        return response
+
+    return home
+
+
+def make_chat_send_message_route(
+    *,
+    blueprint: Blueprint,
+    route_path: str,
+    mode: str,
+    error_responder: ChatErrorResponder,
+    endpoint_name: Optional[str] = None,
+    catch_exceptions: bool = True,
+    check_and_increment_limit: LimitChecker,
+    resolve_user_language: LanguageResolver,
+    get_user_language: LanguageGetter,
+    save_user_language: LanguageSaver,
+    chat_with_llama: ChatRunner,
+    stream_chat_with_llama: StreamChatRunner,
+    logger: logging.Logger,
+    limit_exceeded_message_builder: Optional[LimitExceededMessageBuilder] = None,
+    exception_responder: Optional[ExceptionResponder] = None,
+) -> Callable[[], ResponseOrTuple]:
+    """
+    send_message ルートを生成して Blueprint に登録する。
+    Create and register a send_message route for a feature mode.
+    """
+
+    @blueprint.route(route_path, methods=["POST"], endpoint=endpoint_name)
+    def send_message() -> ResponseOrTuple:
+        def _run() -> ResponseOrTuple:
+            return handle_chat_send_message(
+                request,
+                mode=mode,
+                error_responder=error_responder,
+                check_and_increment_limit=check_and_increment_limit,
+                resolve_user_language=resolve_user_language,
+                get_user_language=get_user_language,
+                save_user_language=save_user_language,
+                chat_with_llama=chat_with_llama,
+                stream_chat_with_llama=stream_chat_with_llama,
+                limit_exceeded_message_builder=limit_exceeded_message_builder,
+            )
+
+        if not catch_exceptions:
+            return _run()
+
+        try:
+            return _run()
+        except Exception as error:
+            logger.error(f"Error in {mode}_send_message: {error}", exc_info=True)
+            if exception_responder:
+                return exception_responder(error)
+            return error_responder(
+                "サーバー内部でエラーが発生しました。しばらく待ってから再試行してください。",
+                status=500,
+            )
+
+    return send_message
+
+
+def make_submit_plan_route(
+    *,
+    blueprint: Blueprint,
+    route_path: str,
+    complete_plan: PlanCompleter,
+    logger: logging.Logger,
+    endpoint_name: Optional[str] = None,
+    catch_exceptions: bool = True,
+    error_responder: ChatErrorResponder = submit_plan_error_response,
+    exception_responder: Optional[ExceptionResponder] = None,
+) -> Callable[[], ResponseOrTuple]:
+    """
+    submit_plan ルートを生成して Blueprint に登録する。
+    Create and register a submit_plan route.
+    """
+
+    @blueprint.route(route_path, methods=["POST"], endpoint=endpoint_name)
+    def submit_plan() -> ResponseOrTuple:
+        def _run() -> ResponseOrTuple:
+            return handle_submit_plan(
+                request,
+                complete_plan=complete_plan,
+                error_responder=error_responder,
+            )
+
+        if not catch_exceptions:
+            return _run()
+
+        try:
+            return _run()
+        except Exception as error:
+            logger.error(f"Error in {route_path.strip('/')}: {error}", exc_info=True)
+            if exception_responder:
+                return exception_responder(error)
+            return submit_plan_error_response("プランの保存に失敗しました。", status=500)
+
+    return submit_plan

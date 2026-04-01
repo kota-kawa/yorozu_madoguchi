@@ -12,7 +12,7 @@ type UseGenericChatOptions = {
   addSystemMessage?: boolean
 }
 
-type UseGenericChatResult = {
+export type UseGenericChatResult = {
   messages: ChatMessage[]
   loading: boolean
   planFromChat: string

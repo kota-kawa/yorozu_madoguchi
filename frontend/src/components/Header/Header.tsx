@@ -159,3 +159,5 @@ const Header = ({
 }
 
 export default Header
+
+export type { HeaderProps }
