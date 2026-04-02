@@ -6,13 +6,9 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import './UserTypeGate.css'
 import { apiUrl } from '../../utils/apiBase'
+import type { UserType } from '../../utils/userType'
 import { getStoredUserType, setStoredUserType } from '../../utils/userType'
 
-/**
- * EN: Define the UserType type alias.
- * JP: UserType 型エイリアスを定義する。
- */
-type UserType = '' | 'normal' | 'premium'
 /**
  * EN: Define the GateStatus type alias.
  * JP: GateStatus 型エイリアスを定義する。
