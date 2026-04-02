@@ -73,15 +73,16 @@ def reply_complete() -> ResponseOrTuple:
             .first()
         )
         if plan:
+            serialized_plan = reservation.serialize_reservation_plan(plan)
             fields = [
-                ("目的地", plan.destinations),
-                ("出発地", plan.departure),
-                ("ホテル", plan.hotel),
-                ("航空会社", plan.airlines),
-                ("鉄道会社", plan.railway),
-                ("タクシー会社", plan.taxi),
-                ("滞在開始日", plan.start_date),
-                ("滞在終了日", plan.end_date),
+                ("目的地", serialized_plan["destinations"]),
+                ("出発地", serialized_plan["departure"]),
+                ("ホテル", serialized_plan["hotel"]),
+                ("航空会社", serialized_plan["airlines"]),
+                ("鉄道会社", serialized_plan["railway"]),
+                ("タクシー会社", serialized_plan["taxi"]),
+                ("滞在開始日", serialized_plan["start_date"]),
+                ("滞在終了日", serialized_plan["end_date"]),
             ]
             for key, value in fields:
                 if value:

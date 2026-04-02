@@ -26,6 +26,19 @@ export type ChatApiResponse = ChatResponsePayload & {
   error_code?: string
 }
 
+export type ReservationDataItem = {
+  id: number
+  session_id: string
+  destinations: string | null
+  departure: string | null
+  hotel: string | null
+  airlines: string | null
+  railway: string | null
+  taxi: string | null
+  start_date: string | null
+  end_date: string | null
+}
+
 export type ApiErrorResponse = {
   error?: string
   response?: string
@@ -55,5 +68,5 @@ export type ChatStreamEvent = ChatStreamMetaEvent | ChatStreamDeltaEvent | ChatS
  * JP: PlanSummaryResponse 型エイリアスを定義する。
  */
 export type PlanSummaryResponse = {
-  reservation_data?: string[]
+  reservation_data?: ReservationDataItem[]
 }

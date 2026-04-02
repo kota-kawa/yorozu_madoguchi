@@ -7,29 +7,40 @@ import Header from '../components/Header/Header'
 import LoadingSpinner from '../components/UI/LoadingSpinner'
 import './CompletePage.css'
 import { apiUrl } from '../utils/apiBase'
+import type { PlanSummaryResponse, ReservationDataItem } from '../types/api'
 
-/**
- * EN: Define the ReservationSummaryResponse type alias.
- * JP: ReservationSummaryResponse 型エイリアスを定義する。
- */
-type ReservationSummaryResponse = {
-  reservation_data?: unknown
+const reservationLabels: Array<[string, keyof ReservationDataItem]> = [
+  ['目的地', 'destinations'],
+  ['出発地', 'departure'],
+  ['ホテル', 'hotel'],
+  ['航空会社', 'airlines'],
+  ['鉄道会社', 'railway'],
+  ['タクシー会社', 'taxi'],
+  ['滞在開始日', 'start_date'],
+  ['滞在終了日', 'end_date'],
+]
+
+const isReservationDataItem = (value: unknown): value is ReservationDataItem => {
+  if (!value || typeof value !== 'object') return false
+  const record = value as Record<string, unknown>
+
+  const id = record.id
+  const sessionId = record.session_id
+  if (!Number.isInteger(id) || typeof sessionId !== 'string') return false
+
+  return reservationLabels.every(([, key]) => {
+    const field = record[key]
+    return field === null || typeof field === 'string'
+  })
 }
 
-/**
- * EN: Define the ReservationItem type alias.
- * JP: ReservationItem 型エイリアスを定義する。
- */
-type ReservationItem = {
-  destinations?: string
-  departure?: string
-  hotel?: string
-  airlines?: string
-  railway?: string
-  taxi?: string
-  start_date?: string
-  end_date?: string
-}
+const formatReservationItem = (item: ReservationDataItem): string[] =>
+  reservationLabels.flatMap(([label, key]) => {
+    const value = item[key]
+    if (typeof value !== 'string') return []
+    const text = value.trim()
+    return text ? [`${label}：${text}`] : []
+  })
 
 /**
  * EN: Declare the CompletePage value.
@@ -70,39 +81,15 @@ const CompletePage = () => {
          * EN: Declare the data value.
          * JP: data の値を宣言する。
          */
-        const data = (await response.json()) as ReservationSummaryResponse
+        const data = (await response.json()) as PlanSummaryResponse
         /**
          * EN: Declare the items value.
          * JP: items の値を宣言する。
          */
         const items = Array.isArray(data?.reservation_data) ? data.reservation_data : []
-        /**
-         * EN: Declare the normalized value.
-         * JP: normalized の値を宣言する。
-         */
-        const normalized = items.flatMap((item) => {
-          if (typeof item === 'string') return [item]
-          if (!item || typeof item !== 'object') return [String(item)]
-
-          /**
-           * EN: Declare the record value.
-           * JP: record の値を宣言する。
-           */
-          const record = item as ReservationItem
-          const fields: Array<[string, string | undefined]> = [
-            ['目的地', record.destinations],
-            ['出発地', record.departure],
-            ['ホテル', record.hotel],
-            ['航空会社', record.airlines],
-            ['鉄道会社', record.railway],
-            ['タクシー会社', record.taxi],
-            ['滞在開始日', record.start_date],
-            ['滞在終了日', record.end_date],
-          ]
-          return fields
-            .filter(([, value]) => value)
-            .map(([label, value]) => `${label}：${value}`)
-        })
+        const normalized = items
+          .filter(isReservationDataItem)
+          .flatMap((item) => formatReservationItem(item))
 
         setReservationData(normalized)
       } catch (err) {

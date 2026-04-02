@@ -27,6 +27,7 @@ class ReservationSanitizeTests(unittest.TestCase):
         """
         self.assertIsNone(reservation.sanitize_field("   "))
         self.assertIsNone(reservation.sanitize_field(None))
+        self.assertIsNone(reservation.sanitize_field(123))
 
     def test_sanitize_field_respects_max_length(self):
         """
@@ -57,6 +58,25 @@ class ReservationSanitizeTests(unittest.TestCase):
         JP: normalize date falls back to clean text の挙動を検証するテスト。
         """
         self.assertEqual(reservation.normalize_date("  未定 "), "未定")
+
+    def test_normalize_date_rejects_invalid_calendar_date(self):
+        """
+        EN: Test normalize date rejects invalid calendar date behavior.
+        JP: normalize date rejects invalid calendar date の挙動を検証するテスト。
+        """
+        self.assertIsNone(reservation.normalize_date("2025/02/30"))
+
+    def test_parse_reservation_json_ignores_non_string_fields(self):
+        """
+        EN: Test parse reservation json ignores non string fields behavior.
+        JP: parse reservation json ignores non string fields の挙動を検証するテスト。
+        """
+        result = reservation._parse_reservation_json(
+            '{"destinations": ["Tokyo"], "departure": " Osaka ", "start_date": "2025/1/2"}'
+        )
+        self.assertIsNone(result.destinations)
+        self.assertEqual(result.departure, "Osaka")
+        self.assertEqual(result.start_date, "2025-01-02")
 
 
 if __name__ == "__main__":

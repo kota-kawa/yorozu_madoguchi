@@ -5,9 +5,9 @@ Module for extracting and storing travel reservation plans.
 
 from dotenv import load_dotenv
 import os
-from datetime import datetime
+from datetime import date, datetime
 from pydantic import BaseModel, Field
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TypedDict
 from backend import redis_client
 from backend.database import SessionLocal
 from backend.models import ReservationPlan
@@ -52,11 +52,51 @@ class ReservationData(BaseModel):
     start_date: Optional[str] = Field(description="滞在開始日", default=None)
     end_date: Optional[str] = Field(description="滞在終了日", default=None)
 
+
+class ReservationRecord(TypedDict):
+    """
+    予約データAPIの標準レスポンス型
+    Canonical response shape for reservation data APIs.
+    """
+
+    id: int
+    session_id: str
+    destinations: Optional[str]
+    departure: Optional[str]
+    hotel: Optional[str]
+    airlines: Optional[str]
+    railway: Optional[str]
+    taxi: Optional[str]
+    start_date: Optional[str]
+    end_date: Optional[str]
+
+
 MAX_FIELD_LENGTH = 200
 MAX_DATE_LENGTH = 32
+RESERVATION_TEXT_KEYS = (
+    "destinations",
+    "departure",
+    "hotel",
+    "airlines",
+    "railway",
+    "taxi",
+)
+RESERVATION_DATE_KEYS = ("start_date", "end_date")
 
 
-def sanitize_field(value: Optional[str], max_length: int = MAX_FIELD_LENGTH) -> Optional[str]:
+def _to_optional_string(value: Any) -> Optional[str]:
+    """
+    未知の入力を Optional[str] に正規化する
+    Normalize unknown input into Optional[str].
+    """
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    return None
+
+
+def sanitize_field(value: Any, max_length: int = MAX_FIELD_LENGTH) -> Optional[str]:
     """
     入力フィールドのサニタイズを行う
     Sanitize input fields.
@@ -64,9 +104,9 @@ def sanitize_field(value: Optional[str], max_length: int = MAX_FIELD_LENGTH) -> 
     制御文字の除去、空白の正規化、最大長の制限を行います。
     Removes control chars, normalizes whitespace, and enforces max length.
     """
-    if value is None:
+    text = _to_optional_string(value)
+    if text is None:
         return None
-    text = str(value)
     text = re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]", "", text)
     text = " ".join(text.split())
     text = text.strip()
@@ -77,7 +117,7 @@ def sanitize_field(value: Optional[str], max_length: int = MAX_FIELD_LENGTH) -> 
     return text
 
 
-def normalize_date(value: Optional[str]) -> Optional[str]:
+def normalize_date(value: Any) -> Optional[str]:
     """
     日付文字列を正規化する（YYYY-MM-DD形式）
     Normalize date strings to YYYY-MM-DD.
@@ -90,16 +130,57 @@ def normalize_date(value: Optional[str]) -> Optional[str]:
         r"(?P<year>\d{4})[-/](?P<month>\d{1,2})[-/](?P<day>\d{1,2})",
         r"(?P<year>\d{4})年(?P<month>\d{1,2})月(?P<day>\d{1,2})日",
     ]
+    matched_date_candidate = False
 
     for pattern in patterns:
         match = re.search(pattern, text)
         if match:
+            matched_date_candidate = True
             year = int(match.group("year"))
             month = int(match.group("month"))
             day = int(match.group("day"))
-            if 1 <= month <= 12 and 1 <= day <= 31:
-                return f"{year:04d}-{month:02d}-{day:02d}"
+            try:
+                return date(year, month, day).isoformat()
+            except ValueError:
+                continue
+    if matched_date_candidate:
+        return None
     return text
+
+
+def _sanitize_reservation_payload(data: Dict[str, Any]) -> Dict[str, Optional[str]]:
+    """
+    抽出済み予約データを許可キーのみ・厳密型で正規化する
+    Normalize extracted reservation data with allowlisted keys and strict types.
+    """
+    if not isinstance(data, dict):
+        return {}
+
+    normalized: Dict[str, Optional[str]] = {}
+    for key in RESERVATION_TEXT_KEYS:
+        normalized[key] = sanitize_field(_to_optional_string(data.get(key)))
+    for key in RESERVATION_DATE_KEYS:
+        normalized[key] = normalize_date(_to_optional_string(data.get(key)))
+    return normalized
+
+
+def serialize_reservation_plan(plan: ReservationPlan) -> ReservationRecord:
+    """
+    DBモデルをAPIレスポンス向けの厳密な予約データ型へ変換する
+    Convert DB model into the strict reservation response shape.
+    """
+    return {
+        "id": plan.id if isinstance(plan.id, int) else 0,
+        "session_id": sanitize_field(plan.session_id, max_length=64) or "",
+        "destinations": sanitize_field(plan.destinations),
+        "departure": sanitize_field(plan.departure),
+        "hotel": sanitize_field(plan.hotel),
+        "airlines": sanitize_field(plan.airlines),
+        "railway": sanitize_field(plan.railway),
+        "taxi": sanitize_field(plan.taxi),
+        "start_date": normalize_date(plan.start_date),
+        "end_date": normalize_date(plan.end_date),
+    }
 
 
 def write_reservation_plan(
@@ -242,8 +323,9 @@ def _parse_reservation_json(content: str) -> ReservationData:
             raise ValueError("JSON object is required")
     except Exception:
         data = _extract_json_object(content)
+    sanitized_data = _sanitize_reservation_payload(data)
     try:
-        return ReservationData(**data)
+        return ReservationData(**sanitized_data)
     except Exception as err:
         logger.warning("Reservation JSON parse failed: %s", err)
         return ReservationData()

@@ -4,7 +4,7 @@
  */
 import { useState } from 'react'
 import { apiUrl } from '../utils/apiBase'
-import type { ApiErrorResponse, PlanSummaryResponse } from '../types/api'
+import type { ApiErrorResponse, PlanSummaryResponse, ReservationDataItem } from '../types/api'
 import type { AppError } from '../types/error'
 import { normalizeAppError, toFrontendAppError } from '../utils/errorHandling'
 
@@ -14,6 +14,31 @@ type UsePlanOptions = {
   fetchSummaryAfterSubmit?: boolean
   onSuccess?: () => void
   onError?: (error: AppError) => void
+}
+
+const summaryFieldLabels: Array<[string, keyof ReservationDataItem]> = [
+  ['目的地', 'destinations'],
+  ['出発地', 'departure'],
+  ['ホテル', 'hotel'],
+  ['航空会社', 'airlines'],
+  ['鉄道会社', 'railway'],
+  ['タクシー会社', 'taxi'],
+  ['滞在開始日', 'start_date'],
+  ['滞在終了日', 'end_date'],
+]
+
+const formatReservationSummary = (items: ReservationDataItem[] | undefined): string | null => {
+  if (!items || items.length === 0) return null
+
+  const lines = items.flatMap((item) =>
+    summaryFieldLabels
+      .map(([label, key]) => {
+        const value = item[key]
+        return typeof value === 'string' && value.trim() ? `${label}：${value}` : null
+      })
+      .filter((line): line is string => Boolean(line)),
+  )
+  return lines.length ? lines.join(' / ') : null
 }
 
 /**
@@ -77,8 +102,9 @@ export const usePlan = ({
       if (addSystemMessage) {
         addSystemMessage('決定したプランを保存しました。')
 
-        if (summary?.reservation_data?.length) {
-          addSystemMessage(summary.reservation_data.join(' / '))
+        const formattedSummary = formatReservationSummary(summary?.reservation_data)
+        if (formattedSummary) {
+          addSystemMessage(formattedSummary)
         }
       }
 

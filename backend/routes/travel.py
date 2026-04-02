@@ -5,7 +5,7 @@ Blueprint for the travel planning feature.
 
 from flask import Blueprint, request, jsonify, redirect, Response
 import logging
-from typing import List, Tuple, Union
+from typing import List, TYPE_CHECKING, Tuple, Union
 
 from backend import llama_core
 from backend import reservation
@@ -23,6 +23,9 @@ from backend.routes.common import (
     submit_plan_error_response,
 )
 
+if TYPE_CHECKING:
+    from backend.reservation import ReservationRecord
+
 logger = logging.getLogger(__name__)
 
 # Blueprintの定義: 旅行計画機能（travel）のルートを管理
@@ -32,7 +35,7 @@ travel_bp = Blueprint("travel", __name__)
 ResponseOrTuple = Union[Response, Tuple[Response, int]]
 
 
-def load_reservation_data(session_id: str) -> List[dict]:
+def load_reservation_data(session_id: str) -> List["ReservationRecord"]:
     """
     セッション単位で最新の予約プランを読み込む
     Load the latest reservation plan for a session.
@@ -52,20 +55,7 @@ def load_reservation_data(session_id: str) -> List[dict]:
             .first()
         )
         if plan:
-            return [
-                {
-                    "id": plan.id,
-                    "session_id": plan.session_id,
-                    "destinations": plan.destinations,
-                    "departure": plan.departure,
-                    "hotel": plan.hotel,
-                    "airlines": plan.airlines,
-                    "railway": plan.railway,
-                    "taxi": plan.taxi,
-                    "start_date": plan.start_date,
-                    "end_date": plan.end_date,
-                }
-            ]
+            return [reservation.serialize_reservation_plan(plan)]
         return []
     finally:
         db.close()
