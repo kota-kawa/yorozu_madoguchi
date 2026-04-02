@@ -104,8 +104,8 @@
 
   .tab-btn.active {
     background: #ffffff;
-    color: #3b82f6;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+    color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.15);
     transform: translateY(-1px);
   }
 
@@ -141,7 +141,7 @@
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
-    z-index: 200;
+    z-index: var(--z-chat-footer);
     transition: bottom 0.1s ease-out;
   }
 }

@@ -228,7 +228,7 @@
 
 .chat-form:focus-within {
   border-color: var(--primary-color);
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+  box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.15);
   transform: translateY(-1px);
 }
 
@@ -424,7 +424,7 @@ textarea:focus {
 .date-input:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
 }
 
 @media (max-width: 600px) {
@@ -448,7 +448,7 @@ textarea:focus {
   }
 
   .chat-form:focus-within {
-    box-shadow: 0 8px 20px rgba(79, 70, 229, 0.15);
+    box-shadow: 0 8px 20px rgba(var(--primary-rgb), 0.15);
   }
 
   textarea {

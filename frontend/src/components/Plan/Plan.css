@@ -40,7 +40,7 @@
 
 /* Decision Button */
 .btn-decide {
-  background: linear-gradient(135deg, var(--secondary-color), #0284c7);
+  background: linear-gradient(135deg, var(--secondary-color), var(--primary-hover));
   color: white;
   width: 100%;
   padding: 14px;
@@ -49,7 +49,7 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   border: none;
-  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+  box-shadow: 0 4px 12px rgba(var(--secondary-rgb), 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -59,7 +59,7 @@
 
 .btn-decide:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(14, 165, 233, 0.4);
+  box-shadow: 0 8px 20px rgba(var(--secondary-rgb), 0.4);
 }
 
 .btn-decide:disabled {
@@ -78,7 +78,7 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  z-index: 10000;
+  z-index: var(--z-decision-overlay);
   animation: decision-fade-in 0.2s ease-out;
 }
 

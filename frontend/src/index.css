@@ -2,7 +2,9 @@
   /* Color Palette - Modern & Clean */
   --primary-color: #4f46e5; /* Indigo 600 */
   --primary-hover: #4338ca; /* Indigo 700 */
+  --primary-rgb: 79, 70, 229;
   --secondary-color: #0ea5e9; /* Sky 500 */
+  --secondary-rgb: 14, 165, 233;
   --accent-color: #8b5cf6; /* Violet 500 */
   
   --bg-color: #f1f5f9; /* Slate 100 */
@@ -25,10 +27,20 @@
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --font-family: 'Noto Sans JP', system-ui, -apple-system, sans-serif;
   --keyboard-offset: 0px;
   --chat-footer-height: 110px;
+  --z-header: 100;
+  --z-header-menu: 50;
+  --z-chat-footer: 200;
+  --z-info-overlay: 1000;
+  --z-info-panel: 1001;
+  --z-user-type-overlay: 2000;
+  --z-toast: 3000;
+  --z-spinner: 9999;
+  --z-decision-overlay: 10000;
 
-  font-family: 'Noto Sans JP', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-family);
   line-height: 1.6;
   font-weight: 400;
   
@@ -42,7 +54,9 @@
 .theme-travel {
   --primary-color: #0ea5e9; /* Sky 500 */
   --primary-hover: #0284c7; /* Sky 600 */
+  --primary-rgb: 14, 165, 233;
   --secondary-color: #38bdf8; /* Sky 400 */
+  --secondary-rgb: 56, 189, 248;
   --accent-color: #06b6d4; /* Cyan 500 */
   --chat-user-bg: #0ea5e9;
   --app-bg-gradient: linear-gradient(135deg, #f0f9ff 0%, #bae6fd 100%); /* Sky 50 to 200 */
@@ -51,7 +65,9 @@
 .theme-fitness {
   --primary-color: #f97316; /* Orange 500 */
   --primary-hover: #ea580c; /* Orange 600 */
+  --primary-rgb: 249, 115, 22;
   --secondary-color: #fb923c; /* Orange 400 */
+  --secondary-rgb: 251, 146, 60;
   --accent-color: #ef4444; /* Red 500 */
   --chat-user-bg: #f97316;
   --app-bg-gradient: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%); /* Orange 50 to 200 */
@@ -60,7 +76,9 @@
 .theme-reply {
   --primary-color: #10b981; /* Emerald 500 */
   --primary-hover: #059669; /* Emerald 600 */
+  --primary-rgb: 16, 185, 129;
   --secondary-color: #34d399; /* Emerald 400 */
+  --secondary-rgb: 52, 211, 153;
   --accent-color: #0d9488; /* Teal 600 */
   --chat-user-bg: #10b981;
   --app-bg-gradient: linear-gradient(135deg, #ecfdf5 0%, #a7f3d0 100%); /* Emerald 50 to 200 */
@@ -69,7 +87,9 @@
 .theme-job {
   --primary-color: #0f766e; /* Teal 700 */
   --primary-hover: #115e59; /* Teal 800 */
+  --primary-rgb: 15, 118, 110;
   --secondary-color: #2dd4bf; /* Teal 400 */
+  --secondary-rgb: 45, 212, 191;
   --accent-color: #14b8a6; /* Teal 500 */
   --chat-user-bg: #0f766e;
   --app-bg-gradient: linear-gradient(135deg, #f0fdfa 0%, #99f6e4 100%); /* Teal 50 to 200 */
@@ -78,7 +98,9 @@
 .theme-study {
   --primary-color: #2563eb; /* Blue 600 */
   --primary-hover: #1d4ed8; /* Blue 700 */
+  --primary-rgb: 37, 99, 235;
   --secondary-color: #38bdf8; /* Sky 400 */
+  --secondary-rgb: 56, 189, 248;
   --accent-color: #22c55e; /* Green 500 */
   --chat-user-bg: #2563eb;
   --app-bg-gradient: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); /* Blue 50 to 100 */
@@ -144,4 +166,18 @@ button {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .chat-messages {
+    scroll-behavior: auto;
+  }
 }
