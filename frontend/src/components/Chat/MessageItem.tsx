@@ -157,9 +157,9 @@ const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }
       {message.type === 'selection' && message.choices?.length ? (
         <>
           <div className="button-container selection-container">
-            {message.choices.map((choice, index) => (
+            {message.choices.map((choice) => (
               <button
-                key={index}
+                key={choice}
                 type="button"
                 className="btn btn-option"
                 onClick={() => onYesNo(choice)}

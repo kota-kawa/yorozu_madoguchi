@@ -2,7 +2,7 @@
  * EN: Provide the MessageList module implementation.
  * JP: MessageList モジュールの実装を定義する。
  */
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import type { UIEvent } from 'react'
 import MessageItem from './MessageItem'
 import './Chat.css'
@@ -47,25 +47,28 @@ const MessageList = ({
    * EN: Declare the scrollToBottom value.
    * JP: scrollToBottom の値を宣言する。
    */
-  const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
-    if (!autoScroll || !listRef.current) return
+  const scrollToBottom = useCallback(
+    (behavior: ScrollBehavior = 'auto') => {
+      if (!autoScroll || !listRef.current) return
 
-    /**
-     * EN: Declare the target value.
-     * JP: target の値を宣言する。
-     */
-    const target = listRef.current
-    if (behavior === 'smooth') {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-      return
-    }
+      /**
+       * EN: Declare the target value.
+       * JP: target の値を宣言する。
+       */
+      const target = listRef.current
+      if (behavior === 'smooth') {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+        return
+      }
 
-    target.scrollTop = target.scrollHeight
-  }
+      target.scrollTop = target.scrollHeight
+    },
+    [autoScroll],
+  )
 
   useLayoutEffect(() => {
     scrollToBottom('auto')
-  }, [messages, autoScroll])
+  }, [messages, scrollToBottom])
 
   useEffect(() => {
     /**
@@ -94,12 +97,12 @@ const MessageList = ({
       if (rafId) cancelAnimationFrame(rafId)
       observer.disconnect()
     }
-  }, [autoScroll])
+  }, [autoScroll, scrollToBottom])
 
   useEffect(() => {
     if (!autoScroll || !isStreaming) return
     scrollToBottom('auto')
-  }, [autoScroll, isStreaming])
+  }, [autoScroll, isStreaming, scrollToBottom])
 
   /**
    * EN: Declare the handleScroll value.

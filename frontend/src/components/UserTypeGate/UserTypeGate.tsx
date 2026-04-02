@@ -2,7 +2,7 @@
  * EN: Provide the UserTypeGate module implementation.
  * JP: UserTypeGate モジュールの実装を定義する。
  */
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import './UserTypeGate.css'
 import { apiUrl } from '../../utils/apiBase'
@@ -77,7 +77,7 @@ const UserTypeGate = ({ children }: UserTypeGateProps) => {
    * EN: Declare the syncUserType value.
    * JP: syncUserType の値を宣言する。
    */
-  const syncUserType = async (nextUserType: UserType) => {
+  const syncUserType = useCallback(async (nextUserType: UserType) => {
     /**
      * EN: Declare the requestId value.
      * JP: requestId の値を宣言する。
@@ -152,13 +152,15 @@ const UserTypeGate = ({ children }: UserTypeGateProps) => {
         inFlightRef.current = null
       }
     }
-  }
+  }, [])
 
   useEffect(() => {
     if (!userType) return
+    if (status === 'error') return
     if (lastSyncedRef.current === userType && status === 'ready') return
+    if (inFlightRef.current) return
     syncUserType(userType)
-  }, [userType])
+  }, [userType, status, syncUserType])
 
   /**
    * EN: Declare the handleSelect value.

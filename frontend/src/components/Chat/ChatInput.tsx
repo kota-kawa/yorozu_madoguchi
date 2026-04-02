@@ -42,10 +42,19 @@ const ChatInput = ({
    */
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
   /**
+   * EN: Declare the latestInputRef value.
+   * JP: latestInputRef の値を宣言する。
+   */
+  const latestInputRef = useRef(input)
+  /**
    * EN: Declare the textareaRef value.
    * JP: textareaRef の値を宣言する。
    */
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    latestInputRef.current = input
+  }, [input])
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -118,7 +127,8 @@ const ChatInput = ({
          * EN: Declare the newValue value.
          * JP: newValue の値を宣言する。
          */
-        const newValue = input ? `${input} ${transcript}` : transcript
+        const currentInput = latestInputRef.current
+        const newValue = currentInput ? `${currentInput} ${transcript}` : transcript
         onInputChange(newValue)
         setIsListening(false)
       }
@@ -134,7 +144,16 @@ const ChatInput = ({
 
       recognitionRef.current = recognition
     }
-  }, [input, onInputChange])
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.onresult = null
+        recognitionRef.current.onerror = null
+        recognitionRef.current.onend = null
+        recognitionRef.current.stop()
+      }
+      recognitionRef.current = null
+    }
+  }, [onInputChange])
 
   /**
    * EN: Declare the handleMicClick value.
