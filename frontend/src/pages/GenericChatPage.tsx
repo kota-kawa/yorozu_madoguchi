@@ -83,6 +83,7 @@ const GenericChatPage = ({ config }: GenericChatPageProps) => {
     infoOpen,
     setInfoOpen,
     autoScroll,
+    setAutoScroll,
     activeTab,
     hasNewPlan,
     setHasNewPlan,
@@ -127,7 +128,10 @@ const GenericChatPage = ({ config }: GenericChatPageProps) => {
             autoScroll={autoScroll}
             isStreaming={chatLoading}
             onScroll={handleScroll}
-            onYesNo={sendMessage}
+            onYesNo={(value) => {
+              setAutoScroll(true)
+              void sendMessage(value)
+            }}
             disabled={isLoading}
           />
 

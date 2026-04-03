@@ -49,7 +49,7 @@ const MessageList = ({
    */
   const scrollToBottom = useCallback(
     (behavior: ScrollBehavior = 'auto') => {
-      if (!autoScroll || !listRef.current) return
+      if (!listRef.current) return
 
       /**
        * EN: Declare the target value.
@@ -63,12 +63,13 @@ const MessageList = ({
 
       target.scrollTop = target.scrollHeight
     },
-    [autoScroll],
+    [],
   )
 
   useLayoutEffect(() => {
+    if (!autoScroll) return
     scrollToBottom('auto')
-  }, [messages, scrollToBottom])
+  }, [messages, autoScroll, scrollToBottom])
 
   useEffect(() => {
     /**
@@ -121,6 +122,7 @@ const MessageList = ({
           onYesNo={onYesNo}
           disabled={disabled || index !== messages.length - 1}
           isLast={index === messages.length - 1}
+          autoScroll={autoScroll}
           scrollToBottom={scrollToBottom}
         />
       ))}

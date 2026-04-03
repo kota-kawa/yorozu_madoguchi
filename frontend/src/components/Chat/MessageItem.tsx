@@ -18,6 +18,7 @@ type MessageItemProps = {
   onYesNo: (value: string) => void
   disabled: boolean
   isLast: boolean
+  autoScroll: boolean
   scrollToBottom: (behavior?: ScrollBehavior) => void
 }
 
@@ -25,7 +26,8 @@ type MessageItemProps = {
  * EN: Declare the MessageItem value.
  * JP: MessageItem の値を宣言する。
  */
-const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }: MessageItemProps) => {
+const MessageItem = memo(
+  ({ message, onYesNo, disabled, isLast, autoScroll, scrollToBottom }: MessageItemProps) => {
   /**
    * EN: Declare the dateRef value.
    * JP: dateRef の値を宣言する。
@@ -38,24 +40,24 @@ const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }
    */
   const scrollRafRef = useRef<number | null>(null)
 
-  useEffect(() => {
-    if (!isLast || !scrollToBottom) return
+    useEffect(() => {
+      if (!autoScroll || !isLast || !scrollToBottom) return
 
-    if (scrollRafRef.current) {
-      cancelAnimationFrame(scrollRafRef.current)
-    }
-
-    scrollRafRef.current = requestAnimationFrame(() => {
-      scrollToBottom('auto')
-    })
-
-    return () => {
       if (scrollRafRef.current) {
         cancelAnimationFrame(scrollRafRef.current)
-        scrollRafRef.current = null
       }
-    }
-  }, [message.text, isLast, scrollToBottom])
+
+      scrollRafRef.current = requestAnimationFrame(() => {
+        scrollToBottom('auto')
+      })
+
+      return () => {
+        if (scrollRafRef.current) {
+          cancelAnimationFrame(scrollRafRef.current)
+          scrollRafRef.current = null
+        }
+      }
+    }, [message.text, autoScroll, isLast, scrollToBottom])
 
   /**
    * EN: Declare the handleDateSubmit value.
@@ -187,6 +189,7 @@ const MessageItem = memo(({ message, onYesNo, disabled, isLast, scrollToBottom }
       )}
     </div>
   )
-})
+  },
+)
 
 export default MessageItem

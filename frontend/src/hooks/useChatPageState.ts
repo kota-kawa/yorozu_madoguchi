@@ -25,6 +25,7 @@ export const useChatPageState = ({ isSending, sendMessage }: UseChatPageStateOpt
     event.preventDefault()
     if (isSending) return
     if (!input.trim()) return
+    setAutoScroll(true)
     sendMessage(input)
     setInput('')
   }
@@ -51,6 +52,7 @@ export const useChatPageState = ({ isSending, sendMessage }: UseChatPageStateOpt
     infoOpen,
     setInfoOpen,
     autoScroll,
+    setAutoScroll,
     activeTab,
     setActiveTab,
     hasNewPlan,
