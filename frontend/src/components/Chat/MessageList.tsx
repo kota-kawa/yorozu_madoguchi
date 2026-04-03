@@ -44,6 +44,11 @@ const MessageList = ({
    */
   const listRef = useRef<HTMLDivElement | null>(null)
   /**
+   * EN: Declare the scrollRafRef value.
+   * JP: scrollRafRef の値を宣言する。
+   */
+  const scrollRafRef = useRef<number | null>(null)
+  /**
    * EN: Declare the scrollToBottom value.
    * JP: scrollToBottom の値を宣言する。
    */
@@ -57,14 +62,39 @@ const MessageList = ({
        */
       const target = listRef.current
       if (behavior === 'smooth') {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
         return
       }
 
+      const previousScrollBehavior = target.style.scrollBehavior
+      target.style.scrollBehavior = 'auto'
       target.scrollTop = target.scrollHeight
+      target.style.scrollBehavior = previousScrollBehavior
+
+      if (scrollRafRef.current) {
+        cancelAnimationFrame(scrollRafRef.current)
+      }
+      scrollRafRef.current = requestAnimationFrame(() => {
+        const currentTarget = listRef.current
+        if (!currentTarget) return
+        const currentScrollBehavior = currentTarget.style.scrollBehavior
+        currentTarget.style.scrollBehavior = 'auto'
+        currentTarget.scrollTop = currentTarget.scrollHeight
+        currentTarget.style.scrollBehavior = currentScrollBehavior
+        scrollRafRef.current = null
+      })
     },
     [],
   )
+
+  useEffect(() => {
+    return () => {
+      if (scrollRafRef.current) {
+        cancelAnimationFrame(scrollRafRef.current)
+        scrollRafRef.current = null
+      }
+    }
+  }, [])
 
   useLayoutEffect(() => {
     if (!autoScroll) return
