@@ -131,10 +131,7 @@ export const useGenericChat = ({
         throw makeClientValidationError('ストリーミング応答の受信に失敗しました。')
       }
 
-      const streamFlushIntervalMs = 30
-      let bufferedText = ''
       let streamedRawText = ''
-      let flushTimeoutId: ReturnType<typeof setTimeout> | null = null
       const streamState: { finalEvent: ChatStreamFinalEvent | null; usedWebSearch: boolean } = {
         finalEvent: null,
         usedWebSearch: false,
@@ -183,14 +180,6 @@ export const useGenericChat = ({
         return parsed.cleanedText
       }
 
-      const flushBufferedText = () => {
-        if (!bufferedText) return
-        const chunkToAppend = bufferedText
-        bufferedText = ''
-        streamedRawText += chunkToAppend
-        updateMessageText(loadingMessageId, () => applyDirectiveToMessage(loadingMessageId, streamedRawText))
-      }
-
       await consumeChatSse(response, (event) => {
         if (event.type === 'meta') {
           streamState.usedWebSearch = Boolean(event.used_web_search)
@@ -201,13 +190,8 @@ export const useGenericChat = ({
         }
         if (event.type === 'delta') {
           if (typeof event.content === 'string' && event.content) {
-            bufferedText += event.content
-            if (!flushTimeoutId) {
-              flushTimeoutId = setTimeout(() => {
-                flushTimeoutId = null
-                flushBufferedText()
-              }, streamFlushIntervalMs)
-            }
+            streamedRawText += event.content
+            updateMessageText(loadingMessageId, () => applyDirectiveToMessage(loadingMessageId, streamedRawText))
           }
           return
         }
@@ -215,12 +199,6 @@ export const useGenericChat = ({
           streamState.finalEvent = event
         }
       })
-
-      if (flushTimeoutId) {
-        clearTimeout(flushTimeoutId)
-        flushTimeoutId = null
-      }
-      flushBufferedText()
 
       if (!streamState.finalEvent) {
         throw new Error('ストリーミングが途中で終了しました。')

@@ -252,7 +252,7 @@ def build_stream_chat_response(
             release_session_lock(session_id)
 
     response = Response(stream_with_context(generate()), mimetype="text/event-stream")
-    response.headers["Cache-Control"] = "no-cache"
+    response.headers["Cache-Control"] = "no-cache, no-transform"
     response.headers["X-Accel-Buffering"] = "no"
     return response
 
