@@ -146,6 +146,7 @@ export const useGenericChat = ({
   const [loading, setLoading] = useState(false)
   const [planFromChat, setPlanFromChat] = useState(initialStateRef.current.planFromChat)
   const inFlightRef = useRef(false)
+  const queuedMessageRef = useRef<string | null>(null)
 
   useEffect(() => {
     persistChatState(storageKey, { messages, planFromChat })
@@ -173,8 +174,6 @@ export const useGenericChat = ({
   }
 
   const sendMessage = async (text: string) => {
-    if (inFlightRef.current) return
-
     const trimmed = text.trim()
     if (!trimmed) return
 
@@ -186,6 +185,13 @@ export const useGenericChat = ({
           ),
         ),
       )
+      return
+    }
+
+    if (inFlightRef.current) {
+      if (!queuedMessageRef.current) {
+        queuedMessageRef.current = trimmed
+      }
       return
     }
 
@@ -354,6 +360,11 @@ export const useGenericChat = ({
       if (timeoutId) {
         clearTimeout(timeoutId)
       }
+      if (!inFlightRef.current && queuedMessageRef.current) {
+        const queuedMessage = queuedMessageRef.current
+        queuedMessageRef.current = null
+        void sendMessage(queuedMessage)
+      }
     }
   }
 
@@ -364,6 +375,7 @@ export const useGenericChat = ({
   const resetConversation = () => {
     const nextMessages = [{ ...initialMessage }]
     inFlightRef.current = false
+    queuedMessageRef.current = null
     setLoading(false)
     setMessages(nextMessages)
     setPlanFromChat('')

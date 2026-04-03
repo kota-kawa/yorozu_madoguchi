@@ -18,6 +18,8 @@ type ChatInputProps = {
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
   onToggleInfo: () => void
+  onStartNewSession?: () => void
+  isStartingNewSession?: boolean
   onError?: (error: AppError) => void
   disabled: boolean
 }
@@ -32,6 +34,8 @@ const ChatInput = ({
   onKeyDown,
   onSubmit,
   onToggleInfo,
+  onStartNewSession,
+  isStartingNewSession = false,
   onError,
   disabled,
 }: ChatInputProps) => {
@@ -221,6 +225,22 @@ const ChatInput = ({
           >
             <i className="bi bi-arrow-up-short" aria-hidden />
           </button>
+
+          {onStartNewSession ? (
+            <button
+              type="button"
+              className="btn-session original-btn"
+              onClick={onStartNewSession}
+              disabled={disabled || isStartingNewSession}
+              aria-label={isStartingNewSession ? '新しいセッションを作成中' : '新しいセッションを開始'}
+              title={isStartingNewSession ? '作成中...' : '新しいセッション'}
+            >
+              <i
+                className={`bi ${isStartingNewSession ? 'bi-arrow-repeat btn-session-spinning' : 'bi-plus-circle'}`}
+                aria-hidden
+              />
+            </button>
+          ) : null}
         </form>
       </div>
     </div>

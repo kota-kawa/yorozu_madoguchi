@@ -157,16 +157,18 @@ const Header = ({
             ) : null}
           </div>
         </div>
-        <button
-          type="button"
-          className="new-session-btn"
-          onClick={() => {
-            onStartNewSession?.()
-          }}
-          disabled={!onStartNewSession || isStartingNewSession}
-        >
-          {isStartingNewSession ? '作成中...' : '新しいセッション'}
-        </button>
+        {onStartNewSession ? (
+          <button
+            type="button"
+            className="new-session-btn"
+            onClick={() => {
+              onStartNewSession()
+            }}
+            disabled={isStartingNewSession}
+          >
+            {isStartingNewSession ? '作成中...' : '新しいセッション'}
+          </button>
+        ) : null}
       </div>
     </header>
   )

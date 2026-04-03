@@ -301,6 +301,40 @@ textarea:focus {
   transform: none;
 }
 
+.btn-session {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 50%;
+  background-color: #f1f5f9;
+  color: var(--text-muted);
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.btn-session:hover:not(:disabled) {
+  background-color: #e2e8f0;
+  color: var(--primary-color);
+  transform: scale(1.06);
+}
+
+.btn-session:disabled {
+  background-color: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-session-spinning {
+  animation: btnSessionSpin 0.9s linear infinite;
+}
+
+@keyframes btnSessionSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .btn-icon {
   width: 36px;
   height: 36px;
@@ -476,6 +510,13 @@ textarea:focus {
     height: 32px;
     min-width: 32px;
     font-size: 1.1rem;
+  }
+
+  .btn-session {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    font-size: 1rem;
   }
 }
 

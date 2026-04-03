@@ -88,6 +88,8 @@ const GenericChatPage = ({ config }: GenericChatPageProps) => {
   })
 
   const isLoading = chatLoading || (hasSubmitPlan && submittingPlan)
+  const isChatInputDisabled = isLoading || startingNewSession
+  const isDecisionInputDisabled = startingNewSession || (hasSubmitPlan && submittingPlan)
 
   const {
     input,
@@ -166,8 +168,6 @@ const GenericChatPage = ({ config }: GenericChatPageProps) => {
     <div className={`app ${config.themeClassName}`}>
       <Header
         {...config.header}
-        onStartNewSession={handleStartNewSession}
-        isStartingNewSession={startingNewSession}
       />
 
       <div className="mobile-tab-nav">
@@ -191,7 +191,7 @@ const GenericChatPage = ({ config }: GenericChatPageProps) => {
               setAutoScroll(true)
               void sendMessage(value)
             }}
-            disabled={isLoading}
+            disabled={isDecisionInputDisabled}
           />
 
           <div className="card-footer chat-footer">
@@ -208,8 +208,10 @@ const GenericChatPage = ({ config }: GenericChatPageProps) => {
               onKeyDown={handleKeyDown}
               onSubmit={handleSubmit}
               onToggleInfo={() => setInfoOpen((prev) => !prev)}
+              onStartNewSession={handleStartNewSession}
+              isStartingNewSession={startingNewSession}
               onError={handleChatError}
-              disabled={isLoading}
+              disabled={isChatInputDisabled}
             />
           </div>
         </div>
