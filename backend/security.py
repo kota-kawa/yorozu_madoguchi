@@ -136,7 +136,7 @@ def build_csp() -> str:
     Restricts resource sources to reduce XSS and related risks.
     """
     allowed = get_allowed_origins()
-    connect_sources = ["'self'"] + allowed
+    connect_sources = ["'self'"] + allowed + ["https://cdn.jsdelivr.net"]
     style_sources = [
         "'self'",
         "'unsafe-inline'",

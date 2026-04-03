@@ -110,6 +110,9 @@ class SecurityTests(unittest.TestCase):
         self.assertEqual(response.headers.get("X-Content-Type-Options"), "nosniff")
         self.assertEqual(response.headers.get("X-Frame-Options"), "DENY")
         self.assertIn("Content-Security-Policy", response.headers)
+        csp = response.headers.get("Content-Security-Policy", "")
+        self.assertIn("connect-src", csp)
+        self.assertIn("https://cdn.jsdelivr.net", csp)
 
 
 if __name__ == "__main__":
