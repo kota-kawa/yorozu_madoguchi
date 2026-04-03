@@ -3,23 +3,20 @@
 Blueprint for the reply support feature.
 """
 
-from flask import Blueprint, request, jsonify, redirect, Response
+from flask import Blueprint, Response
 from backend import llama_core
 from backend import reservation
-from backend.database import SessionLocal
-from backend.models import ReservationPlan
 from backend import redis_client
 import logging
-from typing import Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 from backend import limit_manager
-from backend.errors import SessionError, classify_backend_exception
 from backend.routes.common import (
-    error_response,
+    make_complete_route,
     make_chat_send_message_route,
+    load_latest_reservation_data,
     make_session_init_route,
     make_submit_plan_route,
-    resolve_frontend_url,
     rich_chat_error_response,
     submit_plan_error_response,
 )
@@ -31,6 +28,17 @@ logger = logging.getLogger(__name__)
 # Blueprintの定義: メッセージ返信機能（reply）のルートを管理
 # Blueprint definition for reply routes
 reply_bp = Blueprint("reply", __name__)
+
+REPLY_COMPLETE_FIELDS = (
+    ("目的地", "destinations"),
+    ("出発地", "departure"),
+    ("ホテル", "hotel"),
+    ("航空会社", "airlines"),
+    ("鉄道会社", "railway"),
+    ("タクシー会社", "taxi"),
+    ("滞在開始日", "start_date"),
+    ("滞在終了日", "end_date"),
+)
 
 reply_home = make_session_init_route(
     blueprint=reply_bp,
@@ -45,80 +53,30 @@ reply_home = make_session_init_route(
 )
 
 
-# 予約完了画面
-# Reservation completion screen
-@reply_bp.route("/reply_complete")
-def reply_complete() -> ResponseOrTuple:
-    """
-    完了画面表示用エンドポイント
-    Completion screen endpoint.
+def _format_reply_complete_data(reservation_data: List[Dict[str, Any]]) -> List[str]:
+    if not reservation_data:
+        return []
 
-    データベースから最新の予約プラン情報を取得し、
-    JSONデータとして返すか、フロントエンドの完了画面へリダイレクトします。
-    Loads the latest plan and returns JSON or redirects to the completion UI.
-    """
-    reservation_data = []
-    session_id = request.cookies.get("session_id")
-    try:
-        if not session_id:
-            raise SessionError("セッションが無効です。ページをリロードしてください。")
+    latest_plan = reservation_data[0]
+    formatted: List[str] = []
+    for label, key in REPLY_COMPLETE_FIELDS:
+        value = latest_plan.get(key)
+        if isinstance(value, str) and value.strip():
+            formatted.append(f"{label}：{value.strip()}")
+    return formatted
 
-        db = SessionLocal()
-        # DBから最新の計画を取得
-        # Fetch the latest plan from DB
-        plan = (
-            db.query(ReservationPlan)
-            .filter(ReservationPlan.session_id == session_id)
-            .order_by(ReservationPlan.id.desc())
-            .first()
-        )
-        if plan:
-            serialized_plan = reservation.serialize_reservation_plan(plan)
-            fields = [
-                ("目的地", serialized_plan["destinations"]),
-                ("出発地", serialized_plan["departure"]),
-                ("ホテル", serialized_plan["hotel"]),
-                ("航空会社", serialized_plan["airlines"]),
-                ("鉄道会社", serialized_plan["railway"]),
-                ("タクシー会社", serialized_plan["taxi"]),
-                ("滞在開始日", serialized_plan["start_date"]),
-                ("滞在終了日", serialized_plan["end_date"]),
-            ]
-            for key, value in fields:
-                if value:
-                    reservation_data.append(f"{key}：{value}")
-    except Exception as error:
-        backend_error = classify_backend_exception(
-            error,
-            default_message="完了画面データの取得に失敗しました。",
-        )
-        logger.error(
-            "Error loading reservation data (%s): %s",
-            backend_error.error_type,
-            backend_error,
-            exc_info=True,
-        )
-        return error_response(
-            backend_error.message,
-            status=backend_error.status_code,
-            error_type=backend_error.error_type,
-        )
-    finally:
-        if "db" in locals():
-            db.close()
 
-    accepts_json = request.accept_mimetypes.get("application/json", 0)
-    accepts_html = request.accept_mimetypes.get("text/html", 0)
-    # JSONを要求されている場合はデータを返す
-    # Return JSON when requested
-    if accepts_json >= accepts_html:
-        return jsonify({"reservation_data": reservation_data})
-
-    # 結果をログ出力
-    # Log results for diagnostics
-    for item in reservation_data:
-        logger.info(f"Reservation Data: {item}")
-    return redirect(resolve_frontend_url("/complete", default_origin="http://localhost:5173"))
+reply_complete = make_complete_route(
+    blueprint=reply_bp,
+    route_path="/reply_complete",
+    mode="reply",
+    load_reservation_data=load_latest_reservation_data,
+    formatter=_format_reply_complete_data,
+    logger=logger,
+    endpoint_name="reply_complete",
+    frontend_path="/complete",
+    default_frontend_origin="http://localhost:5173",
+)
 
 
 reply_send_message = make_chat_send_message_route(
@@ -136,9 +94,6 @@ reply_send_message = make_chat_send_message_route(
     chat_with_llama=lambda *args, **kwargs: llama_core.chat_with_llama(*args, **kwargs),
     stream_chat_with_llama=lambda *args, **kwargs: llama_core.stream_chat_with_llama(*args, **kwargs),
     logger=logger,
-    limit_exceeded_message_builder=lambda limit: (
-        f"申し訳ありませんが、本日の利用制限（{limit}回）に達しました。明日またご利用ください。"
-    ),
 )
 
 reply_submit_plan = make_submit_plan_route(

@@ -11,9 +11,9 @@ from backend import llama_core
 from backend import limit_manager
 from backend import redis_client
 from backend.routes.common import (
-    error_response,
     make_chat_send_message_route,
     make_session_init_route,
+    rich_chat_error_response,
 )
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ study_send_message = make_chat_send_message_route(
     blueprint=study_bp,
     route_path="/study_send_message",
     mode="study",
-    error_responder=error_response,
+    error_responder=rich_chat_error_response,
     endpoint_name="study_send_message",
     check_and_increment_limit=lambda *args, **kwargs: limit_manager.check_and_increment_limit(
         *args, **kwargs

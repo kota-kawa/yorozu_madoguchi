@@ -24,6 +24,7 @@ from backend import security
 from backend import redis_client
 from backend.errors import (
     BackendError,
+    SessionError,
     build_error_payload,
     classify_backend_exception,
     json_error_response,
@@ -61,6 +62,8 @@ PlanCompleter = Callable[[str], str]
 ExceptionResponder = Callable[[BackendError], ResponseOrTuple]
 SessionResetter = Callable[[str], None]
 SessionResetErrorHandler = Callable[[str, Exception], None]
+CompleteDataLoader = Callable[[str], Any]
+CompleteDataFormatter = Callable[[Any], Any]
 
 
 def resolve_frontend_url(
@@ -87,6 +90,33 @@ def resolve_frontend_url(
 def reset_session_data(session_id: str) -> None:
     """Redisのセッションデータをリセットする / Reset session data in Redis."""
     redis_client.reset_session(session_id)
+
+
+def load_latest_reservation_data(session_id: str) -> List[Dict[str, Any]]:
+    """
+    セッション単位で最新の予約プランを読み込む
+    Load the latest reservation plan for a session.
+    """
+    if not session_id:
+        return []
+
+    from backend import reservation
+    from backend.database import SessionLocal
+    from backend.models import ReservationPlan
+
+    db = SessionLocal()
+    try:
+        plan = (
+            db.query(ReservationPlan)
+            .filter(ReservationPlan.session_id == session_id)
+            .order_by(ReservationPlan.id.desc())
+            .first()
+        )
+        if plan:
+            return [reservation.serialize_reservation_plan(plan)]
+        return []
+    finally:
+        db.close()
 
 
 def error_response(
@@ -172,7 +202,7 @@ def prepare_chat_request(
         message = (
             limit_exceeded_message_builder(limit)
             if limit_exceeded_message_builder
-            else f"本日の利用制限（{limit}回）に達しました。明日またご利用ください。"
+            else f"申し訳ありませんが、本日の利用制限（{limit}回）に達しました。明日またご利用ください。"
         )
         return error_responder(
             message,
@@ -373,6 +403,43 @@ def handle_submit_plan(
     return jsonify({"compile": result})
 
 
+def handle_complete(
+    req: Request,
+    *,
+    load_reservation_data: CompleteDataLoader,
+    formatter: CompleteDataFormatter,
+    frontend_path: str,
+    default_frontend_origin: str,
+    logger: logging.Logger,
+) -> ResponseOrTuple:
+    """
+    完了画面の共通処理を実行する。
+    Execute shared completion-screen handling.
+    """
+    session_id = req.cookies.get("session_id")
+    if not session_id:
+        raise SessionError("セッションが無効です。ページをリロードしてください。")
+
+    reservation_data = formatter(load_reservation_data(session_id))
+
+    accept_mimetypes = req.accept_mimetypes
+    if hasattr(accept_mimetypes, "get"):
+        accepts_json = accept_mimetypes.get("application/json", 0)  # type: ignore[attr-defined]
+        accepts_html = accept_mimetypes.get("text/html", 0)  # type: ignore[attr-defined]
+    else:
+        accepts_json = accept_mimetypes["application/json"]
+        accepts_html = accept_mimetypes["text/html"]
+    if accepts_json >= accepts_html:
+        return jsonify({"reservation_data": reservation_data})
+
+    if isinstance(reservation_data, list):
+        for item in reservation_data:
+            logger.info("Reservation Data: %s", item)
+    else:
+        logger.info("Reservation Data: %s", reservation_data)
+    return redirect(resolve_frontend_url(frontend_path, default_origin=default_frontend_origin))
+
+
 def make_session_init_route(
     *,
     blueprint: Blueprint,
@@ -411,7 +478,7 @@ def make_chat_send_message_route(
     blueprint: Blueprint,
     route_path: str,
     mode: str,
-    error_responder: ChatErrorResponder,
+    error_responder: ChatErrorResponder = rich_chat_error_response,
     endpoint_name: Optional[str] = None,
     catch_exceptions: bool = True,
     check_and_increment_limit: LimitChecker,
@@ -468,6 +535,66 @@ def make_chat_send_message_route(
             )
 
     return send_message
+
+
+def make_complete_route(
+    *,
+    blueprint: Blueprint,
+    route_path: str,
+    mode: str,
+    load_reservation_data: CompleteDataLoader,
+    formatter: CompleteDataFormatter,
+    logger: logging.Logger,
+    endpoint_name: Optional[str] = None,
+    catch_exceptions: bool = True,
+    frontend_path: str = "/complete",
+    default_frontend_origin: str = "https://chat.project-kk.com",
+    error_responder: ChatErrorResponder = error_response,
+    exception_responder: Optional[ExceptionResponder] = None,
+) -> Callable[[], ResponseOrTuple]:
+    """
+    完了画面ルートを生成して Blueprint に登録する。
+    Create and register a completion-screen route.
+    """
+
+    @blueprint.route(route_path, endpoint=endpoint_name)
+    def complete() -> ResponseOrTuple:
+        def _run() -> ResponseOrTuple:
+            return handle_complete(
+                request,
+                load_reservation_data=load_reservation_data,
+                formatter=formatter,
+                frontend_path=frontend_path,
+                default_frontend_origin=default_frontend_origin,
+                logger=logger,
+            )
+
+        if not catch_exceptions:
+            return _run()
+
+        try:
+            return _run()
+        except Exception as error:
+            backend_error = classify_backend_exception(
+                error,
+                default_message="完了画面データの取得に失敗しました。",
+            )
+            logger.error(
+                "Error in %s_complete (%s): %s",
+                mode,
+                backend_error.error_type,
+                backend_error,
+                exc_info=True,
+            )
+            if exception_responder:
+                return exception_responder(backend_error)
+            return error_responder(
+                backend_error.message,
+                status=backend_error.status_code,
+                error_type=backend_error.error_type,
+            )
+
+    return complete
 
 
 def make_submit_plan_route(
