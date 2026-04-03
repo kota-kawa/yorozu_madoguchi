@@ -130,22 +130,23 @@ def reset() -> ResponseOrTuple:
         if not security.is_csrf_valid(request):
             raise ForbiddenError("不正なリクエストです。")
 
-        session_id = request.cookies.get('session_id')
-        if not session_id:
-            # セッションIDがない場合は新規作成して返す（実質リセットと同じ）
-            # If no session ID exists, create one (equivalent to reset)
+        data = request.get_json(silent=True)
+        new_session_requested = bool(isinstance(data, dict) and data.get("new_session") is True)
+        current_session_id = request.cookies.get('session_id')
+
+        if new_session_requested:
+            if current_session_id:
+                reset_session_data(current_session_id)
             session_id = str(uuid.uuid4())
-        
-        # Redis上のデータをリセット
-        # Reset data in Redis
-        reset_session_data(session_id)
-        
-        response = make_response(jsonify({"status": "reset"}))
-        # クッキーにセッションIDが設定されていない場合、新規設定
-        # Set session cookie if missing
-        if not request.cookies.get('session_id'):
-             response.set_cookie('session_id', session_id, **security.cookie_settings(request))
-             
+            reset_session_data(session_id)
+        else:
+            session_id = current_session_id or str(uuid.uuid4())
+            reset_session_data(session_id)
+
+        response = make_response(jsonify({"status": "reset", "new_session": new_session_requested}))
+        if new_session_requested or not current_session_id:
+            response.set_cookie('session_id', session_id, **security.cookie_settings(request))
+
         return response
     except Exception as error:
         backend_error = classify_backend_exception(

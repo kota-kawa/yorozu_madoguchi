@@ -44,6 +44,7 @@ const UserTypeGate = ({ children }: UserTypeGateProps) => {
   const [userType, setUserType] = useState<UserType>(getStoredUserType)
   const [status, setStatus] = useState<GateStatus>(userType ? 'syncing' : 'idle')
   const [error, setError] = useState('')
+  const [initialized, setInitialized] = useState(!userType)
   /**
    * EN: Declare the lastSyncedRef value.
    * JP: lastSyncedRef の値を宣言する。
@@ -162,6 +163,16 @@ const UserTypeGate = ({ children }: UserTypeGateProps) => {
     syncUserType(userType)
   }, [userType, status, syncUserType])
 
+  useEffect(() => {
+    if (!userType) {
+      setInitialized(true)
+      return
+    }
+    if (status === 'ready' || status === 'error') {
+      setInitialized(true)
+    }
+  }, [userType, status])
+
   /**
    * EN: Declare the handleSelect value.
    * JP: handleSelect の値を宣言する。
@@ -200,11 +211,12 @@ const UserTypeGate = ({ children }: UserTypeGateProps) => {
    * JP: shouldBlock の値を宣言する。
    */
   const shouldBlock = status !== 'ready'
+  const shouldShowOverlay = initialized && shouldBlock
 
   return (
     <>
       {children}
-      {shouldBlock && (
+      {shouldShowOverlay && (
         <div className="user-type-overlay" role="dialog" aria-modal="true">
           <div className="user-type-card">
             <div className="user-type-header">

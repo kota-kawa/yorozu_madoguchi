@@ -20,12 +20,114 @@ type UseGenericChatOptions = {
   onError?: (error: AppError) => void
 }
 
+type PersistedChatState = {
+  messages: ChatMessage[]
+  planFromChat: string
+}
+
+const CHAT_STATE_STORAGE_PREFIX = 'yorozu_chat_state'
+
+const buildChatStorageKey = (messageEndpoint: string): string =>
+  `${CHAT_STATE_STORAGE_PREFIX}:${messageEndpoint.replace(/[^a-zA-Z0-9_-]/g, '_')}`
+
+const getSessionStorage = (): Storage | null => {
+  if (typeof window === 'undefined') return null
+  try {
+    return window.sessionStorage
+  } catch {
+    return null
+  }
+}
+
+const isValidChatMessage = (value: unknown): value is ChatMessage => {
+  if (!value || typeof value !== 'object') return false
+  const candidate = value as Partial<ChatMessage>
+  if (typeof candidate.id !== 'string') return false
+  if (candidate.sender !== 'user' && candidate.sender !== 'bot') return false
+  if (candidate.text !== undefined && typeof candidate.text !== 'string') return false
+  if (
+    candidate.type !== undefined &&
+    candidate.type !== 'loading' &&
+    candidate.type !== 'yesno' &&
+    candidate.type !== 'selection' &&
+    candidate.type !== 'date_selection'
+  ) {
+    return false
+  }
+  if (
+    candidate.loading_variant !== undefined &&
+    candidate.loading_variant !== 'thinking' &&
+    candidate.loading_variant !== 'web_search'
+  ) {
+    return false
+  }
+  if (candidate.pending !== undefined && typeof candidate.pending !== 'boolean') return false
+  if (
+    candidate.choices !== undefined &&
+    (!Array.isArray(candidate.choices) || candidate.choices.some((choice) => typeof choice !== 'string'))
+  ) {
+    return false
+  }
+  return true
+}
+
+const readPersistedChatState = (storageKey: string, initialMessage: ChatMessage): PersistedChatState => {
+  const storage = getSessionStorage()
+  if (!storage) {
+    return { messages: [initialMessage], planFromChat: '' }
+  }
+  try {
+    const raw = storage.getItem(storageKey)
+    if (!raw) {
+      return { messages: [initialMessage], planFromChat: '' }
+    }
+    const parsed = JSON.parse(raw) as Partial<PersistedChatState>
+    const hydratedMessages = Array.isArray(parsed.messages)
+      ? parsed.messages.filter(isValidChatMessage)
+      : []
+    return {
+      messages: hydratedMessages.length > 0 ? hydratedMessages : [initialMessage],
+      planFromChat: typeof parsed.planFromChat === 'string' ? parsed.planFromChat : '',
+    }
+  } catch {
+    return { messages: [initialMessage], planFromChat: '' }
+  }
+}
+
+const persistChatState = (storageKey: string, state: PersistedChatState): void => {
+  const storage = getSessionStorage()
+  if (!storage) return
+  try {
+    storage.setItem(storageKey, JSON.stringify(state))
+  } catch {
+    // Storage unavailable; keep in-memory only.
+  }
+}
+
+export const clearAllPersistedChatStates = (): void => {
+  const storage = getSessionStorage()
+  if (!storage) return
+  try {
+    const keysToDelete: string[] = []
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index)
+      if (typeof key === 'string' && key.startsWith(`${CHAT_STATE_STORAGE_PREFIX}:`)) {
+        keysToDelete.push(key)
+      }
+    }
+    keysToDelete.forEach((key) => storage.removeItem(key))
+  } catch {
+    // Storage unavailable; keep in-memory only.
+  }
+}
+
 export type UseGenericChatResult = {
   messages: ChatMessage[]
   loading: boolean
   planFromChat: string
   sendMessage: (text: string) => Promise<void>
   addSystemMessage: (text: string) => void
+  resetConversation: () => void
 }
 
 export const useGenericChat = ({
@@ -35,20 +137,19 @@ export const useGenericChat = ({
   addSystemMessage = false,
   onError,
 }: UseGenericChatOptions): UseGenericChatResult => {
-  const [messages, setMessages] = useState<ChatMessage[]>([initialMessage])
+  const storageKey = buildChatStorageKey(messageEndpoint)
+  const initialStateRef = useRef<PersistedChatState | null>(null)
+  if (!initialStateRef.current) {
+    initialStateRef.current = readPersistedChatState(storageKey, initialMessage)
+  }
+  const [messages, setMessages] = useState<ChatMessage[]>(initialStateRef.current.messages)
   const [loading, setLoading] = useState(false)
-  const [planFromChat, setPlanFromChat] = useState('')
+  const [planFromChat, setPlanFromChat] = useState(initialStateRef.current.planFromChat)
   const inFlightRef = useRef(false)
 
   useEffect(() => {
-    const controller = new AbortController()
-    fetch(apiUrl('/api/reset'), { method: 'POST', signal: controller.signal, credentials: 'include' }).catch(
-      (error) => {
-        console.warn('Session reset failed:', error)
-      },
-    )
-    return () => controller.abort()
-  }, [])
+    persistChatState(storageKey, { messages, planFromChat })
+  }, [storageKey, messages, planFromChat])
 
   const updateMessageText = (id: string, updater: string | ((prevText: string) => string)) => {
     setMessages((prev) =>
@@ -260,11 +361,21 @@ export const useGenericChat = ({
     setMessages((prev) => [...prev, { id: `sys-${Date.now()}`, sender: 'bot', text }])
   }
 
+  const resetConversation = () => {
+    const nextMessages = [{ ...initialMessage }]
+    inFlightRef.current = false
+    setLoading(false)
+    setMessages(nextMessages)
+    setPlanFromChat('')
+    persistChatState(storageKey, { messages: nextMessages, planFromChat: '' })
+  }
+
   return {
     messages,
     loading,
     planFromChat,
     sendMessage,
     addSystemMessage: addSystemMessage ? addSystemMessageFn : () => {},
+    resetConversation,
   }
 }

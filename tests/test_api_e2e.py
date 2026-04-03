@@ -227,6 +227,51 @@ class ApiE2ETests(unittest.TestCase):
         self.assertIn("session_id=", response.headers.get("Set-Cookie", ""))
         self.assertEqual(len(self.redis_stub.reset_sessions), 1)
 
+    def test_api_reset_current_session_keeps_cookie(self):
+        """
+        EN: Test api reset current session keeps cookie behavior.
+        JP: api reset current session keeps cookie の挙動を検証するテスト。
+        """
+        headers = {"Origin": "http://localhost:5173"}
+        self.client.set_cookie("localhost", "session_id", "session-current")
+        response = self.client.post("/api/reset", headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["status"], "reset")
+        self.assertNotIn("session_id=", response.headers.get("Set-Cookie", ""))
+        self.assertEqual(self.redis_stub.reset_sessions, ["session-current"])
+
+    def test_api_reset_new_session_rotates_cookie(self):
+        """
+        EN: Test api reset new session rotates cookie behavior.
+        JP: api reset new session rotates cookie の挙動を検証するテスト。
+        """
+        headers = {"Origin": "http://localhost:5173"}
+        self.client.set_cookie("localhost", "session_id", "session-old")
+        response = self.client.post("/api/reset", json={"new_session": True}, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload["status"], "reset")
+        self.assertTrue(payload["new_session"])
+        self.assertIn("session_id=", response.headers.get("Set-Cookie", ""))
+        self.assertEqual(self.redis_stub.reset_sessions[0], "session-old")
+        self.assertEqual(len(self.redis_stub.reset_sessions), 2)
+        self.assertNotEqual(self.redis_stub.reset_sessions[1], "session-old")
+
+    def test_api_reset_ignores_non_boolean_new_session(self):
+        """
+        EN: Test api reset ignores non boolean new session behavior.
+        JP: api reset ignores non boolean new session の挙動を検証するテスト。
+        """
+        headers = {"Origin": "http://localhost:5173"}
+        self.client.set_cookie("localhost", "session_id", "session-current")
+        response = self.client.post("/api/reset", json={"new_session": "true"}, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload["status"], "reset")
+        self.assertFalse(payload["new_session"])
+        self.assertNotIn("session_id=", response.headers.get("Set-Cookie", ""))
+        self.assertEqual(self.redis_stub.reset_sessions, ["session-current"])
+
     def test_api_user_type_success(self):
         """
         EN: Test api user type success behavior.

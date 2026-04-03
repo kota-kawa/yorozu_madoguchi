@@ -42,6 +42,8 @@ const resolveCurrentAgent = (path: string) => {
 type HeaderProps = {
   title?: string
   subtitle?: string
+  onStartNewSession?: () => void
+  isStartingNewSession?: boolean
 }
 
 /**
@@ -51,6 +53,8 @@ type HeaderProps = {
 const Header = ({
   title = 'よろずの窓口',
   subtitle = '旅行計画アシスタント',
+  onStartNewSession,
+  isStartingNewSession = false,
 }: HeaderProps) => {
   const [isOpen, setIsOpen] = useState(false)
   /**
@@ -153,6 +157,16 @@ const Header = ({
             ) : null}
           </div>
         </div>
+        <button
+          type="button"
+          className="new-session-btn"
+          onClick={() => {
+            onStartNewSession?.()
+          }}
+          disabled={!onStartNewSession || isStartingNewSession}
+        >
+          {isStartingNewSession ? '作成中...' : '新しいセッション'}
+        </button>
       </div>
     </header>
   )

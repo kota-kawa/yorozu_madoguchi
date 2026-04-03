@@ -8,10 +8,14 @@ import PlanViewer from '../components/Plan/PlanViewer'
 import MessageList from '../components/Chat/MessageList'
 import ChatInput from '../components/Chat/ChatInput'
 import { useFeatureChat } from '../hooks/useFeatureChat'
+import { clearAllPersistedChatStates } from '../hooks/useGenericChat'
 import { usePlan } from '../hooks/usePlan'
 import { useChatPageState } from '../hooks/useChatPageState'
 import type { ChatPageConfig } from './chatPageConfigs'
+import { apiUrl } from '../utils/apiBase'
 import type { AppError, AppErrorType } from '../types/error'
+import { normalizeAppError, toFrontendAppError } from '../utils/errorHandling'
+import type { ApiErrorResponse } from '../types/api'
 
 type GenericChatPageProps = {
   config: ChatPageConfig
@@ -21,6 +25,7 @@ const GenericChatPage = ({ config }: GenericChatPageProps) => {
   const navigate = useNavigate()
   const [toastMessage, setToastMessage] = useState('')
   const [isToastVisible, setIsToastVisible] = useState(false)
+  const [startingNewSession, setStartingNewSession] = useState(false)
 
   const showToast = useCallback((message: string) => {
     const trimmed = message.trim()
@@ -51,7 +56,14 @@ const GenericChatPage = ({ config }: GenericChatPageProps) => {
     [showToast],
   )
 
-  const { messages, loading: chatLoading, planFromChat, sendMessage, addSystemMessage } = useFeatureChat(
+  const {
+    messages,
+    loading: chatLoading,
+    planFromChat,
+    sendMessage,
+    addSystemMessage,
+    resetConversation,
+  } = useFeatureChat(
     config.feature,
     { onError: handleChatError },
   )
@@ -97,6 +109,49 @@ const GenericChatPage = ({ config }: GenericChatPageProps) => {
     sendMessage,
   })
 
+  const handleStartNewSession = useCallback(async () => {
+    if (startingNewSession || isLoading) return
+    setStartingNewSession(true)
+    try {
+      const response = await fetch(apiUrl('/api/reset'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_session: true }),
+        credentials: 'include',
+      })
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as ApiErrorResponse | null
+        throw toFrontendAppError(data, response.status, '新しいセッションの作成に失敗しました。')
+      }
+
+      resetConversation()
+      clearAllPersistedChatStates()
+      setCurrentPlan('')
+      setHasNewPlan(false)
+      setInput('')
+      setInfoOpen(false)
+      setAutoScroll(true)
+      openChatTab()
+      hideToast()
+    } catch (error) {
+      showToast(normalizeAppError(error).message)
+    } finally {
+      setStartingNewSession(false)
+    }
+  }, [
+    startingNewSession,
+    isLoading,
+    resetConversation,
+    setCurrentPlan,
+    setHasNewPlan,
+    setInput,
+    setInfoOpen,
+    setAutoScroll,
+    openChatTab,
+    hideToast,
+    showToast,
+  ])
+
   useEffect(() => {
     if (planFromChat === undefined) return
     if (config.planSyncMode === 'truthy' && !planFromChat) return
@@ -109,7 +164,11 @@ const GenericChatPage = ({ config }: GenericChatPageProps) => {
 
   return (
     <div className={`app ${config.themeClassName}`}>
-      <Header {...config.header} />
+      <Header
+        {...config.header}
+        onStartNewSession={handleStartNewSession}
+        isStartingNewSession={startingNewSession}
+      />
 
       <div className="mobile-tab-nav">
         <button className={`tab-btn ${activeTab === 'chat' ? 'active' : ''}`} onClick={openChatTab}>
