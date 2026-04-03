@@ -2,12 +2,13 @@
  * EN: Provide the MessageItem module implementation.
  * JP: MessageItem モジュールの実装を定義する。
  */
-import { useEffect, useRef, memo } from 'react'
+import { useEffect, useMemo, useRef, memo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import './Chat.css'
 import type { ChatMessage } from '../../types/chat'
+import { splitMessageSources } from '../../utils/messageSources'
 
 /**
  * EN: Define the MessageItemProps type alias.
@@ -40,24 +41,24 @@ const MessageItem = memo(
    */
   const scrollRafRef = useRef<number | null>(null)
 
-    useEffect(() => {
-      if (!autoScroll || !isLast || !scrollToBottom) return
+  useEffect(() => {
+    if (!autoScroll || !isLast || !scrollToBottom) return
 
+    if (scrollRafRef.current) {
+      cancelAnimationFrame(scrollRafRef.current)
+    }
+
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollToBottom('auto')
+    })
+
+    return () => {
       if (scrollRafRef.current) {
         cancelAnimationFrame(scrollRafRef.current)
+        scrollRafRef.current = null
       }
-
-      scrollRafRef.current = requestAnimationFrame(() => {
-        scrollToBottom('auto')
-      })
-
-      return () => {
-        if (scrollRafRef.current) {
-          cancelAnimationFrame(scrollRafRef.current)
-          scrollRafRef.current = null
-        }
-      }
-    }, [message.text, autoScroll, isLast, scrollToBottom])
+    }
+  }, [message.text, autoScroll, isLast, scrollToBottom])
 
   /**
    * EN: Declare the handleDateSubmit value.
@@ -80,10 +81,19 @@ const MessageItem = memo(
     }
   }
 
+  const rawMessageText = message.text ?? ''
+  const { bodyText, sourceUrls, sourceLanguage } = useMemo(() => {
+    if (message.sender !== 'bot') {
+      return { bodyText: rawMessageText, sourceUrls: [], sourceLanguage: null }
+    }
+    return splitMessageSources(rawMessageText)
+  }, [message.sender, rawMessageText])
+
   if (message.type === 'loading') {
     const isWebSearchLoading = message.loading_variant === 'web_search'
-    const loadingText = message.text ?? ''
+    const loadingText = rawMessageText
     const hasStreamingText = loadingText.trim().length > 0 && loadingText.trim() !== '考えています'
+    const loadingStatusText = isWebSearchLoading ? 'Web検索中...' : loadingText
 
     if (hasStreamingText) {
       return (
@@ -99,7 +109,7 @@ const MessageItem = memo(
             ) : (
               <span className="streaming-dot" />
             )}
-            <span className="streaming-label">生成中</span>
+            <span className="streaming-label">{isWebSearchLoading ? 'Web検索中' : '生成中'}</span>
           </div>
         </div>
       )
@@ -118,7 +128,7 @@ const MessageItem = memo(
               <span className="loading-star star-secondary" />
             </span>
           )}
-          <span className="loading-text">{loadingText}</span>
+          <span className="loading-text">{loadingStatusText}</span>
         </div>
       </div>
     )
@@ -128,9 +138,25 @@ const MessageItem = memo(
     <div className={`chat-message ${message.sender}`}>
       <div className="markdown-content">
         <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-          {message.text ?? ''}
+          {bodyText}
         </ReactMarkdown>
       </div>
+      {sourceUrls.length > 0 ? (
+        <details className="message-sources">
+          <summary className="message-sources-summary">
+            {sourceLanguage === 'en' ? 'Sources (click to toggle)' : '参考URL（クリックで開閉）'}
+          </summary>
+          <ul className="message-sources-list">
+            {sourceUrls.map((url) => (
+              <li key={url}>
+                <a href={url} target="_blank" rel="noreferrer noopener">
+                  {url}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
       {/* 完了後にボタンを表示するために、テキスト表示完了を待つロジックを入れることもできるが
           今回はシンプルに常時表示（テキストと同時に出る形でも違和感は少ない） */}
       {message.type === 'yesno' && (
