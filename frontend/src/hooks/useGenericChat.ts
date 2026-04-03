@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { apiUrl } from '../utils/apiBase'
 import { getStoredUserType } from '../utils/userType'
 import { consumeChatSse } from '../utils/sseChatStream'
+import { parseChatDirectiveText } from '../utils/chatDirectiveParser'
 import type { ApiErrorResponse, ChatStreamFinalEvent } from '../types/api'
 import type { ChatMessage, ChatMessageUpdate } from '../types/chat'
 import type { AppError } from '../types/error'
@@ -132,6 +133,7 @@ export const useGenericChat = ({
 
       const streamFlushIntervalMs = 30
       let bufferedText = ''
+      let streamedRawText = ''
       let flushTimeoutId: ReturnType<typeof setTimeout> | null = null
       const streamState: { finalEvent: ChatStreamFinalEvent | null; usedWebSearch: boolean } = {
         finalEvent: null,
@@ -144,17 +146,49 @@ export const useGenericChat = ({
         pending: false,
       })
 
-      let hasReceivedFirstChunk = false
+      const directiveState: {
+        yesNoPhrase: string | null
+        choices: string[]
+        isDateSelect: boolean
+      } = {
+        yesNoPhrase: null,
+        choices: [],
+        isDateSelect: false,
+      }
+      const applyDirectiveToMessage = (id: string, rawText: string): string => {
+        const parsed = parseChatDirectiveText(rawText)
+        directiveState.yesNoPhrase = parsed.yesNoPhrase
+        directiveState.choices = parsed.choices
+        directiveState.isDateSelect = parsed.isDateSelect
+
+        const messageType =
+          directiveState.choices.length > 0
+            ? 'selection'
+            : directiveState.yesNoPhrase
+              ? 'yesno'
+              : directiveState.isDateSelect
+                ? 'date_selection'
+                : 'loading'
+
+        updateMessageMeta(id, {
+          type: messageType,
+          loading_variant: messageType === 'loading' ? (streamState.usedWebSearch ? 'web_search' : 'thinking') : undefined,
+          pending: false,
+          choices: directiveState.choices.length > 0 ? directiveState.choices : undefined,
+        })
+
+        if (directiveState.yesNoPhrase) {
+          return directiveState.yesNoPhrase
+        }
+        return parsed.cleanedText
+      }
+
       const flushBufferedText = () => {
         if (!bufferedText) return
         const chunkToAppend = bufferedText
         bufferedText = ''
-        if (!hasReceivedFirstChunk) {
-          hasReceivedFirstChunk = true
-          updateMessageText(loadingMessageId, () => chunkToAppend)
-        } else {
-          updateMessageText(loadingMessageId, (prevText) => `${prevText}${chunkToAppend}`)
-        }
+        streamedRawText += chunkToAppend
+        updateMessageText(loadingMessageId, () => applyDirectiveToMessage(loadingMessageId, streamedRawText))
       }
 
       await consumeChatSse(response, (event) => {
@@ -201,41 +235,29 @@ export const useGenericChat = ({
       const remainingTextValue =
         typeof remainingText === 'string' && remainingText !== 'Empty' ? remainingText : null
       const finalText = remainingTextValue ?? finalResult.response ?? ''
+      const parsedFinalText = parseChatDirectiveText(finalText)
+      const finalChoices =
+        finalResult.choices && Array.isArray(finalResult.choices) && finalResult.choices.length > 0
+          ? finalResult.choices
+          : directiveState.choices.length > 0
+            ? directiveState.choices
+            : parsedFinalText.choices
+      const finalYesNoPhrase =
+        finalResult.yes_no_phrase ?? directiveState.yesNoPhrase ?? parsedFinalText.yesNoPhrase
+      const finalIsDateSelect = Boolean(
+        finalResult.is_date_select || directiveState.isDateSelect || parsedFinalText.isDateSelect,
+      )
+      const finalMessageType =
+        finalChoices.length > 0 ? 'selection' : finalYesNoPhrase ? 'yesno' : finalIsDateSelect ? 'date_selection' : undefined
+      const finalMessageText = finalYesNoPhrase ?? parsedFinalText.cleanedText
 
       updateMessageMeta(loadingMessageId, {
-        text: finalText,
-        type: undefined,
+        text: finalMessageText,
+        type: finalMessageType,
         loading_variant: undefined,
         pending: false,
+        choices: finalChoices.length > 0 ? finalChoices : undefined,
       })
-
-      const updates: ChatMessage[] = []
-      if (finalResult.yes_no_phrase) {
-        updates.push({
-          id: `yesno-${Date.now()}`,
-          sender: 'bot',
-          text: finalResult.yes_no_phrase,
-          type: 'yesno',
-        })
-      }
-      if (finalResult.choices && Array.isArray(finalResult.choices) && finalResult.choices.length > 0) {
-        updates.push({
-          id: `selection-${Date.now()}`,
-          sender: 'bot',
-          choices: finalResult.choices,
-          type: 'selection',
-        })
-      }
-      if (finalResult.is_date_select) {
-        updates.push({
-          id: `date-selection-${Date.now()}`,
-          sender: 'bot',
-          type: 'date_selection',
-        })
-      }
-      if (updates.length > 0) {
-        setMessages((prev) => [...prev, ...updates])
-      }
 
       finishSending()
     } catch (error) {
