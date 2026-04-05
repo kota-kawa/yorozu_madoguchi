@@ -494,28 +494,76 @@ textarea:focus {
 /* Date Selection */
 .date-input-container {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 12px;
   margin-top: 12px;
   flex-wrap: wrap;
+  width: 100%;
+}
+
+.date-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 220px;
+  min-width: 220px;
+  max-width: 320px;
+}
+
+.date-input-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
 }
 
 .date-input {
-  padding: 10px 16px;
+  width: 100%;
+  padding: 10px 14px;
   border-radius: 12px;
   border: 1px solid #cbd5e1;
   font-size: 1rem;
+  line-height: 1.4;
   color: var(--text-main);
-  background: white;
+  background: #ffffff;
   transition: all 0.2s ease;
-  min-height: 44px; /* タッチターゲット確保 */
-  min-width: 200px;
+  min-height: 46px;
+  font-variant-numeric: tabular-nums;
+  color-scheme: light;
+  cursor: pointer;
+}
+
+.date-input:hover {
+  border-color: #94a3b8;
+}
+
+.date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.date-input::-webkit-datetime-edit,
+.date-input::-webkit-datetime-edit-year-field,
+.date-input::-webkit-datetime-edit-month-field,
+.date-input::-webkit-datetime-edit-day-field {
+  color: var(--text-main);
 }
 
 .date-input:focus {
   outline: none;
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+}
+
+.date-input:disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.date-input-container .btn-option {
+  min-height: 46px;
+  white-space: nowrap;
 }
 
 @media (max-width: 768px) {
@@ -588,9 +636,14 @@ textarea:focus {
     gap: 10px;
   }
 
+  .date-input-group {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+  }
+
   .date-input {
     width: 100%;
-    min-width: 0;
     min-height: 48px;
     font-size: 16px; /* iOSの縮小表示を防止 */
   }

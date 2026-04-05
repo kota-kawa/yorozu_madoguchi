@@ -202,15 +202,32 @@ const MessageItem = memo(
       ) : null}
       {message.type === 'date_selection' && (
         <div className="button-container date-input-container">
-           <input type="date" ref={dateRef} className="date-input" disabled={disabled} />
-           <button 
-             type="button" 
-             className="btn btn-option" 
-             onClick={handleDateSubmit}
-             disabled={disabled}
-           >
-             決定 <i className="bi bi-send-fill" aria-hidden />
-           </button>
+          <div className="date-input-group">
+            <label htmlFor={`date-input-${message.id}`} className="date-input-label">
+              日付を選択
+            </label>
+            <input
+              id={`date-input-${message.id}`}
+              type="date"
+              ref={dateRef}
+              className="date-input"
+              disabled={disabled}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  handleDateSubmit()
+                }
+              }}
+            />
+          </div>
+          <button
+            type="button"
+            className="btn btn-option"
+            onClick={handleDateSubmit}
+            disabled={disabled}
+          >
+            この日付で決定 <i className="bi bi-send-fill" aria-hidden />
+          </button>
         </div>
       )}
     </div>
