@@ -523,12 +523,14 @@ def stream_chat_with_llama(
     decision_text = redis_client.get_decision(session_id)
     decision_text = _enforce_decision_policy(decision_text, mode, lang)
 
-    used_web_search, web_results = _run_web_search_if_needed(
-        prompt,
-        chat_history,
-        mode=mode,
-        language=lang,
-    )
+    should_search, query = _needs_web_search(prompt, chat_history, mode=mode, language=lang)
+    if should_search:
+        yield f"data: {json.dumps({'type': 'search_start'}, ensure_ascii=False)}\n\n"
+        web_results = brave_search.search_web(query)
+        used_web_search = True
+    else:
+        web_results = []
+        used_web_search = False
     yield f"data: {json.dumps({'type': 'meta', 'used_web_search': used_web_search}, ensure_ascii=False)}\n\n"
 
     system_prompt = (

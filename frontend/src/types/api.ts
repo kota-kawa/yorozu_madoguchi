@@ -46,6 +46,10 @@ export type ApiErrorResponse = {
   error_code?: string
 }
 
+export type ChatStreamSearchStartEvent = {
+  type: 'search_start'
+}
+
 export type ChatStreamMetaEvent = {
   type: 'meta'
   used_web_search?: boolean
@@ -61,7 +65,7 @@ export type ChatStreamFinalEvent = ChatResponsePayload & {
   used_web_search?: boolean
 }
 
-export type ChatStreamEvent = ChatStreamMetaEvent | ChatStreamDeltaEvent | ChatStreamFinalEvent
+export type ChatStreamEvent = ChatStreamSearchStartEvent | ChatStreamMetaEvent | ChatStreamDeltaEvent | ChatStreamFinalEvent
 
 /**
  * EN: Define the PlanSummaryResponse type alias.

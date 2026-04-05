@@ -109,7 +109,7 @@ const MessageItem = memo(
             ) : (
               <span className="streaming-dot" />
             )}
-            <span className="streaming-label">{isWebSearchLoading ? 'Web検索中' : '生成中'}</span>
+            <span className="streaming-label">生成中</span>
           </div>
         </div>
       )

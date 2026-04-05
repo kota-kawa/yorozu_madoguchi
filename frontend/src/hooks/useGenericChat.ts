@@ -314,6 +314,13 @@ export const useGenericChat = ({
       }
 
       await consumeChatSse(response, (event) => {
+        if (event.type === 'search_start') {
+          streamState.usedWebSearch = true
+          updateMessageMeta(loadingMessageId, {
+            loading_variant: 'web_search',
+          })
+          return
+        }
         if (event.type === 'meta') {
           streamState.usedWebSearch = Boolean(event.used_web_search)
           updateMessageMeta(loadingMessageId, {
