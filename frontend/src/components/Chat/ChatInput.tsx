@@ -217,15 +217,6 @@ const ChatInput = ({
             disabled={disabled}
           />
 
-          <button
-            type="submit"
-            className="btn-chat original-btn"
-            disabled={disabled || !input.trim()}
-            aria-label="送信"
-          >
-            <i className="bi bi-arrow-up-short" aria-hidden />
-          </button>
-
           {onStartNewSession ? (
             <button
               type="button"
@@ -236,11 +227,20 @@ const ChatInput = ({
               title={isStartingNewSession ? '作成中...' : '新しいセッション'}
             >
               <i
-                className={`bi ${isStartingNewSession ? 'bi-arrow-repeat btn-session-spinning' : 'bi-plus-circle'}`}
+                className={`bi ${isStartingNewSession ? 'bi-arrow-repeat btn-session-spinning' : 'bi-pencil-square'}`}
                 aria-hidden
               />
             </button>
           ) : null}
+
+          <button
+            type="submit"
+            className="btn-chat original-btn"
+            disabled={disabled || !input.trim()}
+            aria-label="送信"
+          >
+            <i className="bi bi-arrow-up-short" aria-hidden />
+          </button>
         </form>
       </div>
     </div>

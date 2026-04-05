@@ -26,6 +26,7 @@ const GenericChatPage = ({ config }: GenericChatPageProps) => {
   const [toastMessage, setToastMessage] = useState('')
   const [isToastVisible, setIsToastVisible] = useState(false)
   const [startingNewSession, setStartingNewSession] = useState(false)
+  const [isConfirmNewSessionOpen, setIsConfirmNewSessionOpen] = useState(false)
 
   const showToast = useCallback((message: string) => {
     const trimmed = message.trim()
@@ -135,6 +136,7 @@ const GenericChatPage = ({ config }: GenericChatPageProps) => {
       setAutoScroll(true)
       openChatTab()
       hideToast()
+      setIsConfirmNewSessionOpen(false)
     } catch (error) {
       showToast(normalizeAppError(error).message)
     } finally {
@@ -153,6 +155,16 @@ const GenericChatPage = ({ config }: GenericChatPageProps) => {
     hideToast,
     showToast,
   ])
+
+  const handleOpenNewSessionConfirm = useCallback(() => {
+    if (startingNewSession || isLoading) return
+    setIsConfirmNewSessionOpen(true)
+  }, [startingNewSession, isLoading])
+
+  const handleCloseNewSessionConfirm = useCallback(() => {
+    if (startingNewSession) return
+    setIsConfirmNewSessionOpen(false)
+  }, [startingNewSession])
 
   useEffect(() => {
     if (planFromChat === undefined) return
@@ -208,7 +220,7 @@ const GenericChatPage = ({ config }: GenericChatPageProps) => {
               onKeyDown={handleKeyDown}
               onSubmit={handleSubmit}
               onToggleInfo={() => setInfoOpen((prev) => !prev)}
-              onStartNewSession={handleStartNewSession}
+              onStartNewSession={handleOpenNewSessionConfirm}
               isStartingNewSession={startingNewSession}
               onError={handleChatError}
               disabled={isChatInputDisabled}
@@ -234,6 +246,40 @@ const GenericChatPage = ({ config }: GenericChatPageProps) => {
 
       {hasSubmitPlan ? <LoadingSpinner visible={submittingPlan} /> : null}
       <ErrorToast message={toastMessage} visible={isToastVisible} onClose={hideToast} />
+      {isConfirmNewSessionOpen ? (
+        <div
+          className="session-confirm-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="新しいセッション確認"
+          onClick={handleCloseNewSessionConfirm}
+        >
+          <div className="session-confirm-card" onClick={(event) => event.stopPropagation()}>
+            <h2 className="session-confirm-title">このチャットルームを終了しますか？</h2>
+            <p className="session-confirm-text">会話履歴はリセットされ、新しいセッションが開始されます。</p>
+            <div className="session-confirm-actions">
+              <button
+                type="button"
+                className="session-confirm-cancel"
+                onClick={handleCloseNewSessionConfirm}
+                disabled={startingNewSession}
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                className="session-confirm-submit"
+                onClick={() => {
+                  void handleStartNewSession()
+                }}
+                disabled={startingNewSession}
+              >
+                {startingNewSession ? '作成中...' : '終了して新規開始'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

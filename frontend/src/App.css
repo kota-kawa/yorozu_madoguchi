@@ -51,6 +51,71 @@
   animation: fadeIn 0.8s ease-out forwards;
 }
 
+.session-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-decision-overlay);
+  background: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.session-confirm-card {
+  width: min(460px, 100%);
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.28);
+  padding: 22px 20px 18px;
+}
+
+.session-confirm-title {
+  margin: 0 0 10px;
+  font-size: 1.1rem;
+  color: var(--text-main);
+}
+
+.session-confirm-text {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.session-confirm-actions {
+  margin-top: 18px;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.session-confirm-cancel,
+.session-confirm-submit {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.session-confirm-cancel {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.session-confirm-submit {
+  background: var(--primary-color);
+  color: #ffffff;
+}
+
+.session-confirm-cancel:disabled,
+.session-confirm-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Mobile Tab Navigation */
 .mobile-tab-nav {
   display: none;
@@ -143,6 +208,15 @@
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
     z-index: var(--z-chat-footer);
     transition: bottom 0.1s ease-out;
+  }
+
+  .session-confirm-actions {
+    flex-direction: column;
+  }
+
+  .session-confirm-cancel,
+  .session-confirm-submit {
+    width: 100%;
   }
 }
 
