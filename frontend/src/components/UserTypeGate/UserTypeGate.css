@@ -53,10 +53,12 @@
   border: 1px solid #e2e8f0;
   border-radius: 18px;
   padding: 16px 18px;
+  min-height: 52px;
   text-align: left;
   background: #f8fafc;
   display: grid;
   gap: 6px;
+  cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
@@ -64,6 +66,11 @@
   border-color: #94a3b8;
   box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
   transform: translateY(-2px);
+}
+
+.user-type-option:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.3);
+  outline-offset: 2px;
 }
 
 .user-type-option.premium {
@@ -114,6 +121,7 @@
 .user-type-back {
   border: none;
   border-radius: 999px;
+  min-height: 44px;
   padding: 10px 18px;
   font-weight: 600;
   font-size: 0.95rem;
@@ -129,12 +137,49 @@
   color: #1e293b;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 768px) {
+  .user-type-card {
+    padding: 28px;
+    gap: 22px;
+  }
+}
+
+@media (max-width: 600px) {
+  .user-type-overlay {
+    padding: 16px;
+  }
+
   .user-type-card {
     padding: 24px;
+    gap: 20px;
   }
 
   .user-type-header h2 {
     font-size: 1.5rem;
+  }
+
+  .user-type-option {
+    min-height: 48px;
+    padding: 14px 16px;
+  }
+}
+
+@media (max-width: 340px) {
+  .user-type-card {
+    padding: 18px;
+    border-radius: 22px;
+    gap: 16px;
+  }
+
+  .user-type-header h2 {
+    font-size: 1.3rem;
+  }
+
+  .option-title {
+    font-size: 1rem;
+  }
+
+  .option-meta {
+    font-size: 0.9rem;
   }
 }

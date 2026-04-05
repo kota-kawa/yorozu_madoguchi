@@ -61,48 +61,6 @@ const ChatInput = ({
   }, [input])
 
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
-    }
-  }, [input])
-
-  useEffect(() => {
-    /**
-     * EN: Declare the viewport value.
-     * JP: viewport の値を宣言する。
-     */
-    const viewport = window.visualViewport
-    if (!viewport) {
-      document.documentElement.style.setProperty('--keyboard-offset', '0px')
-      return
-    }
-
-    /**
-     * EN: Declare the updateOffset value.
-     * JP: updateOffset の値を宣言する。
-     */
-    const updateOffset = () => {
-      /**
-       * EN: Declare the offset value.
-       * JP: offset の値を宣言する。
-       */
-      const offset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
-      document.documentElement.style.setProperty('--keyboard-offset', `${offset}px`)
-    }
-
-    updateOffset()
-    viewport.addEventListener('resize', updateOffset)
-    viewport.addEventListener('scroll', updateOffset)
-
-    return () => {
-      viewport.removeEventListener('resize', updateOffset)
-      viewport.removeEventListener('scroll', updateOffset)
-      document.documentElement.style.setProperty('--keyboard-offset', '0px')
-    }
-  }, [])
-
-  useEffect(() => {
     // ブラウザの音声認識APIの互換性チェック
     /**
      * EN: Declare the SpeechRecognitionConstructor value.
