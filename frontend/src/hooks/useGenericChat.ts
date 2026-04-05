@@ -71,26 +71,34 @@ const isValidChatMessage = (value: unknown): value is ChatMessage => {
   return true
 }
 
-const readPersistedChatState = (storageKey: string, initialMessage: ChatMessage): PersistedChatState => {
+type PersistedChatStateResult = {
+  state: PersistedChatState
+  hadStoredHistory: boolean
+}
+
+const readPersistedChatState = (storageKey: string, initialMessage: ChatMessage): PersistedChatStateResult => {
   const storage = getSessionStorage()
   if (!storage) {
-    return { messages: [initialMessage], planFromChat: '' }
+    return { state: { messages: [initialMessage], planFromChat: '' }, hadStoredHistory: false }
   }
   try {
     const raw = storage.getItem(storageKey)
     if (!raw) {
-      return { messages: [initialMessage], planFromChat: '' }
+      return { state: { messages: [initialMessage], planFromChat: '' }, hadStoredHistory: false }
     }
     const parsed = JSON.parse(raw) as Partial<PersistedChatState>
     const hydratedMessages = Array.isArray(parsed.messages)
       ? parsed.messages.filter(isValidChatMessage)
       : []
     return {
-      messages: hydratedMessages.length > 0 ? hydratedMessages : [initialMessage],
-      planFromChat: typeof parsed.planFromChat === 'string' ? parsed.planFromChat : '',
+      state: {
+        messages: hydratedMessages.length > 0 ? hydratedMessages : [initialMessage],
+        planFromChat: typeof parsed.planFromChat === 'string' ? parsed.planFromChat : '',
+      },
+      hadStoredHistory: true,
     }
   } catch {
-    return { messages: [initialMessage], planFromChat: '' }
+    return { state: { messages: [initialMessage], planFromChat: '' }, hadStoredHistory: false }
   }
 }
 
@@ -139,14 +147,32 @@ export const useGenericChat = ({
 }: UseGenericChatOptions): UseGenericChatResult => {
   const storageKey = buildChatStorageKey(messageEndpoint)
   const initialStateRef = useRef<PersistedChatState | null>(null)
+  const hadStoredHistoryRef = useRef<boolean | null>(null)
   if (!initialStateRef.current) {
-    initialStateRef.current = readPersistedChatState(storageKey, initialMessage)
+    const { state, hadStoredHistory } = readPersistedChatState(storageKey, initialMessage)
+    initialStateRef.current = state
+    hadStoredHistoryRef.current = hadStoredHistory
   }
   const [messages, setMessages] = useState<ChatMessage[]>(initialStateRef.current.messages)
   const [loading, setLoading] = useState(false)
   const [planFromChat, setPlanFromChat] = useState(initialStateRef.current.planFromChat)
   const inFlightRef = useRef(false)
   const queuedMessageRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    // sessionStorageに履歴がない場合、バックエンドのRedisもリセットしてフロントと同期させる。
+    // これにより「画面には履歴がないのにAIが過去の会話を参照する」問題を防ぐ。
+    if (!hadStoredHistoryRef.current) {
+      void fetch(apiUrl('/api/reset'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+        credentials: 'include',
+      }).catch(() => {
+        // リセット失敗は致命的ではないため無視する
+      })
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     persistChatState(storageKey, { messages, planFromChat })
