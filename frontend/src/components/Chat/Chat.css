@@ -252,6 +252,12 @@
   border-bottom-right-radius: 4px;
 }
 
+/* Date Selection Message - needs wider bubble */
+.chat-message.date-selection-message {
+  min-width: min(340px, 90%);
+  max-width: 92%;
+}
+
 /* Input Area */
 .chat-input-wrapper {
   width: 100%;
@@ -499,19 +505,21 @@ textarea:focus {
   margin-top: 12px;
   flex-wrap: wrap;
   width: 100%;
+  box-sizing: border-box;
 }
 
 .date-input-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  flex: 1 1 220px;
-  min-width: 220px;
+  flex: 1 1 180px;
+  min-width: 0;
   max-width: 320px;
+  width: 100%;
 }
 
 .date-input-label {
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 700;
   color: var(--text-muted);
   letter-spacing: 0.02em;
@@ -521,25 +529,30 @@ textarea:focus {
   width: 100%;
   padding: 10px 14px;
   border-radius: 12px;
-  border: 1px solid #cbd5e1;
+  border: 2px solid #cbd5e1;
   font-size: 1rem;
   line-height: 1.4;
   color: var(--text-main);
   background: #ffffff;
   transition: all 0.2s ease;
-  min-height: 46px;
+  min-height: 48px;
   font-variant-numeric: tabular-nums;
   color-scheme: light;
   cursor: pointer;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .date-input:hover {
-  border-color: #94a3b8;
+  border-color: var(--primary-color);
 }
 
 .date-input::-webkit-calendar-picker-indicator {
   cursor: pointer;
-  opacity: 0.85;
+  opacity: 0.7;
+  width: 20px;
+  height: 20px;
 }
 
 .date-input::-webkit-datetime-edit,
@@ -549,20 +562,26 @@ textarea:focus {
   color: var(--text-main);
 }
 
+.date-input::-webkit-datetime-edit-text {
+  color: var(--text-muted);
+}
+
 .date-input:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.12);
 }
 
 .date-input:disabled {
   background: #f1f5f9;
   color: #94a3b8;
   cursor: not-allowed;
+  border-color: #e2e8f0;
 }
 
 .date-input-container .btn-option {
-  min-height: 46px;
+  flex-shrink: 0;
+  min-height: 48px;
   white-space: nowrap;
 }
 
@@ -630,6 +649,12 @@ textarea:focus {
     font-size: 1.1rem;
   }
 
+  .chat-message.date-selection-message {
+    min-width: 0;
+    max-width: 95%;
+    width: 95%;
+  }
+
   .date-input-container {
     flex-direction: column;
     align-items: stretch;
@@ -640,17 +665,20 @@ textarea:focus {
     min-width: 0;
     max-width: none;
     width: 100%;
+    flex: none;
   }
 
   .date-input {
     width: 100%;
-    min-height: 48px;
+    min-height: 52px;
     font-size: 16px; /* iOSの縮小表示を防止 */
+    padding: 12px 14px;
   }
 
   .date-input-container .btn-option {
     width: 100%;
     justify-content: center;
+    min-height: 52px;
   }
 }
 
@@ -658,6 +686,11 @@ textarea:focus {
   .chat-message {
     max-width: 94%;
     font-size: 1rem;
+  }
+
+  .chat-message.date-selection-message {
+    width: 94%;
+    max-width: 94%;
   }
 
   .chat-form {

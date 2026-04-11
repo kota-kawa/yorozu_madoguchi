@@ -135,7 +135,7 @@ const MessageItem = memo(
   }
 
   return (
-    <div className={`chat-message ${message.sender}`}>
+    <div className={`chat-message ${message.sender}${message.type === 'date_selection' ? ' date-selection-message' : ''}`}>
       <div className="markdown-content">
         <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
           {bodyText}
